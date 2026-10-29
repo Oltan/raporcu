@@ -136,7 +136,7 @@ async fn serve(st: AppState, run_id: i64, mut sock: WebSocket) {
                 Ok(id) if id == run_id => {
                     // kısa süre içinde gelen güncellemeleri birleştir
                     tokio::time::sleep(Duration::from_millis(250)).await;
-                    while let Ok(_) = rx.try_recv() {}
+                    while rx.try_recv().is_ok() {}
                     if !send_snapshot(&st, run_id, &mut sock).await {
                         return;
                     }

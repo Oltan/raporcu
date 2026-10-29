@@ -179,8 +179,11 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.first().map(String::as_str) == Some("fake-tests") {
-        std::process::exit(fake_tests(&args[1..]));
+    match args.first().map(String::as_str) {
+        Some("fake-tests") => std::process::exit(fake_tests(&args[1..])),
+        Some("fake-opencode") => std::process::exit(fake_opencode()),
+        Some("fake-validate") => std::process::exit(std::env::var("STAJ_FAKE_VALIDATE").map(|v| if v == "fail" { 1 } else { 0 }).unwrap_or(0)),
+        _ => {}
     }
     println!("== stajproje prova (SW-10.2) ==");
     build_binaries()?;
@@ -379,7 +382,122 @@ fn main() -> Result<()> {
     std::process::exit(ck.result());
 }
 
-/// Sonraki fazların CI adımları (self-healing vb.) burada eklenir.
-fn extra_steps(_ck: &mut Checks, _server: &Server, _stajci: &Path, _root: &Path) -> Result<()> {
+/// Sahte OpenCode: STAJ_FAKE_MODE'a göre test kodunu değiştirir.
+fn fake_opencode() -> i32 {
+    let mode = std::env::var("STAJ_FAKE_MODE").unwrap_or_else(|_| "ok".into());
+    let prompt = std::fs::read_to_string(std::env::var("STAJ_FIX_PROMPT_FILE").unwrap_or_default()).unwrap_or_default();
+    let steps = Path::new("src/test/java/com/ornek/test/GirisAdimlari.java");
+    let mut code = std::fs::read_to_string(steps).unwrap();
+    match mode.as_str() {
+        "nochange" => {}
+        "assert" => code = code.replace("assertEquals(beklenen, mesaj.getText());", "assertTrue(mesaj.getText().contains(beklenen));"),
+        _ => code = code.replace("robot.clickOn(\"#sifremiUnuttum\");", "robot.clickOn(\"#girisButonu\");"),
+    }
+    std::fs::write(steps, code).unwrap();
+    if mode == "outside" {
+        let pom = std::fs::read_to_string("pom.xml").unwrap();
+        std::fs::write("pom.xml", pom.replace("<rerun.count>1</rerun.count>", "<rerun.count>5</rerun.count>")).unwrap();
+    }
+    println!("istem {} karakter, ekran görüntüsü: {}", prompt.len(), prompt.contains("Ekran görüntüsü"));
+    println!("STAJ_OZET: #sifremiUnuttum seçicisi olmayan bir düğümü arıyordu");
+    println!("STAJ_TRIAGE: {{\"category\": \"test_kodu\", \"reason\": \"Seçici yanlış\", \"confidence\": 0.9}}");
+    0
+}
+
+/// Sahte GitLab MR ucu: her POST'u kaydeder, iid döner.
+fn fake_gitlab() -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
+    use std::io::{BufRead, BufReader, Read, Write};
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = l.local_addr().unwrap().port();
+    let got = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let g = got.clone();
+    std::thread::spawn(move || {
+        for s in l.incoming().flatten() {
+            let mut r = BufReader::new(s.try_clone().unwrap());
+            let mut len = 0usize;
+            let mut line = String::new();
+            loop {
+                line.clear();
+                if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                    break;
+                }
+                if let Some(v) = line.to_lowercase().strip_prefix("content-length:") {
+                    len = v.trim().parse().unwrap_or(0);
+                }
+            }
+            let mut body = vec![0; len];
+            let _ = r.read_exact(&mut body);
+            let n = {
+                let mut v = g.lock().unwrap();
+                v.push(String::from_utf8_lossy(&body).to_string());
+                v.len()
+            };
+            let resp = format!("{{\"iid\": {n}, \"web_url\": \"https://gitlab.sirket.local/prova/ornek-test-projesi/-/merge_requests/{n}\"}}");
+            let mut w = s;
+            let _ = write!(w, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{resp}", resp.len());
+        }
+    });
+    (port, got)
+}
+
+fn sh(dir: &Path, args: &[&str]) -> Result<String> {
+    let o = std::process::Command::new("git").args(args).current_dir(dir).output()?;
+    anyhow::ensure!(o.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&o.stderr));
+    Ok(String::from_utf8_lossy(&o.stdout).to_string())
+}
+
+/// Self-healing (SW-7.2, 9.4, 7.3, 4.4, 5.4): sahte OpenCode + sahte GitLab + yerel git deposu.
+fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> Result<()> {
+    println!("\n-- Fix işi: stajci fix (sahte OpenCode ve GitLab)");
+    let list = get_json(&format!("{}/api/runs", server.url()))?;
+    let run_id = list["kosumlar"].as_array().unwrap().iter().filter(|r| r["project_path"] == "prova/ornek-test-projesi").map(|r| r["id"].as_i64().unwrap()).min().unwrap();
+    let proj = project_copy(root, "fix-proje")?;
+    let bare = root.join("uzak.git");
+    sh(root, &["init", "-q", "--bare", bare.to_str().unwrap()])?;
+    sh(&proj, &["init", "-q", "-b", "main"])?;
+    std::fs::write(proj.join(".gitignore"), "target/\n.stajci/\nstajci\nstajci.exe\nstajci.env\n")?;
+    sh(&proj, &["add", "-A"])?;
+    sh(&proj, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "ilk"])?;
+    let (gl_port, mrs) = fake_gitlab();
+    let mut s = Stajci::new(stajci, &proj, &server.url());
+    s.set("STAJ_RUN_ID", run_id.to_string())
+        .set("STAJ_OPENCODE_CMD", format!("\"{}\" fake-opencode {{istem}}", exe("rehearse").display()))
+        .set("STAJ_FIX_VALIDATE_CMD", format!("\"{}\" fake-validate", exe("rehearse").display()))
+        .set("STAJ_XVFB", "off")
+        .set("STAJ_GITLAB_API", format!("http://127.0.0.1:{gl_port}/api/v4"))
+        .set("STAJ_FIX_TOKEN", "sahte-fix-token")
+        .set("STAJ_PUSH_REMOTE", bare.to_str().unwrap())
+        .set("STAJ_REPORT_URL", format!("{}/runs/{run_id}", server.url()));
+    let o = s.run(&["fix"])?;
+    let branches = sh(&bare, &["branch", "--list"]).unwrap_or_default();
+    let mr = mrs.lock().unwrap().first().cloned().unwrap_or_default();
+    let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
+    ck.check("SW-7.2", "test kodu düzeltilir, auto-fix branch'i push edilir, MR açılır", o.code == 0 && branches.contains("auto-fix/run-") && o.text.contains("MR açıldı: !1"), format!("{}\n{branches}", o.text));
+    ck.check("SW-7.2", "doğrulama geçince MR Draft değil", !mrv["title"].as_str().unwrap_or("Draft").starts_with("Draft"), &mr);
+    ck.check("SW-5.4", "rapor linki MR açıklamasında", mrv["description"].as_str().unwrap_or("").contains(&format!("/runs/{run_id}")), &mr);
+    let diff = sh(&bare, &["log", "-p", "-1", "--all", "--", "src/test"]).unwrap_or_default();
+    ck.check("SW-7.2", "değişiklik yalnızca src/test altında", diff.contains("#girisButonu") && !diff.contains("pom.xml"), &diff);
+    let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
+    ck.check("SW-4.4", "raporda düzeltme kutusu ve OpenCode !MR rozeti", html.contains("OpenCode düzeltmeleri") && html.contains("OpenCode !1"), "");
+    ck.check("SW-7.3", "fix-result rapora yazıldı (OpenCode triage önerisi dahil)", html.contains("Test kodu hatası"), "");
+
+    s.set("STAJ_FAKE_VALIDATE", "fail");
+    let o = s.run(&["fix"])?;
+    let mr = mrs.lock().unwrap().get(1).cloned().unwrap_or_default();
+    let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
+    ck.check("SW-7.2", "doğrulama geçmezse Draft MR", mrv["title"].as_str().unwrap_or("").starts_with("Draft:"), format!("{}\n{mr}", o.text));
+
+    s.set("STAJ_FAKE_VALIDATE", "ok").set("STAJ_FAKE_MODE", "outside");
+    let before = mrs.lock().unwrap().len();
+    let o = s.run(&["fix"])?;
+    let clean = sh(&proj, &["status", "--porcelain"]).unwrap_or_default();
+    ck.check("SW-9.4", "izinli yolların dışındaki değişiklik reddedilir", o.text.contains("REDDEDİLDİ") && mrs.lock().unwrap().len() == before && clean.trim().is_empty(), format!("{}\n{clean}", o.text));
+
+    s.set("STAJ_FAKE_MODE", "assert");
+    s.run(&["fix"])?;
+    let mr = mrs.lock().unwrap().last().cloned().unwrap_or_default();
+    ck.check("SW-9.4", "assertion değiştiren düzeltmede MR'a uyarı eklenir", mr.contains("assertion"), &mr);
+    let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
+    ck.check("SW-9.4", "reddedilen deneme raporda görünür", html.contains("Reddedildi (koruma)"), "");
     Ok(())
 }

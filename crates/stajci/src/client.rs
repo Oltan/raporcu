@@ -73,7 +73,6 @@ impl Client {
         Self::finish(self.req("POST", path).header("Content-Type", "application/zip").send(f))
     }
 
-    #[allow(dead_code)]
     pub fn get(&self, path: &str) -> Result<Reply> {
         let url = format!("{}{}", self.server, path);
         Self::finish(

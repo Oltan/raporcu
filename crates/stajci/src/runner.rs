@@ -83,21 +83,25 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     if !maven_opts.contains("stdout.encoding") {
         maven_opts.push_str(" -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8");
     }
-    let mut envs = vec![
+    let envs = vec![
         ("MAVEN_OPTS".to_string(), maven_opts),
         ("STAJ_VIDEO_FPS".to_string(), env_or("STAJ_VIDEO_FPS", "5")),
     ];
-    // SW-1.2: Linux'ta Xvfb
+    wrap_display(TestCommand { program, args: parts, envs })
+}
+
+/// SW-1.2: Linux'ta komutu Xvfb ekranında çalıştırır (`xvfb-run -a`: her işe boş ekran numarası).
+pub fn wrap_display(mut cmd: TestCommand) -> TestCommand {
     let xvfb = env_or("STAJ_XVFB", "auto");
     let use_xvfb = cfg!(target_os = "linux") && (xvfb == "on" || (xvfb == "auto" && env("DISPLAY").is_none()));
-    if use_xvfb {
-        let screen = env_or("STAJ_SCREEN", "1920x1080");
-        let mut args = vec!["-a".to_string(), "-s".to_string(), format!("-screen 0 {screen}x24 -nolisten tcp"), program];
-        args.extend(parts);
-        envs.push(("GDK_BACKEND".into(), "x11".into()));
-        return TestCommand { program: env_or("STAJ_XVFB_RUN", "xvfb-run"), args, envs };
+    if !use_xvfb {
+        return cmd;
     }
-    TestCommand { program, args: parts, envs }
+    let screen = env_or("STAJ_SCREEN", "1920x1080");
+    let mut args = vec!["-a".to_string(), "-s".to_string(), format!("-screen 0 {screen}x24 -nolisten tcp"), cmd.program];
+    args.append(&mut cmd.args);
+    cmd.envs.push(("GDK_BACKEND".into(), "x11".into()));
+    TestCommand { program: env_or("STAJ_XVFB_RUN", "xvfb-run"), args, envs: cmd.envs }
 }
 
 fn is_oom_line(l: &str) -> bool {
