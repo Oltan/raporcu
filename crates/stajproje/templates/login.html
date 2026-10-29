@@ -3,11 +3,12 @@
 {% block content %}
 <section class="kart dar">
   <h1>Admin girişi</h1>
+  <p class="alt">Raporları görmek için giriş gerekmez. Paylaşım linki iptali, triage kararı, OpenCode ve Jira işlemleri için giriş yapın.</p>
   {% if let Some(e) = error %}<p class="hata">{{ e }}</p>{% endif %}
-  <form method="post" action="/login">
+  <form method="post" action="/login" class="satir">
     <input type="hidden" name="next" value="{{ next }}">
     <label>Şifre <input type="password" name="password" autofocus required></label>
-    <button type="submit">Giriş</button>
+    <button type="submit" class="ana">Giriş</button>
   </form>
 </section>
 {% endblock %}

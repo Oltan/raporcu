@@ -19,10 +19,10 @@ pub struct Migration {
 }
 
 /// Gömülü migration'lar. Yeni migration eklemek için dosyayı `migrations/` altına koyup buraya ekle.
-pub const MIGRATIONS: &[Migration] = &[Migration {
-    name: "0001_ilk",
-    sql: include_str!("../../../migrations/0001_ilk.sql"),
-}];
+pub const MIGRATIONS: &[Migration] = &[
+    Migration { name: "0001_ilk", sql: include_str!("../../../migrations/0001_ilk.sql") },
+    Migration { name: "0002_triage_kolonu", sql: include_str!("../../../migrations/0002_triage_kolonu.sql") },
+];
 
 #[derive(Clone)]
 pub struct Db {
@@ -243,10 +243,11 @@ mod tests {
     fn test_sw_2_5_new_migration_applied_on_next_open() {
         let tmp = tempfile::tempdir().unwrap();
         let paths = Paths::new(tmp.path());
-        drop(Db::open(&paths, 1024, 1).unwrap());
+        drop(Db::open_with(&paths, 1024, 1, &MIGRATIONS[..1]).unwrap());
         let extra = [
             Migration { name: MIGRATIONS[0].name, sql: MIGRATIONS[0].sql },
-            Migration { name: "0002_deneme", sql: "CREATE TABLE deneme (x INTEGER);" },
+            Migration { name: MIGRATIONS[1].name, sql: MIGRATIONS[1].sql },
+            Migration { name: "0099_deneme", sql: "CREATE TABLE deneme (x INTEGER);" },
         ];
         let db = Db::open_with(&paths, 1024, 1, &extra).unwrap();
         let t = db.read_blocking(|c| Ok(tables(c))).unwrap();
@@ -254,7 +255,7 @@ mod tests {
         let n: i64 = db
             .read_blocking(|c| Ok(c.query_row("SELECT COUNT(*) FROM schema_migrations", [], |r| r.get(0))?))
             .unwrap();
-        assert_eq!(n, 2);
+        assert_eq!(n, 3);
         // Üçüncü açılışta tekrar uygulanmaz (hata vermez)
         drop(db);
         Db::open_with(&paths, 1024, 1, &extra).unwrap();

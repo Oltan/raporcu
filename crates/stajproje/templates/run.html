@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Koşum #{{ run.id }}{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <h1>Koşum #{{ run.id }} · {{ run.project_path }}</h1>
+    <div class="meta">
+      <span>Branch <b>{{ run.branch }}</b></span>
+      {% if let Some(c) = run.commit_sha %}<span>Commit {% if l.share.is_none() %}{% if let Some(u) = run.commit_url() %}<a class="mono" href="{{ u }}">{{ run.short_commit() }}</a>{% else %}<b class="mono">{{ run.short_commit() }}</b>{% endif %}{% else %}<b class="mono">{{ run.short_commit() }}</b>{% endif %}</span>{% endif %}
+      {% if l.share.is_none() %}
+      {% if let Some(u) = run.project_url %}<span><a href="{{ u }}">Repo</a></span>{% endif %}
+      {% if let Some(p) = run.pipeline_id %}<span>Pipeline {% if let Some(u) = run.pipeline_url %}<a href="{{ u }}">#{{ p }}</a>{% else %}#{{ p }}{% endif %}</span>{% endif %}
+      {% if let Some(u) = run.job_url %}<span><a href="{{ u }}">CI işi</a></span>{% endif %}
+      {% endif %}
+      {% if let Some(os) = run.os %}<span>{{ os }}</span>{% endif %}
+      <span>{{ run.started_at|zaman }}</span>
+      <span>
+        {% if run.status == "running" %}<span class="durum running kosuyor-nokta">çalışıyor {{ run.progress() }}</span>
+        {% elif run.status == "interrupted" %}<span class="durum interrupted">yarıda kesildi</span>
+        {% else %}<span class="durum finished">bitti</span>{% endif %}
+      </span>
+    </div>
+  </div>
+  {% if l.share.is_none() %}
+  <div class="araclar">
+    {% if run.status == "running" %}<a class="btn ana" href="/runs/{{ run.id }}/live">Canlı izle</a>{% endif %}
+    <a class="btn" href="/search?run={{ run.id }}">CSV / filtre</a>
+    <a class="btn" href="/runs/{{ run.id }}/doors.csv">DOORS CSV</a>
+    <a class="btn" href="/runs/{{ run.id }}/doors.dxl">DOORS DXL</a>
+    {% if l.admin %}
+    <form method="post" action="/admin/runs/{{ run.id }}/share"><button>Paylaşım linki</button></form>
+    {% if run.failures() > 0 %}<form method="post" action="/admin/runs/{{ run.id }}/fix"><button class="ana" title="GitLab'da yalnızca fix işini tetikler">OpenCode ile düzelt</button></form>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% if let Some(m) = notice %}<div class="kart">{{ m|safe }}</div>{% endif %}
+
+<div class="sayaclar">
+  <div class="sayac"><div class="e">Senaryo</div><div class="n">{{ run.progress() }}</div></div>
+  <div class="sayac passed"><div class="e">Geçti</div><div class="n">{{ run.passed }}</div></div>
+  <div class="sayac failed"><div class="e">Kaldı (failed)</div><div class="n">{{ run.failed }}</div></div>
+  <div class="sayac broken"><div class="e">Broken</div><div class="n">{{ run.broken }}</div></div>
+  <div class="sayac unknown"><div class="e">Bilinmiyor / atlandı</div><div class="n">{{ run.unknown + run.skipped }}</div></div>
+</div>
+
+{% if l.share.is_none() && !fixes.is_empty() %}
+<section class="kart">
+  <h2>OpenCode düzeltmeleri</h2>
+  {% for f in fixes %}
+  <div class="duzeltme {% if f.outcome == "draft_mr" %}draft{% endif %}">
+    <b>{{ f.scenario_name.as_deref().unwrap_or(f.scenario_key.as_str()) }}</b> — {{ f.outcome_label() }}
+    {% if let Some(u) = f.mr_url %} · <a href="{{ u }}">{{ f.badge() }}</a>{% endif %}
+    {% if let Some(st) = f.mr_state %} <span class="rozet">{{ st }}</span>{% endif %}
+    {% if let Some(v) = f.validation_passed %} · doğrulama {% if *v %}geçti{% else %}geçmedi{% endif %}{% endif %}
+    {% if let Some(s) = f.summary %}<div class="kucuk">{{ s }}</div>{% endif %}
+    {% for w in f.warnings %}<div class="uyari">{{ w }}</div>{% endfor %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Senaryolar</h2>
+  {% if rows.is_empty() %}<div class="bos">Henüz sonuç gelmedi.</div>{% else %}
+  <div class="tablo"><table>
+    <tr><th>Durum</th><th>Senaryo</th><th>Feature</th><th>Triage</th><th class="num">Süre</th><th></th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
+      <td>
+        <a href="{{ l.scenario_url(r.s.id) }}">{{ r.s.name }}</a>
+        {% if r.attempts > 1 %}<span class="rozet" title="Aynı koşumda {{ r.attempts }} deneme">{{ r.attempts }} deneme</span>{% endif %}
+        {% if r.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
+        {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
+        <div>
+          {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+          {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
+          {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
+        </div>
+        {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
+      </td>
+      <td class="kucuk">{{ r.s.feature.as_deref().unwrap_or("") }}<div class="mono">{{ r.s.location() }}</div></td>
+      <td>{% if let Some(t) = r.triage %}<span class="rozet triage" title="{{ t.reason }}">{{ t.label() }}</span><div class="kucuk">{{ t.source_label() }}</div>{% endif %}</td>
+      <td class="num kucuk">{{ r.s.duration() }}</td>
+      <td>{% if let Some(id) = r.shot %}<a href="{{ l.scenario_url(r.s.id) }}"><img class="kucuk-resim" loading="lazy" src="{{ l.file_url(*id) }}" alt="ekran görüntüsü"></a>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+</section>
+{% endblock %}

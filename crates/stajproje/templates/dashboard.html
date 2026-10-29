@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <h1>Dashboard</h1>
+    <div class="alt">Son koşumlar, pipeline durumu ve flaky senaryolar</div>
+  </div>
+  <form method="get" action="/" class="satir">
+    <label>Proje
+      <select name="project" onchange="this.form.branch.value=''; this.form.submit()">
+        <option value="">Tümü</option>
+        {% for p in projects %}<option value="{{ p.id }}" {% if self.project_selected(p.id) %}selected{% endif %}>{{ p.path }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Branch
+      <select name="branch" onchange="this.form.submit()">
+        <option value="">Tümü</option>
+        {% for b in branches %}<option value="{{ b }}" {% if branch.as_deref() == Some(b.as_str()) %}selected{% endif %}>{{ b }}</option>{% endfor %}
+      </select>
+    </label>
+    <noscript><button>Süz</button></noscript>
+  </form>
+</div>
+
+{% if let Some(r) = runs.first() %}
+<div class="sayaclar">
+  <div class="sayac"><div class="e">Son koşum</div><div class="n"><a href="/runs/{{ r.id }}">#{{ r.id }}</a></div></div>
+  <div class="sayac passed"><div class="e">Geçti</div><div class="n">{{ r.passed }}</div></div>
+  <div class="sayac failed"><div class="e">Kaldı</div><div class="n">{{ r.failures() }}</div></div>
+  <div class="sayac"><div class="e">Başarı</div><div class="n">%{{ r.pass_pct() }}</div></div>
+  <div class="sayac unknown"><div class="e">Flaky</div><div class="n">{{ flaky.len() }}</div></div>
+</div>
+{% endif %}
+
+{% if !pipelines.is_empty() %}
+<section class="kart">
+  <h2>Pipeline'lar</h2>
+  <div class="tablo"><table>
+    <tr><th>Proje</th><th>Pipeline</th><th>Branch</th><th>Kaynak</th><th>Durum</th><th>Güncellendi</th></tr>
+    {% for p in pipelines %}
+    <tr>
+      <td>{{ p.project_path }}</td>
+      <td>{% if let Some(u) = p.url %}<a href="{{ u }}">#{{ p.pipeline_id }}</a>{% else %}#{{ p.pipeline_id }}{% endif %}</td>
+      <td>{{ p.git_ref.as_deref().unwrap_or("") }}</td>
+      <td class="kucuk">{{ p.source.as_deref().unwrap_or("") }}</td>
+      <td><span class="durum {{ p.status_class() }} {% if p.status == "running" %}kosuyor-nokta{% endif %}">{{ p.status_label() }}</span></td>
+      <td class="kucuk">{{ p.updated_at|zaman }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Koşumlar</h2>
+  {% if runs.is_empty() %}
+  <div class="bos">Henüz koşum yok. CI'dan ilk yükleme gelince burada görünür.</div>
+  {% else %}
+  <div class="tablo"><table>
+    <tr><th>#</th><th>Proje / branch</th><th>Commit</th><th>Durum</th><th class="num">Senaryo</th><th class="num">Geçti</th><th class="num">Kaldı</th><th>Dağılım</th><th>Başladı</th></tr>
+    {% for r in runs %}
+    <tr>
+      <td><a href="/runs/{{ r.id }}">#{{ r.id }}</a></td>
+      <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}</div></td>
+      <td class="mono">{{ r.short_commit() }}</td>
+      <td>
+        {% if r.status == "running" %}<a href="/runs/{{ r.id }}/live" class="durum running kosuyor-nokta">çalışıyor {{ r.progress() }}</a>
+        {% elif r.status == "interrupted" %}<span class="durum interrupted">yarıda kesildi</span>
+        {% else %}<span class="durum finished">bitti</span>{% endif %}
+      </td>
+      <td class="num">{{ r.total }}</td>
+      <td class="num">{{ r.passed }}</td>
+      <td class="num">{{ r.failures() }}</td>
+      <td>{% include "_bar.html" %}</td>
+      <td class="kucuk">{{ r.started_at|zaman }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <div class="sayfalama">
+    {% if page > 1 %}<a class="btn" href="/?{{ filter_qs }}&page={{ page - 1 }}">← Yeni</a>{% endif %}
+    {% if runs.len() == 50 %}<a class="btn" href="/?{{ filter_qs }}&page={{ page + 1 }}">Eski →</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if !flaky.is_empty() %}
+<section class="kart">
+  <h2>Flaky senaryolar</h2>
+  <p class="alt">Son {{ window }} koşumda hem geçip hem kalan ya da aynı koşumda tekrar denemede geçen senaryolar.</p>
+  <div class="tablo"><table>
+    <tr><th>Senaryo</th><th>Feature</th><th>Son durum</th><th></th></tr>
+    {% for f in flaky %}
+    <tr>
+      <td>{{ f.name }}</td>
+      <td class="kucuk">{{ f.feature.as_deref().unwrap_or("") }}</td>
+      <td><span class="durum {{ f.status }}">{{ f.status }}</span></td>
+      <td><a href="/history?project={{ f.project_id }}&branch={{ f.branch|enc }}&key={{ f.scenario_key|enc }}">Geçmiş</a></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

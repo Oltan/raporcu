@@ -13,9 +13,13 @@ use serde::Deserialize;
 #[derive(Template)]
 #[template(path = "login.html")]
 struct LoginPage {
+    l: crate::web::pages::Layout,
     next: String,
     error: Option<String>,
-    admin: bool,
+}
+
+fn lay() -> crate::web::pages::Layout {
+    crate::web::pages::Layout { admin: false, banner: None, share: None }
 }
 
 #[derive(Deserialize)]
@@ -28,7 +32,7 @@ fn safe_next(n: Option<String>) -> String {
 }
 
 pub async fn login_page(Query(q): Query<NextQuery>) -> Response {
-    render(&LoginPage { next: safe_next(q.next), error: None, admin: false })
+    render(&LoginPage { next: safe_next(q.next), error: None, l: lay() })
 }
 
 #[derive(Deserialize)]
@@ -45,7 +49,7 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
     let next = safe_next(form.next);
     if let Err(wait) = st.throttle.check(ip) {
         tracing::warn!(ip = %ip, "admin girişi yavaşlatıldı");
-        let page = LoginPage { next, error: Some(format!("Çok fazla hatalı deneme. {} sn sonra tekrar deneyin.", wait.as_secs() + 1)), admin: false };
+        let page = LoginPage { next, error: Some(format!("Çok fazla hatalı deneme. {} sn sonra tekrar deneyin.", wait.as_secs() + 1)), l: lay() };
         return (StatusCode::TOO_MANY_REQUESTS, render(&page)).into_response();
     }
     let auth = st.auth.clone();
@@ -59,7 +63,7 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
         st.throttle.failure(ip);
         tracing::warn!(ip = %ip, "admin girişi başarısız");
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        let page = LoginPage { next, error: Some("Şifre yanlış".into()), admin: false };
+        let page = LoginPage { next, error: Some("Şifre yanlış".into()), l: lay() };
         (StatusCode::UNAUTHORIZED, render(&page)).into_response()
     }
 }

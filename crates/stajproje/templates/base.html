@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}stajproje{% endblock %}</title>
+<title>{% block title %}stajproje{% endblock %} · stajproje</title>
 <link rel="stylesheet" href="/static/app.css">
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
 <header class="ust">
+  {% if l.share.is_some() %}
+  <span class="logo">stajproje</span><span class="alt">Salt okunur paylaşım</span>
+  {% else %}
   <a class="logo" href="/">stajproje</a>
   <nav>
     <a href="/">Dashboard</a>
@@ -16,8 +19,13 @@
     <a href="/healing">Self-healing</a>
     <a href="/admin">Admin</a>
   </nav>
-  {% if admin %}<form method="post" action="/logout" class="cikis"><button>Çıkış</button></form>{% endif %}
+  <div class="sag">
+    {% if l.admin %}<span>admin</span><form method="post" action="/logout" class="cikis"><button>Çıkış</button></form>
+    {% else %}<a href="/login">Giriş</a>{% endif %}
+  </div>
+  {% endif %}
 </header>
+{% if let Some(b) = l.banner %}<div class="banner">{{ b }}</div>{% endif %}
 <main>
 {% block content %}{% endblock %}
 </main>

@@ -3,6 +3,8 @@
 pub mod admin;
 pub mod ci;
 pub mod files;
+pub mod gitlab_hook;
+pub mod pages;
 pub mod tools;
 
 use crate::AppState;
@@ -13,6 +15,26 @@ use axum::{Json, Router};
 
 pub fn routes() -> Router<AppState> {
     Router::new()
+        .route("/", get(pages::dashboard))
+        .route("/runs/{id}", get(pages::run_page))
+        .route("/runs/{id}/live", get(pages::live_page))
+        .route("/runs/{id}/doors.csv", get(pages::doors_csv))
+        .route("/runs/{id}/doors.dxl", get(pages::doors_dxl))
+        .route("/ws/runs/{id}", get(crate::live::ws))
+        .route("/scenarios/{id}", get(pages::scenario_page))
+        .route("/history", get(pages::history_page))
+        .route("/search", get(pages::search_page))
+        .route("/export.csv", get(pages::export_csv))
+        .route("/healing", get(pages::healing_page))
+        .route("/s/{token}", get(pages::share_page))
+        .route("/s/{token}/scenarios/{id}", get(pages::share_scenario))
+        .route("/s/{token}/files/{id}", get(pages::share_file))
+        .route("/admin", get(pages::admin_page))
+        .route("/admin/runs/{id}/share", post(pages::create_share))
+        .route("/admin/shares/{id}/revoke", post(pages::revoke_share))
+        .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
+        .route("/admin/scenarios/{id}/jira", post(pages::create_jira))
+        .route("/admin/runs/{id}/fix", post(pages::trigger_fix))
         .route("/login", get(admin::login_page).post(admin::login))
         .route("/logout", post(admin::logout))
         .route("/api/admin/me", get(admin::me))

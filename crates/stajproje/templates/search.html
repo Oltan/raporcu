@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Arama{% endblock %}
+{% block content %}
+<div class="baslik"><div><h1>Senaryo arama</h1><div class="alt">Tag, feature, DOORS, Jira, triage kategorisi ve hata mesajıyla arayın; sonucu seçtiğiniz alanlarla CSV olarak indirin.</div></div></div>
+<section class="kart">
+  <form method="get" action="/search" class="satir">
+    <label>Proje<select name="project"><option value="">Tümü</option>{% for p in projects %}<option value="{{ p.id }}" {% if self.project_selected(p.id) %}selected{% endif %}>{{ p.path }}</option>{% endfor %}</select></label>
+    <label>Branch<input name="branch" value="{{ f.branch.as_deref().unwrap_or("") }}"></label>
+    <label>Koşum #<input name="run" value="{% if let Some(r) = f.run %}{{ r }}{% endif %}" size="6"></label>
+    <label>Tag<input name="tag" value="{{ f.tag.as_deref().unwrap_or("") }}" placeholder="@smoke"></label>
+    <label>Feature<input name="feature" value="{{ f.feature.as_deref().unwrap_or("") }}"></label>
+    <label>DOORS<input name="doors" value="{{ f.doors.as_deref().unwrap_or("") }}" placeholder="DOORS-1001"></label>
+    <label>Jira<input name="jira" value="{{ f.jira.as_deref().unwrap_or("") }}" placeholder="ABC-12"></label>
+    <label>Triage<select name="triage"><option value="">Tümü</option>{% for c in categories %}<option value="{{ c.0 }}" {% if f.triage.as_deref() == Some(c.0) %}selected{% endif %}>{{ c.1 }}</option>{% endfor %}</select></label>
+    <label>Durum<select name="status">
+      <option value="">Tümü</option>
+      {% for st in statuses %}<option value="{{ st.0 }}" {% if f.status.as_deref() == Some(st.0) %}selected{% endif %}>{{ st.1 }}</option>{% endfor %}
+    </select></label>
+    <label style="flex:1">Hata mesajı / ad<input name="q" value="{{ f.q.as_deref().unwrap_or("") }}" placeholder="TimeoutException"></label>
+    <button class="ana">Ara</button>
+  </form>
+</section>
+
+<section class="kart">
+  <details>
+    <summary><b>CSV olarak indir</b> <span class="kucuk">— o anki filtre, seçilen alanlar, seçilen sırayla</span></summary>
+    <form method="get" action="/export.csv" style="margin-top:10px">
+      {% for (k, v) in hidden %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+      <div class="alanlar">
+        {% for fl in fields %}<label><input type="checkbox" name="alan" value="{{ fl.0 }}" checked> {{ fl.1 }}</label>{% endfor %}
+      </div>
+      <div class="satir" style="margin-top:10px">
+        <label>Ayırıcı<select name="sep"><option value=",">Virgül (,)</option><option value=";">Noktalı virgül (;)</option></select></label>
+        <button class="ana">İndir</button>
+      </div>
+      <p class="kucuk">Alan sırası kutuların işaretlenme sırasıyla değil listedeki sırayla gelir; farklı sıra için adres satırında <code>fields=durum,senaryo,...</code> kullanın.</p>
+    </form>
+  </details>
+</section>
+
+<section class="kart">
+  <h2>{{ total }} sonuç</h2>
+  {% if rows.is_empty() %}<div class="bos">Sonuç yok.</div>{% else %}
+  <div class="tablo"><table>
+    <tr><th>Durum</th><th>Senaryo</th><th>Proje / branch</th><th>Koşum</th><th>Triage</th><th class="num">Süre</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
+      <td><a href="/scenarios/{{ r.s.id }}">{{ r.s.name }}</a>
+        <div>{% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for j in r.s.jira_keys %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}</div>
+        {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
+      </td>
+      <td>{{ r.project_path }}<div class="kucuk">{{ r.s.branch }}</div></td>
+      <td><a href="/runs/{{ r.s.run_id }}">#{{ r.s.run_id }}</a></td>
+      <td>{% if r.triage_category.is_some() %}<span class="rozet triage">{{ r.triage_label() }}</span>{% endif %}</td>
+      <td class="num kucuk">{{ r.s.duration() }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <div class="sayfalama">
+    {% if page > 1 %}<a class="btn" href="/search?{{ qs }}&page={{ page - 1 }}">← Önceki</a>{% endif %}
+    <span class="kucuk">Sayfa {{ page }} / {{ pages }}</span>
+    {% if page < pages %}<a class="btn" href="/search?{{ qs }}&page={{ page + 1 }}">Sonraki →</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

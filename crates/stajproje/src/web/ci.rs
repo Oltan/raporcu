@@ -193,3 +193,37 @@ pub async fn finish(
     crate::hooks::after_finish(&st, id).await;
     Ok(Json(counts))
 }
+
+/// SW-7.1: stajci fix bu listeden OpenCode hedefli senaryoları alır.
+pub async fn fix_candidates(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Json<Vec<common::api::FixCandidate>>, AppError> {
+    let url = st.cfg.public_url.clone();
+    let exists = st.db.read(move |c| Ok(ingest::run_ctx(c, id)?.is_some())).await?;
+    if !exists {
+        return Err(AppError::not_found());
+    }
+    Ok(Json(st.db.read(move |c| crate::fix::candidates(c, id, &url)).await?))
+}
+
+/// SW-7.3: fix sonucu.
+pub async fn fix_result(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<common::api::FixResult>) -> Result<Json<serde_json::Value>, AppError> {
+    let conf = st.cfg.triage_auto_confidence;
+    let fid = st
+        .db
+        .write(move |c| {
+            if ingest::run_ctx(c, id)?.is_none() {
+                return Ok(None);
+            }
+            Ok(Some(crate::fix::record(c, id, &r, conf)?))
+        })
+        .await?
+        .ok_or_else(AppError::not_found)?;
+    let _ = st.live.send(id);
+    Ok(Json(serde_json::json!({ "id": fid, "report_url": report_url(&st, id) })))
+}
+
+/// SW-7.2: OpenCode isteğine eklenecek ekran görüntüsü (CI token ile).
+pub async fn fix_started(State(st): State<AppState>, Path(id): Path<i64>, Json(v): Json<serde_json::Value>) -> Json<serde_json::Value> {
+    tracing::info!(run_id = id, senaryo = v["scenario_key"].as_str().unwrap_or(""), "OpenCode denemesi başladı");
+    let _ = st;
+    Json(serde_json::json!({ "ok": true }))
+}

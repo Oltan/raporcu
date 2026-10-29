@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Canlı · koşum #{{ run.id }}{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <div class="alt"><a href="/runs/{{ run.id }}">Rapor</a></div>
+    <h1>Canlı · koşum #{{ run.id }} · {{ run.project_path }}</h1>
+    <div class="meta"><span>Branch <b>{{ run.branch }}</b></span><span id="baglanti" class="kucuk">bağlanıyor…</span></div>
+  </div>
+  <span id="durum" class="durum running kosuyor-nokta">çalışıyor</span>
+</div>
+<div class="sayaclar">
+  <div class="sayac"><div class="e">İlerleme</div><div class="n" id="s-ilerleme">{{ run.progress() }}</div></div>
+  <div class="sayac passed"><div class="e">Geçti</div><div class="n" id="s-gecti">{{ run.passed }}</div></div>
+  <div class="sayac failed"><div class="e">Kaldı</div><div class="n" id="s-kaldi">{{ run.failures() }}</div></div>
+  <div class="sayac running"><div class="e">Koşuyor</div><div class="n" id="s-kosuyor">0</div></div>
+  <div class="sayac"><div class="e">Bekliyor</div><div class="n" id="s-bekliyor">0</div></div>
+</div>
+<section class="kart">
+  <div class="tablo"><table>
+    <thead><tr><th>Durum</th><th>Senaryo</th><th>Feature</th><th></th></tr></thead>
+    <tbody id="liste"><tr><td colspan="4" class="bos">Yükleniyor…</td></tr></tbody>
+  </table></div>
+</section>
+<script>
+(function () {
+  const runId = {{ run.id }};
+  const etiket = { gecti: "geçti", kaldi: "kaldı", kosuyor: "koşuyor", bekliyor: "bekliyor", atlandi: "atlandı", bilinmiyor: "bilinmiyor" };
+  const $ = (id) => document.getElementById(id);
+  function hucre(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  function ciz(s) {
+    $("s-ilerleme").textContent = s.progress; $("s-gecti").textContent = s.passed; $("s-kaldi").textContent = s.failed;
+    $("s-kosuyor").textContent = s.running; $("s-bekliyor").textContent = s.waiting;
+    const d = $("durum");
+    if (s.status === "running") { d.className = "durum running kosuyor-nokta"; d.textContent = "çalışıyor"; }
+    else if (s.status === "interrupted") { d.className = "durum interrupted"; d.textContent = "yarıda kesildi"; }
+    else { d.className = "durum finished"; d.textContent = "bitti"; }
+    const tb = $("liste"); tb.replaceChildren();
+    for (const x of s.scenarios) {
+      const tr = document.createElement("tr");
+      const td1 = hucre("td"); td1.append(hucre("span", etiket[x.state] || x.state, "durum " + x.state + (x.state === "kosuyor" ? " kosuyor-nokta" : ""))); tr.append(td1);
+      const td2 = hucre("td");
+      if (x.scenario_id) { const a = hucre("a", x.name); a.href = "/scenarios/" + x.scenario_id; td2.append(a); } else { td2.textContent = x.name; }
+      if (x.message && x.state === "kaldi") td2.append(hucre("div", x.message.split("\n")[0], "hata-ozet"));
+      tr.append(td2);
+      tr.append(hucre("td", x.feature || "", "kucuk"));
+      const td4 = hucre("td");
+      if (x.screenshot_id) { const img = hucre("img", undefined, "kucuk-resim"); img.src = "/files/" + x.screenshot_id; img.alt = "ekran görüntüsü"; td4.append(img); }
+      tr.append(td4);
+      tb.append(tr);
+    }
+  }
+  let bekleme = 1000;
+  function baglan() {
+    const ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/runs/" + runId);
+    ws.onopen = () => { $("baglanti").textContent = "canlı"; bekleme = 1000; };
+    ws.onmessage = (e) => ciz(JSON.parse(e.data));
+    ws.onclose = () => { $("baglanti").textContent = "bağlantı koptu, yeniden bağlanıyor…"; setTimeout(baglan, bekleme); bekleme = Math.min(bekleme * 2, 15000); };
+  }
+  baglan();
+})();
+</script>
+{% endblock %}

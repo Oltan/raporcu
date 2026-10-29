@@ -124,3 +124,44 @@ pub fn zip_entries(entries: &[(&str, &[u8])]) -> Vec<u8> {
 pub fn log_lines(needle: &str) -> Vec<serde_json::Value> {
     stajproje::logging::captured_lines(&stajproje::logging::test_capture(), needle)
 }
+
+/// Örnek zip'i yükler, koşum id'sini döner.
+pub async fn upload_sample(app: &TestApp, query: &str) -> i64 {
+    let (st, body) = app.ci_post(&format!("/api/ci/runs?{query}"), "application/zip", zip_dir(&sample_dir())).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    v["run_id"].as_i64().unwrap()
+}
+
+pub async fn run_json(app: &TestApp, id: i64) -> serde_json::Value {
+    let (_, b) = app.get(&format!("/api/runs/{id}")).await;
+    serde_json::from_str(&b).unwrap()
+}
+
+pub fn scenario_id(run: &serde_json::Value, name: &str) -> i64 {
+    run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["name"] == name).unwrap()["senaryo"]["id"].as_i64().unwrap()
+}
+
+/// Test içinde sahte HTTP sunucusu (Jira, GitLab). Adresini döner.
+pub async fn spawn_fake(router: axum::Router) -> String {
+    let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = l.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(l, router).await.unwrap() });
+    format!("http://{addr}")
+}
+
+pub async fn post_form(app: &TestApp, uri: &str, cookie: &str, form: &str) -> Response<Body> {
+    app.send(
+        Request::post(uri)
+            .header("cookie", cookie)
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(Body::from(form.to_string()))
+            .unwrap(),
+    )
+    .await
+}
+
+/// Koşum bittikten sonra arka planda çalışan işlerin (Jira) bitmesini bekler.
+pub async fn settle() {
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+}

@@ -1,0 +1,5 @@
+<div class="bar" title="{{ r.passed }} geçti, {{ r.failed }} kaldı, {{ r.broken }} broken, {{ r.unknown }} bilinmiyor, {{ r.skipped }} atlandı">
+{% if r.total > 0 %}
+<span class="p" style="width: {{ r.passed * 100 / r.total }}%"></span><span class="f" style="width: {{ r.failed * 100 / r.total }}%"></span><span class="b" style="width: {{ r.broken * 100 / r.total }}%"></span><span class="u" style="width: {{ r.unknown * 100 / r.total }}%"></span><span class="s" style="width: {{ r.skipped * 100 / r.total }}%"></span>
+{% endif %}
+</div>

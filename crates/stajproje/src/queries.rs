@@ -136,9 +136,18 @@ pub struct ScenarioRow {
     pub attempt: i64,
     pub is_latest: bool,
     pub created_at: String,
+    pub full_name: Option<String>,
 }
 
 impl ScenarioRow {
+    /// DOORS ve Jira tag'leri ayrı rozetle gösterildiği için düz tag listesinden çıkarılır.
+    pub fn plain_tags(&self) -> Vec<&String> {
+        self.tags.iter().filter(|t| common::allure::doors_id(t).is_none() && common::allure::jira_key(t).is_none()).collect()
+    }
+    /// `giris.feature:21` — aynı adlı senaryo taslağı satırlarını ayırt eder.
+    pub fn location(&self) -> String {
+        self.full_name.as_deref().map(|f| f.rsplit('/').next().unwrap_or(f).to_string()).unwrap_or_default()
+    }
     pub fn duration(&self) -> String {
         match self.duration_ms {
             Some(ms) if ms >= 1000 => format!("{:.1} sn", ms as f64 / 1000.0),
@@ -155,7 +164,7 @@ impl ScenarioRow {
 }
 
 pub const SCEN_COLS: &str = "s.id, s.run_id, s.project_id, s.branch, s.scenario_key, s.name, s.feature, s.feature_file, s.tags,
-    s.doors_ids, s.jira_keys, s.status, s.message, s.duration_ms, s.attempt, s.is_latest, s.created_at";
+    s.doors_ids, s.jira_keys, s.status, s.message, s.duration_ms, s.attempt, s.is_latest, s.created_at, s.full_name";
 
 fn split(s: String) -> Vec<String> {
     s.split_whitespace().map(String::from).collect()
@@ -180,6 +189,7 @@ pub fn scenario_row(r: &Row) -> rusqlite::Result<ScenarioRow> {
         attempt: r.get(14)?,
         is_latest: r.get::<_, i64>(15)? == 1,
         created_at: r.get(16)?,
+        full_name: r.get(17)?,
     })
 }
 
@@ -238,9 +248,14 @@ pub struct AttachmentRow {
     pub mime: Option<String>,
     pub source: String,
     pub deleted_reason: Option<String>,
+    /// Küçük metin eklerin içeriği (sayfada gösterilir)
+    pub preview: Option<String>,
 }
 
 impl AttachmentRow {
+    pub fn is_text(&self) -> bool {
+        self.mime.as_deref().is_some_and(|m| m.starts_with("text/") || m == "application/json")
+    }
     pub fn is_image(&self) -> bool {
         self.mime.as_deref().is_some_and(|m| m.starts_with("image/"))
     }
@@ -266,6 +281,7 @@ fn att_row(r: &Row) -> rusqlite::Result<AttachmentRow> {
         mime: r.get(6)?,
         source: r.get(7)?,
         deleted_reason: r.get(8)?,
+        preview: None,
     })
 }
 
@@ -292,4 +308,333 @@ pub fn first_screenshot(c: &Connection, scenario_id: i64) -> Result<Option<Attac
             att_row,
         )
         .optional()?)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Hata bağlantıları, düzeltmeler, pipeline'lar, paylaşım
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BugLink {
+    pub jira_key: String,
+    pub source: String,
+}
+
+pub fn bug_links(c: &Connection, scenario_id: i64) -> Result<Vec<BugLink>> {
+    let mut st = c.prepare("SELECT jira_key, source FROM bug_links WHERE scenario_id = ?1 ORDER BY id")?;
+    let rows = st.query_map([scenario_id], |r| Ok(BugLink { jira_key: r.get(0)?, source: r.get(1)? }))?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FixRow {
+    pub id: i64,
+    pub run_id: i64,
+    pub scenario_id: Option<i64>,
+    pub scenario_key: String,
+    pub scenario_name: Option<String>,
+    pub outcome: String,
+    pub mr_iid: Option<i64>,
+    pub mr_url: Option<String>,
+    pub mr_state: Option<String>,
+    pub branch: Option<String>,
+    pub validation_passed: Option<bool>,
+    pub summary: Option<String>,
+    pub warnings: Vec<String>,
+    pub created_at: String,
+}
+
+impl FixRow {
+    pub fn outcome_label(&self) -> &'static str {
+        match self.outcome.as_str() {
+            "mr_opened" => "MR açıldı",
+            "draft_mr" => "Draft MR (doğrulama geçmedi)",
+            "no_change" => "Değişiklik yok",
+            "rejected" => "Reddedildi (koruma)",
+            _ => "Hata",
+        }
+    }
+    pub fn badge(&self) -> String {
+        match self.mr_iid {
+            Some(i) => format!("OpenCode !{i}"),
+            None => "OpenCode".into(),
+        }
+    }
+}
+
+const FIX_COLS: &str = "f.id, f.run_id, f.scenario_id, f.scenario_key, s.name, f.outcome, f.mr_iid, f.mr_url, f.mr_state, f.branch,
+    f.validation_passed, f.summary, f.warnings, f.created_at";
+
+fn fix_row(r: &Row) -> rusqlite::Result<FixRow> {
+    let warnings: Option<String> = r.get(12)?;
+    Ok(FixRow {
+        id: r.get(0)?,
+        run_id: r.get(1)?,
+        scenario_id: r.get(2)?,
+        scenario_key: r.get(3)?,
+        scenario_name: r.get(4)?,
+        outcome: r.get(5)?,
+        mr_iid: r.get(6)?,
+        mr_url: r.get(7)?,
+        mr_state: r.get(8)?,
+        branch: r.get(9)?,
+        validation_passed: r.get::<_, Option<i64>>(10)?.map(|v| v == 1),
+        summary: r.get(11)?,
+        warnings: warnings.and_then(|w| serde_json::from_str(&w).ok()).unwrap_or_default(),
+        created_at: r.get(13)?,
+    })
+}
+
+pub fn fixes_for_run(c: &Connection, run_id: i64) -> Result<Vec<FixRow>> {
+    let mut st = c.prepare(&format!("SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.run_id = ?1 ORDER BY f.id"))?;
+    let rows = st.query_map([run_id], fix_row)?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+pub fn fixes_for_scenario(c: &Connection, scenario_id: i64) -> Result<Vec<FixRow>> {
+    let mut st = c.prepare(&format!("SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.scenario_id = ?1 ORDER BY f.id"))?;
+    let rows = st.query_map([scenario_id], fix_row)?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PipelineRow {
+    pub project_path: String,
+    pub pipeline_id: String,
+    pub git_ref: Option<String>,
+    pub status: String,
+    pub source: Option<String>,
+    pub url: Option<String>,
+    pub updated_at: String,
+}
+
+impl PipelineRow {
+    pub fn status_label(&self) -> &'static str {
+        match self.status.as_str() {
+            "created" | "pending" | "waiting_for_resource" | "preparing" | "scheduled" => "kuyrukta",
+            "running" => "çalışıyor",
+            "success" => "bitti (başarılı)",
+            "failed" => "bitti (kaldı)",
+            "canceled" => "iptal",
+            "skipped" => "atlandı",
+            _ => "bilinmiyor",
+        }
+    }
+    pub fn status_class(&self) -> &'static str {
+        match self.status.as_str() {
+            "running" => "running",
+            "success" => "passed",
+            "failed" => "failed",
+            "canceled" | "skipped" => "skipped",
+            _ => "queued",
+        }
+    }
+}
+
+pub fn pipelines(c: &Connection, project_id: Option<i64>, limit: i64) -> Result<Vec<PipelineRow>> {
+    let mut st = c.prepare(
+        "SELECT p.path, pl.pipeline_id, pl.ref, pl.status, pl.source, pl.url, pl.updated_at
+         FROM pipelines pl JOIN projects p ON p.id = pl.project_id
+         WHERE (?1 IS NULL OR pl.project_id = ?1) ORDER BY pl.updated_at DESC LIMIT ?2",
+    )?;
+    let rows = st.query_map(params![project_id, limit], |r| {
+        Ok(PipelineRow {
+            project_path: r.get(0)?,
+            pipeline_id: r.get(1)?,
+            git_ref: r.get(2)?,
+            status: r.get(3)?,
+            source: r.get(4)?,
+            url: r.get(5)?,
+            updated_at: r.get(6)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ShareRow {
+    pub id: i64,
+    pub token: String,
+    pub run_id: i64,
+    pub project_path: String,
+    pub branch: String,
+    pub created_at: String,
+    pub revoked_at: Option<String>,
+}
+
+pub fn share_links(c: &Connection, limit: i64) -> Result<Vec<ShareRow>> {
+    let mut st = c.prepare(
+        "SELECT sl.id, sl.token, sl.run_id, p.path, r.branch, sl.created_at, sl.revoked_at
+         FROM share_links sl JOIN runs r ON r.id = sl.run_id JOIN projects p ON p.id = r.project_id
+         ORDER BY sl.id DESC LIMIT ?1",
+    )?;
+    let rows = st.query_map([limit], |r| {
+        Ok(ShareRow {
+            id: r.get(0)?,
+            token: r.get(1)?,
+            run_id: r.get(2)?,
+            project_path: r.get(3)?,
+            branch: r.get(4)?,
+            created_at: r.get(5)?,
+            revoked_at: r.get(6)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Geçerli (iptal edilmemiş) paylaşım linkinin koşumu.
+pub fn share_run(c: &Connection, token: &str) -> Result<Option<i64>> {
+    Ok(c
+        .query_row("SELECT run_id FROM share_links WHERE token = ?1 AND revoked_at IS NULL", [token], |r| r.get(0))
+        .optional()?)
+}
+
+// ---------------------------------------------------------------------------------------------
+// SW-4.7 arama
+
+#[derive(Debug, Clone, Default, serde::Deserialize, Serialize)]
+#[serde(default)]
+pub struct SearchFilter {
+    pub project: Option<i64>,
+    pub branch: Option<String>,
+    pub run: Option<i64>,
+    pub tag: Option<String>,
+    pub feature: Option<String>,
+    pub doors: Option<String>,
+    pub jira: Option<String>,
+    pub triage: Option<String>,
+    pub status: Option<String>,
+    /// hata mesajında geçen metin
+    pub q: Option<String>,
+    pub page: Option<i64>,
+}
+
+fn nonempty(s: &Option<String>) -> Option<String> {
+    s.as_ref().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+}
+
+impl SearchFilter {
+    pub fn normalized(&self) -> SearchFilter {
+        SearchFilter {
+            project: self.project,
+            branch: nonempty(&self.branch),
+            run: self.run,
+            tag: nonempty(&self.tag).map(|t| t.trim_start_matches('@').to_string()),
+            feature: nonempty(&self.feature),
+            doors: nonempty(&self.doors).map(|d| if d.to_uppercase().starts_with("DOORS-") { d.to_uppercase() } else { format!("DOORS-{d}") }),
+            jira: nonempty(&self.jira).map(|j| j.to_uppercase()),
+            triage: nonempty(&self.triage),
+            status: nonempty(&self.status),
+            q: nonempty(&self.q),
+            page: self.page,
+        }
+    }
+
+    /// Sorgu dizesi (sayfalama ve CSV linkleri için), `page` hariç.
+    pub fn query_string(&self) -> String {
+        let mut v = Vec::new();
+        let mut add = |k: &str, val: Option<String>| {
+            if let Some(val) = val {
+                v.push(format!("{k}={}", urlencoding::encode(&val)));
+            }
+        };
+        add("project", self.project.map(|p| p.to_string()));
+        add("branch", self.branch.clone());
+        add("run", self.run.map(|p| p.to_string()));
+        add("tag", self.tag.clone());
+        add("feature", self.feature.clone());
+        add("doors", self.doors.clone());
+        add("jira", self.jira.clone());
+        add("triage", self.triage.clone());
+        add("status", self.status.clone());
+        add("q", self.q.clone());
+        v.join("&")
+    }
+}
+
+fn like(s: &str) -> String {
+    format!("%{}%", s.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"))
+}
+
+/// WHERE parçası ve parametreleri. Yalnızca son denemeler.
+pub fn search_where(f: &SearchFilter) -> (String, Vec<rusqlite::types::Value>) {
+    use rusqlite::types::Value as V;
+    let mut w = vec!["s.is_latest = 1".to_string()];
+    let mut p: Vec<V> = Vec::new();
+    if let Some(x) = f.project {
+        p.push(V::Integer(x));
+        w.push(format!("s.project_id = ?{}", p.len()));
+    }
+    if let Some(x) = &f.branch {
+        p.push(V::Text(x.clone()));
+        w.push(format!("s.branch = ?{}", p.len()));
+    }
+    if let Some(x) = f.run {
+        p.push(V::Integer(x));
+        w.push(format!("s.run_id = ?{}", p.len()));
+    }
+    if let Some(x) = &f.tag {
+        p.push(V::Text(like(&format!(" {x} "))));
+        w.push(format!("s.tags LIKE ?{} ESCAPE '\\'", p.len()));
+    }
+    if let Some(x) = &f.feature {
+        p.push(V::Text(like(x)));
+        w.push(format!("s.feature LIKE ?{} ESCAPE '\\'", p.len()));
+    }
+    if let Some(x) = &f.doors {
+        p.push(V::Text(like(&format!(" {x} "))));
+        w.push(format!("s.doors_ids LIKE ?{} ESCAPE '\\'", p.len()));
+    }
+    if let Some(x) = &f.jira {
+        p.push(V::Text(like(&format!(" {x} "))));
+        let a = p.len();
+        p.push(V::Text(x.clone()));
+        w.push(format!("(s.jira_keys LIKE ?{a} ESCAPE '\\' OR EXISTS (SELECT 1 FROM bug_links b WHERE b.scenario_id = s.id AND b.jira_key = ?{}))", p.len()));
+    }
+    if let Some(x) = &f.triage {
+        p.push(V::Text(x.clone()));
+        w.push(format!("s.triage_category = ?{}", p.len()));
+    }
+    if let Some(x) = &f.status {
+        if x == "kaldi" {
+            w.push("s.status IN ('failed', 'broken')".into());
+        } else {
+            p.push(V::Text(x.clone()));
+            w.push(format!("s.status = ?{}", p.len()));
+        }
+    }
+    if let Some(x) = &f.q {
+        p.push(V::Text(like(x)));
+        w.push(format!("(s.message LIKE ?{0} ESCAPE '\\' OR s.name LIKE ?{0} ESCAPE '\\')", p.len()));
+    }
+    (w.join(" AND "), p)
+}
+
+pub const PAGE_SIZE: i64 = 50;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchRow {
+    pub s: ScenarioRow,
+    pub project_path: String,
+    pub triage_category: Option<String>,
+}
+
+impl SearchRow {
+    pub fn triage_label(&self) -> &'static str {
+        self.triage_category.as_deref().map(crate::triage::label).unwrap_or("")
+    }
+}
+
+pub fn search(c: &Connection, f: &SearchFilter) -> Result<(Vec<SearchRow>, i64)> {
+    let (w, p) = search_where(f);
+    let total: i64 = c.query_row(&format!("SELECT COUNT(*) FROM scenarios s WHERE {w}"), rusqlite::params_from_iter(p.iter()), |r| r.get(0))?;
+    let page = f.page.unwrap_or(1).max(1);
+    let mut st = c.prepare(&format!(
+        "SELECT {SCEN_COLS}, p.path, s.triage_category FROM scenarios s JOIN projects p ON p.id = s.project_id WHERE {w}
+         ORDER BY s.run_id DESC, s.id LIMIT {PAGE_SIZE} OFFSET {}",
+        (page - 1) * PAGE_SIZE
+    ))?;
+    let rows = st.query_map(rusqlite::params_from_iter(p.iter()), |r| {
+        Ok(SearchRow { s: scenario_row(r)?, project_path: r.get(18)?, triage_category: r.get(19)? })
+    })?;
+    Ok((rows.collect::<rusqlite::Result<_>>()?, total))
 }
