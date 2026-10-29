@@ -24,7 +24,7 @@ pub fn app_with(f: impl FnOnce(&mut Config)) -> TestApp {
     let dir = tempfile::tempdir().unwrap();
     let mut cfg = Config::for_tests(dir.path().join("data"));
     f(&mut cfg);
-    let state = AppState::new(cfg, Default::default()).unwrap();
+    let state = AppState::new(cfg, stajproje::logging::test_recent()).unwrap();
     let router = stajproje::router(state.clone());
     TestApp { state, router, dir }
 }
@@ -43,7 +43,12 @@ impl TestApp {
     pub async fn get_admin(&self, uri: &str) -> (StatusCode, String) {
         let token = self.state.sessions.create();
         let r = self
-            .send(Request::get(uri).header("cookie", format!("staj_oturum={token}")).body(Body::empty()).unwrap())
+            .send(
+                Request::get(uri)
+                    .header("cookie", format!("staj_oturum={token}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await;
         let st = r.status();
         (st, body_string(r).await)
@@ -127,7 +132,9 @@ pub fn log_lines(needle: &str) -> Vec<serde_json::Value> {
 
 /// Örnek zip'i yükler, koşum id'sini döner.
 pub async fn upload_sample(app: &TestApp, query: &str) -> i64 {
-    let (st, body) = app.ci_post(&format!("/api/ci/runs?{query}"), "application/zip", zip_dir(&sample_dir())).await;
+    let (st, body) = app
+        .ci_post(&format!("/api/ci/runs?{query}"), "application/zip", zip_dir(&sample_dir()))
+        .await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     v["run_id"].as_i64().unwrap()
@@ -139,7 +146,14 @@ pub async fn run_json(app: &TestApp, id: i64) -> serde_json::Value {
 }
 
 pub fn scenario_id(run: &serde_json::Value, name: &str) -> i64 {
-    run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["name"] == name).unwrap()["senaryo"]["id"].as_i64().unwrap()
+    run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["name"] == name)
+        .unwrap()["senaryo"]["id"]
+        .as_i64()
+        .unwrap()
 }
 
 /// Test içinde sahte HTTP sunucusu (Jira, GitLab). Adresini döner.

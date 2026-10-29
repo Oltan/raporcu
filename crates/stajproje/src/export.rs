@@ -29,7 +29,10 @@ pub const FIELDS: &[(&str, &str)] = &[
 
 pub fn parse_fields(s: Option<&str>) -> Vec<&'static str> {
     let wanted: Vec<&str> = s.unwrap_or("").split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
-    let picked: Vec<&'static str> = wanted.iter().filter_map(|w| FIELDS.iter().find(|(k, _)| k == w).map(|(k, _)| *k)).collect();
+    let picked: Vec<&'static str> = wanted
+        .iter()
+        .filter_map(|w| FIELDS.iter().find(|(k, _)| k == w).map(|(k, _)| *k))
+        .collect();
     if picked.is_empty() {
         FIELDS.iter().map(|(k, _)| *k).collect()
     } else {
@@ -58,7 +61,10 @@ mod bytes_chunk {
     }
     impl Chunker {
         pub fn new(tx: tokio::sync::mpsc::Sender<Result<String, std::io::Error>>) -> Self {
-            Chunker { buf: String::with_capacity(70_000), tx }
+            Chunker {
+                buf: String::with_capacity(70_000),
+                tx,
+            }
         }
         pub fn push(&mut self, s: &str) -> bool {
             self.buf.push_str(s);
@@ -79,7 +85,10 @@ mod bytes_chunk {
 
 fn write_csv(c: &Connection, f: &SearchFilter, fields: &[&str], sep: char, out: &mut Chunker) -> anyhow::Result<()> {
     out.push("\u{feff}");
-    let header: Vec<String> = fields.iter().map(|k| FIELDS.iter().find(|(x, _)| x == k).unwrap().1.to_string()).collect();
+    let header: Vec<String> = fields
+        .iter()
+        .map(|k| FIELDS.iter().find(|(x, _)| x == k).unwrap().1.to_string())
+        .collect();
     out.push(&(header.iter().map(|h| csv_cell(h, sep)).collect::<Vec<_>>().join(&sep.to_string()) + "\r\n"));
     let (w, p) = search_where(f);
     let mut st = c.prepare(&format!(
@@ -211,7 +220,19 @@ pub fn doors_status(s: &str) -> &'static str {
 pub fn doors_csv(rows: &[DoorsRow], run_id: i64) -> String {
     let mut s = String::from("\u{feff}DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih\r\n");
     for r in rows {
-        s.push_str(&[r.doors_id.as_str(), &r.scenario, &r.feature, &r.status, &r.jira, &run_id.to_string(), &r.date].map(|v| csv_cell(v, ',')).join(","));
+        s.push_str(
+            &[
+                r.doors_id.as_str(),
+                &r.scenario,
+                &r.feature,
+                &r.status,
+                &r.jira,
+                &run_id.to_string(),
+                &r.date,
+            ]
+            .map(|v| csv_cell(v, ','))
+            .join(","),
+        );
         s.push_str("\r\n");
     }
     s
@@ -243,7 +264,13 @@ pub fn doors_dxl(rows: &[DoorsRow], run_id: i64, report_url: &str) -> String {
     s.push_str(&format!("string reportUrl = {}\n", dxl_str(report_url)));
     s.push_str(&format!("int n = {}\n", rows.len()));
     s.push_str("string ids[] = {");
-    s.push_str(&rows.iter().map(|r| dxl_str(r.doors_id.trim_start_matches("DOORS-"))).collect::<Vec<_>>().join(", "));
+    s.push_str(
+        &rows
+            .iter()
+            .map(|r| dxl_str(r.doors_id.trim_start_matches("DOORS-")))
+            .collect::<Vec<_>>()
+            .join(", "),
+    );
     s.push_str("}\nstring results[] = {");
     s.push_str(&rows.iter().map(|r| dxl_str(&r.status)).collect::<Vec<_>>().join(", "));
     s.push_str("}\nstring dates[] = {");

@@ -83,7 +83,12 @@ pub fn parse_feature(text: &str, file: &Path) -> Vec<Planned> {
             let mut tags = feature_tags.clone();
             tags.extend(rule_tags.iter().cloned());
             tags.extend(take(&mut pending));
-            out.push(Planned { name: name.to_string(), feature: feature.clone(), file: file.to_path_buf(), tags });
+            out.push(Planned {
+                name: name.to_string(),
+                feature: feature.clone(),
+                file: file.to_path_buf(),
+                tags,
+            });
             outline = None;
             examples = None;
         } else if strip(line, EXAMPLES).is_some() {
@@ -96,7 +101,12 @@ pub fn parse_feature(text: &str, file: &Path) -> Vec<Planned> {
                 } else {
                     let mut tags = otags.clone();
                     tags.extend(etags.iter().cloned());
-                    out.push(Planned { name: name.clone(), feature: feature.clone(), file: file.to_path_buf(), tags });
+                    out.push(Planned {
+                        name: name.clone(),
+                        feature: feature.clone(),
+                        file: file.to_path_buf(),
+                        tags,
+                    });
                 }
             }
         }

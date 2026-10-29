@@ -19,7 +19,12 @@ async fn run_json(app: &TestApp, id: i64) -> Value {
 }
 
 fn scen<'a>(run: &'a Value, name: &str) -> &'a Value {
-    run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["name"] == name).unwrap_or_else(|| panic!("{name} yok"))
+    run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["name"] == name)
+        .unwrap_or_else(|| panic!("{name} yok"))
 }
 
 #[tokio::test]
@@ -56,7 +61,9 @@ async fn test_sw_2_1_upload_real_sample_creates_run() {
     let files = app.state.paths.run_files_dir(id);
     assert!(std::fs::read_dir(&files).unwrap().count() >= 10);
     let log = log_lines("yükleme alındı");
-    assert!(log.iter().any(|l| l["run_id"] == id && l["boyut"].as_u64().unwrap() > 0 && l.get("sure_ms").is_some()));
+    assert!(log
+        .iter()
+        .any(|l| l["run_id"] == id && l["boyut"].as_u64().unwrap() > 0 && l.get("sure_ms").is_some()));
     assert!(log_lines("koşum açıldı").iter().any(|l| l["run_id"] == id));
     assert!(log_lines("koşum bitti").iter().any(|l| l["run_id"] == id));
 }
@@ -70,7 +77,11 @@ async fn test_sw_2_2_after_hook_screenshot_linked_to_failed_scenario_only() {
         let status = s["senaryo"]["status"].as_str().unwrap();
         let shots: Vec<&Value> = s["ekler"].as_array().unwrap().iter().filter(|a| a["mime"] == "image/png").collect();
         if status == "passed" {
-            assert!(shots.is_empty(), "başarılı senaryoda ekran görüntüsü olmamalı: {}", s["senaryo"]["name"]);
+            assert!(
+                shots.is_empty(),
+                "başarılı senaryoda ekran görüntüsü olmamalı: {}",
+                s["senaryo"]["name"]
+            );
             assert!(!s["ekler"].as_array().unwrap().iter().any(|a| a["origin"] == "after"));
         }
         if status == "failed" || status == "broken" {
@@ -88,15 +99,35 @@ async fn test_sw_2_2_container_before_result_still_links() {
     // Artımlı gönderimde container sonuç dosyasından önce gelebilir.
     let app = app();
     let (_, created) = app
-        .ci_json("/api/ci/runs/start", serde_json::json!({ "project_path": "ekip/sira", "branch": "main" }))
+        .ci_json(
+            "/api/ci/runs/start",
+            serde_json::json!({ "project_path": "ekip/sira", "branch": "main" }),
+        )
         .await;
     let id = created["run_id"].as_i64().unwrap();
     let dir = sample_dir();
-    let mut names: Vec<String> = std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+        .collect();
     // önce container'lar, sonra ekler, en son sonuçlar
-    names.sort_by_key(|n| if n.ends_with("-container.json") { 0 } else if n.contains("-attachment") { 1 } else { 2 });
+    names.sort_by_key(|n| {
+        if n.ends_with("-container.json") {
+            0
+        } else if n.contains("-attachment") {
+            1
+        } else {
+            2
+        }
+    });
     for n in &names {
-        let (st, _) = app.ci_post(&format!("/api/ci/runs/{id}/results?name={n}"), "application/octet-stream", std::fs::read(dir.join(n)).unwrap()).await;
+        let (st, _) = app
+            .ci_post(
+                &format!("/api/ci/runs/{id}/results?name={n}"),
+                "application/octet-stream",
+                std::fs::read(dir.join(n)).unwrap(),
+            )
+            .await;
         assert_eq!(st, StatusCode::OK, "{n}");
     }
     let run = run_json(&app, id).await;
@@ -152,7 +183,12 @@ async fn test_sw_4_6_project_created_from_gitlab_info_and_histories_separate() {
     let (_, a) = upload(&app, "project_id=1&project_path=ekip%2Fa&branch=main", zip_dir(&sample_dir())).await;
     let (_, b) = upload(&app, "project_id=2&project_path=ekip%2Fb&branch=main", zip_dir(&sample_dir())).await;
     // aynı proje id'si, yol değişse de aynı proje
-    let (_, a2) = upload(&app, "project_id=1&project_path=ekip%2Fa-yeni-ad&branch=develop", zip_dir(&sample_dir())).await;
+    let (_, a2) = upload(
+        &app,
+        "project_id=1&project_path=ekip%2Fa-yeni-ad&branch=develop",
+        zip_dir(&sample_dir()),
+    )
+    .await;
     let ra = run_json(&app, a["run_id"].as_i64().unwrap()).await;
     let rb = run_json(&app, b["run_id"].as_i64().unwrap()).await;
     let ra2 = run_json(&app, a2["run_id"].as_i64().unwrap()).await;
@@ -162,7 +198,10 @@ async fn test_sw_4_6_project_created_from_gitlab_info_and_histories_separate() {
 
     // aynı adlı senaryonun geçmişi proje bazında ayrı
     let pid_a = ra["kosum"]["project_id"].as_i64().unwrap();
-    let key = scen(&ra, "Geçerli bilgilerle giriş")["senaryo"]["scenario_key"].as_str().unwrap().to_string();
+    let key = scen(&ra, "Geçerli bilgilerle giriş")["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let hist = app
         .state
         .db
@@ -177,7 +216,10 @@ async fn test_sw_4_6_project_created_from_gitlab_info_and_histories_separate() {
 async fn test_sw_3_3_duplicate_result_is_counted_once() {
     let app = app();
     let (_, created) = app
-        .ci_json("/api/ci/runs/start", serde_json::json!({ "project_path": "ekip/canli", "branch": "main", "total": 7 }))
+        .ci_json(
+            "/api/ci/runs/start",
+            serde_json::json!({ "project_path": "ekip/canli", "branch": "main", "total": 7 }),
+        )
         .await;
     let id = created["run_id"].as_i64().unwrap();
     let dir = sample_dir();
@@ -188,12 +230,20 @@ async fn test_sw_3_3_duplicate_result_is_counted_once() {
         .find(|n| n.ends_with("-result.json"))
         .unwrap_or(one.into());
     for _ in 0..3 {
-        let (st, _) = app.ci_post(&format!("/api/ci/runs/{id}/results?name={name}"), "application/json", std::fs::read(dir.join(&name)).unwrap()).await;
+        let (st, _) = app
+            .ci_post(
+                &format!("/api/ci/runs/{id}/results?name={name}"),
+                "application/json",
+                std::fs::read(dir.join(&name)).unwrap(),
+            )
+            .await;
         assert_eq!(st, StatusCode::OK);
     }
     assert_eq!(run_json(&app, id).await["kosum"]["total"], 1);
     // son toplu zip ile tutarlı: tekrarlar sayılmaz, toplam yine 7
-    let (st, body) = app.ci_post(&format!("/api/ci/runs/{id}/upload"), "application/zip", zip_dir(&dir)).await;
+    let (st, body) = app
+        .ci_post(&format!("/api/ci/runs/{id}/upload"), "application/zip", zip_dir(&dir))
+        .await;
     assert_eq!(st, StatusCode::OK, "{body}");
     let sum: Value = serde_json::from_str(&body).unwrap();
     assert_eq!(sum["duplicate_results"], 1);

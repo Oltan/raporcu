@@ -19,7 +19,11 @@ struct LoginPage {
 }
 
 fn lay() -> crate::web::pages::Layout {
-    crate::web::pages::Layout { admin: false, banner: None, share: None }
+    crate::web::pages::Layout {
+        admin: false,
+        banner: None,
+        share: None,
+    }
 }
 
 #[derive(Deserialize)]
@@ -28,11 +32,16 @@ pub struct NextQuery {
 }
 
 fn safe_next(n: Option<String>) -> String {
-    n.filter(|n| n.starts_with('/') && !n.starts_with("//")).unwrap_or_else(|| "/".into())
+    n.filter(|n| n.starts_with('/') && !n.starts_with("//"))
+        .unwrap_or_else(|| "/".into())
 }
 
 pub async fn login_page(Query(q): Query<NextQuery>) -> Response {
-    render(&LoginPage { next: safe_next(q.next), error: None, l: lay() })
+    render(&LoginPage {
+        next: safe_next(q.next),
+        error: None,
+        l: lay(),
+    })
 }
 
 #[derive(Deserialize)]
@@ -49,11 +58,17 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
     let next = safe_next(form.next);
     if let Err(wait) = st.throttle.check(ip) {
         tracing::warn!(ip = %ip, "admin girişi yavaşlatıldı");
-        let page = LoginPage { next, error: Some(format!("Çok fazla hatalı deneme. {} sn sonra tekrar deneyin.", wait.as_secs() + 1)), l: lay() };
+        let page = LoginPage {
+            next,
+            error: Some(format!("Çok fazla hatalı deneme. {} sn sonra tekrar deneyin.", wait.as_secs() + 1)),
+            l: lay(),
+        };
         return (StatusCode::TOO_MANY_REQUESTS, render(&page)).into_response();
     }
     let auth = st.auth.clone();
-    let ok = tokio::task::spawn_blocking(move || auth.verify("admin", &form.password)).await.unwrap_or(false);
+    let ok = tokio::task::spawn_blocking(move || auth.verify("admin", &form.password))
+        .await
+        .unwrap_or(false);
     if ok {
         st.throttle.success(ip);
         tracing::info!(ip = %ip, "admin girişi başarılı");
@@ -63,7 +78,11 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
         st.throttle.failure(ip);
         tracing::warn!(ip = %ip, "admin girişi başarısız");
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        let page = LoginPage { next, error: Some("Şifre yanlış".into()), l: lay() };
+        let page = LoginPage {
+            next,
+            error: Some("Şifre yanlış".into()),
+            l: lay(),
+        };
         (StatusCode::UNAUTHORIZED, render(&page)).into_response()
     }
 }

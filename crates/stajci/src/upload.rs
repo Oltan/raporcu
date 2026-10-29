@@ -25,7 +25,11 @@ pub fn zip_results(dir: &Path, out: &Path) -> Result<usize> {
         for p in entries {
             let name = p.file_name().unwrap().to_string_lossy().to_string();
             // video ve görüntü zaten sıkıştırılmış
-            let opts = if name.ends_with(".json") || name.ends_with(".txt") { deflate } else { stored };
+            let opts = if name.ends_with(".json") || name.ends_with(".txt") {
+                deflate
+            } else {
+                stored
+            };
             w.start_file(format!("allure-results/{name}"), opts)?;
             let mut src = std::fs::File::open(&p)?;
             std::io::copy(&mut src, &mut w)?;
@@ -56,7 +60,10 @@ fn on_success(c: &Ctx, body: &str, run_id: Option<i64>) -> Result<()> {
     let id = v["run_id"].as_i64().or(run_id).unwrap_or(0);
     let url = v["report_url"].as_str().unwrap_or("").to_string();
     ctx::set_run_id(id);
-    c.save_run(&SavedRun { run_id: id, report_url: url.clone() })?;
+    c.save_run(&SavedRun {
+        run_id: id,
+        report_url: url.clone(),
+    })?;
     say(format!(
         "yüklendi: {} sonuç ({} tekrar), {} ek",
         v["accepted_results"], v["duplicate_results"], v["attachments"]
@@ -78,7 +85,10 @@ pub fn upload(c: &Ctx) -> Result<i32> {
     }
     let zip = c.state_dir.join(format!("sonuclar-{}.zip", uuid::Uuid::new_v4().simple()));
     let n = zip_results(&c.results_dir, &zip)?;
-    say(format!("{n} dosya zip'lendi ({} KB)", std::fs::metadata(&zip).map(|m| m.len() / 1024).unwrap_or(0)));
+    say(format!(
+        "{n} dosya zip'lendi ({} KB)",
+        std::fs::metadata(&zip).map(|m| m.len() / 1024).unwrap_or(0)
+    ));
     let (path, run_id) = target_path(c);
     let client = c.client();
     let res = client.with_retry("yükleme", || client.post_file(&path, &zip));
@@ -90,7 +100,10 @@ pub fn upload(c: &Ctx) -> Result<i32> {
         }
         Ok(r) => {
             let _ = std::fs::remove_file(&zip);
-            let msg = serde_json::from_str::<serde_json::Value>(&r.body).ok().and_then(|v| v["hata"].as_str().map(String::from)).unwrap_or(r.body);
+            let msg = serde_json::from_str::<serde_json::Value>(&r.body)
+                .ok()
+                .and_then(|v| v["hata"].as_str().map(String::from))
+                .unwrap_or(r.body);
             say(format!("HATA: yükleme reddedildi ({}): {msg}", r.status));
             Ok(1)
         }
@@ -100,7 +113,11 @@ pub fn upload(c: &Ctx) -> Result<i32> {
             let stamp = uuid::Uuid::new_v4().simple().to_string();
             let qzip = q.join(format!("{stamp}.zip"));
             std::fs::rename(&zip, &qzip).or_else(|_| std::fs::copy(&zip, &qzip).map(|_| ()))?;
-            let item = QueueItem { path, zip: format!("{stamp}.zip"), run_id };
+            let item = QueueItem {
+                path,
+                zip: format!("{stamp}.zip"),
+                run_id,
+            };
             std::fs::write(q.join(format!("{stamp}.json")), serde_json::to_string_pretty(&item)?)?;
             say(format!(
                 "HATA: sunucuya ulaşılamadı ({e}). Sonuçlar {} içinde saklandı (GitLab artifact). Sunucu geri gelince: stajci upload --resume",
@@ -158,7 +175,9 @@ pub fn finish(c: &Ctx, status: &str) -> Result<i32> {
     let client = c.client();
     let body = serde_json::json!({ "status": status });
     match client
-        .with_retry("koşum bitirme", || client.post_json(&format!("/api/ci/runs/{}/finish", r.run_id), &body))
+        .with_retry("koşum bitirme", || {
+            client.post_json(&format!("/api/ci/runs/{}/finish", r.run_id), &body)
+        })
         .and_then(|x| ensure_ok(x, "koşum bitirme"))
     {
         Ok(x) => {
@@ -174,7 +193,9 @@ pub fn finish(c: &Ctx, status: &str) -> Result<i32> {
             Ok(0)
         }
         Err(e) => {
-            say(format!("UYARI: koşum bitirilemedi ({e}); sunucu RUN_STALL_TIMEOUT sonunda kendisi kapatır"));
+            say(format!(
+                "UYARI: koşum bitirilemedi ({e}); sunucu RUN_STALL_TIMEOUT sonunda kendisi kapatır"
+            ));
             Ok(1)
         }
     }

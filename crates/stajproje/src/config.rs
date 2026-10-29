@@ -94,9 +94,7 @@ fn var(name: &str) -> Option<String> {
 fn parse<T: std::str::FromStr>(name: &str, default: T) -> anyhow::Result<T> {
     match var(name) {
         None => Ok(default),
-        Some(v) => v
-            .parse()
-            .map_err(|_| anyhow::anyhow!("{name} değeri geçersiz: {v}")),
+        Some(v) => v.parse().map_err(|_| anyhow::anyhow!("{name} değeri geçersiz: {v}")),
     }
 }
 
@@ -148,7 +146,12 @@ impl Config {
             smtp_port: parse("SMTP_PORT", 25)?,
             mail_from: var("MAIL_FROM").unwrap_or_else(|| "stajproje@localhost".into()),
             mail_to: var("MAIL_TO")
-                .map(|v| v.split([',', ';']).map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+                .map(|v| {
+                    v.split([',', ';'])
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect()
+                })
                 .unwrap_or_default(),
             dry_run: parse("DRY_RUN", false)?,
             triage_auto_confidence: parse("TRIAGE_AUTO_CONFIDENCE", 0.7)?,
@@ -203,12 +206,18 @@ impl Config {
 
     /// Hata mesajlarından ve loglardan çıkarılacak gizli değerler (SW-9.2).
     pub fn secrets(&self) -> Vec<String> {
-        [&self.ci_api_token, &self.gitlab_token, &self.gitlab_webhook_token, &self.jira_token, &self.admin_password_hash]
-            .into_iter()
-            .flatten()
-            .map(|s| s.expose().to_string())
-            .filter(|s| s.len() >= 4)
-            .collect()
+        [
+            &self.ci_api_token,
+            &self.gitlab_token,
+            &self.gitlab_webhook_token,
+            &self.jira_token,
+            &self.admin_password_hash,
+        ]
+        .into_iter()
+        .flatten()
+        .map(|s| s.expose().to_string())
+        .filter(|s| s.len() >= 4)
+        .collect()
     }
 }
 

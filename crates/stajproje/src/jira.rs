@@ -55,7 +55,12 @@ impl Jira {
     fn call(&self, method: &str, path: &str, body: Option<&Value>) -> Result<(u16, Value)> {
         let url = format!("{}{path}", self.base);
         let res = match (method, body) {
-            ("GET", _) => self.agent.get(&url).header("Authorization", &self.auth()).header("Accept", "application/json").call(),
+            ("GET", _) => self
+                .agent
+                .get(&url)
+                .header("Authorization", &self.auth())
+                .header("Accept", "application/json")
+                .call(),
             (_, b) => self
                 .agent
                 .post(&url)
@@ -68,7 +73,10 @@ impl Jira {
         let st = r.status().as_u16();
         let mut s = String::new();
         r.body_mut().as_reader().take(4 << 20).read_to_string(&mut s)?;
-        Ok((st, serde_json::from_str(&s).unwrap_or(Value::String(crate::logging::truncate(&s, 500)))))
+        Ok((
+            st,
+            serde_json::from_str(&s).unwrap_or(Value::String(crate::logging::truncate(&s, 500))),
+        ))
     }
 
     /// SW-6.1: bug açar; label reddedilirse label'sız tekrar dener.
@@ -88,9 +96,15 @@ impl Jira {
         }
         if !(200..300).contains(&st) {
             tracing::warn!(servis = "jira", durum = st, deneme = 2, "Jira bug açılamadı");
-            bail!("Jira {st}: {}", redact(&crate::logging::truncate(&v.to_string(), 300), &self.secrets));
+            bail!(
+                "Jira {st}: {}",
+                redact(&crate::logging::truncate(&v.to_string(), 300), &self.secrets)
+            );
         }
-        v["key"].as_str().map(String::from).ok_or_else(|| anyhow::anyhow!("Jira yanıtında key yok"))
+        v["key"]
+            .as_str()
+            .map(String::from)
+            .ok_or_else(|| anyhow::anyhow!("Jira yanıtında key yok"))
     }
 
     /// Ekran görüntüsünü issue'ya ekler.
@@ -122,12 +136,23 @@ impl Jira {
     pub fn find_open_bug(&self, doors: &[String], scenario: &str) -> Result<Option<String>> {
         let mut parts = Vec::new();
         if !doors.is_empty() {
-            parts.push(format!("labels in ({})", doors.iter().map(|d| format!("\"{d}\"")).collect::<Vec<_>>().join(",")));
+            parts.push(format!(
+                "labels in ({})",
+                doors.iter().map(|d| format!("\"{d}\"")).collect::<Vec<_>>().join(",")
+            ));
         }
         let name = scenario.replace(['"', '\\'], " ");
         parts.push(format!("summary ~ \"\\\"{name}\\\"\""));
-        let jql = format!("project = \"{}\" AND statusCategory != Done AND ({}) ORDER BY created DESC", self.project, parts.join(" OR "));
-        let (st, v) = self.call("GET", &format!("/rest/api/2/search?maxResults=1&fields=key&jql={}", urlencoding::encode(&jql)), None)?;
+        let jql = format!(
+            "project = \"{}\" AND statusCategory != Done AND ({}) ORDER BY created DESC",
+            self.project,
+            parts.join(" OR ")
+        );
+        let (st, v) = self.call(
+            "GET",
+            &format!("/rest/api/2/search?maxResults=1&fields=key&jql={}", urlencoding::encode(&jql)),
+            None,
+        )?;
         if !(200..300).contains(&st) {
             tracing::warn!(servis = "jira", durum = st, deneme = 1, "Jira araması başarısız");
             bail!("Jira arama {st}");
@@ -168,14 +193,24 @@ pub fn bug_text(run_url: &str, scenario: &str, feature: &str, doors: &[String], 
     if !doors.is_empty() {
         d.push_str(&format!("DOORS: {}\n", doors.join(", ")));
     }
-    d.push_str(&format!("Rapor: {run_url}\n\n*Hata*\n{{noformat}}\n{}\n{{noformat}}\n", crate::logging::truncate(message, 2000)));
+    d.push_str(&format!(
+        "Rapor: {run_url}\n\n*Hata*\n{{noformat}}\n{}\n{{noformat}}\n",
+        crate::logging::truncate(message, 2000)
+    ));
     if !steps.is_empty() {
         d.push_str("\n*Adımlar*\n");
         for s in steps {
             d.push_str(&format!("# {s}\n"));
         }
     }
-    NewBug { summary: format!("[Otomasyon] {scenario}: {}", crate::logging::truncate(message.lines().next().unwrap_or(""), 120)), description: d, labels: doors.to_vec() }
+    NewBug {
+        summary: format!(
+            "[Otomasyon] {scenario}: {}",
+            crate::logging::truncate(message.lines().next().unwrap_or(""), 120)
+        ),
+        description: d,
+        labels: doors.to_vec(),
+    }
 }
 
 struct Failed {
@@ -322,7 +357,11 @@ pub fn process_run(c: &Connection, paths: &Paths, cfg: &Config, jira: Option<&Ji
             continue;
         }
         created_this_run += 1;
-        let steps: Vec<String> = crate::queries::steps(c, f.id)?.into_iter().filter(|s| s.depth == 0).map(|s| s.name).collect();
+        let steps: Vec<String> = crate::queries::steps(c, f.id)?
+            .into_iter()
+            .filter(|s| s.depth == 0)
+            .map(|s| s.name)
+            .collect();
         let bug = bug_text(&run_url, &f.name, &f.feature, &f.doors, &f.message, &steps);
         if cfg.jira_mode == JiraMode::Observe {
             record(c, run_id, Some(f.id), "acilacakti", Some(&fp), None, &bug.summary)?;
@@ -353,8 +392,19 @@ pub fn process_run(c: &Connection, paths: &Paths, cfg: &Config, jira: Option<&Ji
 /// Admin düğmesi: tek senaryo için bug aç (gözlem modundan bağımsız).
 pub fn create_for_scenario(c: &Connection, paths: &Paths, cfg: &Config, j: &Jira, sid: i64) -> Result<String> {
     let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
-    let steps: Vec<String> = crate::queries::steps(c, sid)?.into_iter().filter(|s| s.depth == 0).map(|s| s.name).collect();
-    let bug = bug_text(&format!("{}/runs/{}", cfg.public_url, s.run_id), &s.name, s.feature.as_deref().unwrap_or(""), &s.doors_ids, s.message.as_deref().unwrap_or(""), &steps);
+    let steps: Vec<String> = crate::queries::steps(c, sid)?
+        .into_iter()
+        .filter(|s| s.depth == 0)
+        .map(|s| s.name)
+        .collect();
+    let bug = bug_text(
+        &format!("{}/runs/{}", cfg.public_url, s.run_id),
+        &s.name,
+        s.feature.as_deref().unwrap_or(""),
+        &s.doors_ids,
+        s.message.as_deref().unwrap_or(""),
+        &steps,
+    );
     let k = j.create_bug(&bug)?;
     let fp = fingerprint(s.project_id, s.message.as_deref().unwrap_or(""));
     c.execute(
@@ -383,7 +433,14 @@ mod tests {
 
     #[test]
     fn test_sw_6_1_doors_in_labels_and_description() {
-        let b = bug_text("http://r/runs/1", "Giriş", "F", &["DOORS-1003".into()], "expected x", &["adım 1".into()]);
+        let b = bug_text(
+            "http://r/runs/1",
+            "Giriş",
+            "F",
+            &["DOORS-1003".into()],
+            "expected x",
+            &["adım 1".into()],
+        );
         assert_eq!(b.labels, vec!["DOORS-1003"]);
         assert!(b.description.contains("DOORS-1003"));
     }

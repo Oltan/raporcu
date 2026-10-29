@@ -72,7 +72,14 @@ fn fake_tests(args: &[String]) -> i32 {
                 for ch in &c.children {
                     containers.entry(ch.clone()).or_default().push(e.path());
                 }
-                container_atts.insert(e.path(), c.afters.iter().chain(c.befores.iter()).flat_map(|f| f.attachments.iter().map(|a| a.source.clone())).collect());
+                container_atts.insert(
+                    e.path(),
+                    c.afters
+                        .iter()
+                        .chain(c.befores.iter())
+                        .flat_map(|f| f.attachments.iter().map(|a| a.source.clone()))
+                        .collect(),
+                );
             }
             _ => {}
         }
@@ -116,7 +123,10 @@ fn project_copy(root: &Path, name: &str) -> Result<PathBuf> {
 }
 
 fn total_attempts(run: &serde_json::Value) -> i64 {
-    run["senaryolar"].as_array().map(|a| a.iter().map(|s| s["deneme_sayisi"].as_i64().unwrap_or(0)).sum()).unwrap_or(0)
+    run["senaryolar"]
+        .as_array()
+        .map(|a| a.iter().map(|s| s["deneme_sayisi"].as_i64().unwrap_or(0)).sum())
+        .unwrap_or(0)
 }
 
 fn fake_cmd(sample: &Path, delay: u64, env_out: &Path, extra: &str) -> String {
@@ -131,8 +141,18 @@ fn fake_cmd(sample: &Path, delay: u64, env_out: &Path, extra: &str) -> String {
 fn template_checks(ck: &mut Checks) -> Result<()> {
     let text = std::fs::read_to_string(workspace_root().join("ci/gitlab/template/.gitlab-ci.yml"))?;
     let y: serde_yaml::Value = serde_yaml::from_str(&text)?;
-    let stages: Vec<String> = y["stages"].as_sequence().unwrap().iter().map(|s| s.as_str().unwrap().to_string()).collect();
-    ck.check("SW-1.1", "şablonda test → report → fix aşamaları", stages == ["test", "report", "fix"], format!("{stages:?}"));
+    let stages: Vec<String> = y["stages"]
+        .as_sequence()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect();
+    ck.check(
+        "SW-1.1",
+        "şablonda test → report → fix aşamaları",
+        stages == ["test", "report", "fix"],
+        format!("{stages:?}"),
+    );
     for os in ["linux", "windows"] {
         let tag_ok = ["test", "report", "fix"].iter().all(|k| {
             let job = &y[format!("staj-{k}-{os}").as_str()];
@@ -140,11 +160,21 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         });
         ck.check("SW-1.1", &format!("{os} için 3 iş tanımlı"), tag_ok, "");
         let base = &y[format!(".staj-{os}").as_str()];
-        ck.check("SW-1.1", &format!("{os} işleri '{os}' etiketli runner'a gider"), base["tags"][0].as_str() == Some(os), "");
+        ck.check(
+            "SW-1.1",
+            &format!("{os} işleri '{os}' etiketli runner'a gider"),
+            base["tags"][0].as_str() == Some(os),
+            "",
+        );
         for k in ["report", "fix"] {
             let rules = y[format!("staj-{k}-{os}").as_str()]["rules"].as_sequence().unwrap();
             let last = rules.last().unwrap();
-            ck.check("SW-1.1", &format!("{k}-{os} test işi düşse de çalışır (when: always)"), last["when"].as_str() == Some("always"), "");
+            ck.check(
+                "SW-1.1",
+                &format!("{k}-{os} test işi düşse de çalışır (when: always)"),
+                last["when"].as_str() == Some("always"),
+                "",
+            );
         }
     }
     let mut only_stajci = true;
@@ -153,7 +183,12 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             only_stajci &= line.as_str().unwrap_or("").starts_with("stajci ");
         }
     }
-    ck.check("SW-1.1", "script satırları yalnızca stajci alt komutlarını çağırır", only_stajci, "");
+    ck.check(
+        "SW-1.1",
+        "script satırları yalnızca stajci alt komutlarını çağırır",
+        only_stajci,
+        "",
+    );
     let vars = &y["variables"];
     ck.check(
         "SW-1.7",
@@ -161,7 +196,12 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         vars["STAJ_MAVEN_XMX"].is_string() && vars["STAJ_TEST_XMX"].is_string(),
         "",
     );
-    ck.check("SW-1.2", "Linux'ta Xvfb sabit çözünürlük (STAJ_XVFB, STAJ_SCREEN)", vars["STAJ_XVFB"].as_str() == Some("on") && vars["STAJ_SCREEN"].is_string(), "");
+    ck.check(
+        "SW-1.2",
+        "Linux'ta Xvfb sabit çözünürlük (STAJ_XVFB, STAJ_SCREEN)",
+        vars["STAJ_XVFB"].as_str() == Some("on") && vars["STAJ_SCREEN"].is_string(),
+        "",
+    );
     ck.check(
         "SW-5.4",
         "rapor linki pipeline environment linkinde",
@@ -171,7 +211,9 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
     ck.check(
         "SW-2.6",
         "gönderilemeyen sonuçlar artifact olarak saklanır",
-        y[".staj-report"]["artifacts"]["paths"].as_sequence().is_some_and(|p| p.iter().any(|x| x.as_str() == Some(".stajci/queue/"))),
+        y[".staj-report"]["artifacts"]["paths"]
+            .as_sequence()
+            .is_some_and(|p| p.iter().any(|x| x.as_str() == Some(".stajci/queue/"))),
         "",
     );
     Ok(())
@@ -182,7 +224,11 @@ fn main() -> Result<()> {
     match args.first().map(String::as_str) {
         Some("fake-tests") => std::process::exit(fake_tests(&args[1..])),
         Some("fake-opencode") => std::process::exit(fake_opencode()),
-        Some("fake-validate") => std::process::exit(std::env::var("STAJ_FAKE_VALIDATE").map(|v| if v == "fail" { 1 } else { 0 }).unwrap_or(0)),
+        Some("fake-validate") => std::process::exit(
+            std::env::var("STAJ_FAKE_VALIDATE")
+                .map(|v| if v == "fail" { 1 } else { 0 })
+                .unwrap_or(0),
+        ),
         _ => {}
     }
     println!("== stajproje prova (SW-10.2) ==");
@@ -212,7 +258,12 @@ fn main() -> Result<()> {
     }
     let mut s = Stajci::new(&stajci_path, &proj, &server.url());
     let ver = s.run(&["--version"])?;
-    ck.check("SW-10.9", "stajci sunucudan indirilir ve çalışır", st == 200 && ver.code == 0, format!("{st} {}", ver.text));
+    ck.check(
+        "SW-10.9",
+        "stajci sunucudan indirilir ve çalışır",
+        st == 200 && ver.code == 0,
+        format!("{st} {}", ver.text),
+    );
 
     println!("\n-- Ön kontrol");
     let pf = s.run(&["preflight"])?;
@@ -222,7 +273,12 @@ fn main() -> Result<()> {
     std::fs::write(bad.join("pom.xml"), pom)?;
     let sb = Stajci::new(&stajci_path, &bad, &server.url());
     let pf = sb.run(&["preflight"])?;
-    ck.check("SW-1.5", "adaptör eksikse açık mesajla düşer", pf.code == 1 && pf.text.contains("Allure adaptörü eksik"), &pf.text);
+    ck.check(
+        "SW-1.5",
+        "adaptör eksikse açık mesajla düşer",
+        pf.code == 1 && pf.text.contains("Allure adaptörü eksik"),
+        &pf.text,
+    );
 
     println!("\n-- Test işi: start + watch (canlı)");
     let env_out = root.join("env-1.json");
@@ -272,7 +328,12 @@ fn main() -> Result<()> {
     let _ = child2.wait();
     let mut out = String::new();
     std::io::Read::read_to_string(child.stdout.as_mut().unwrap(), &mut out)?;
-    ck.check("SW-3.1", "koşum testler bitmeden ilerlemeyle görünür (x/7)", progress_seen.ends_with("/7"), format!("görülen: {progress_seen:?}"));
+    ck.check(
+        "SW-3.1",
+        "koşum testler bitmeden ilerlemeyle görünür (x/7)",
+        progress_seen.ends_with("/7"),
+        format!("görülen: {progress_seen:?}"),
+    );
     ck.check("SW-1.1", "test işi kalan senaryoda düşer (çıkış 1)", code == 1, &out);
     let written = std::fs::read_to_string(env_out.with_extension("written")).unwrap_or_default();
     let mut worst = 0u128;
@@ -286,7 +347,12 @@ fn main() -> Result<()> {
         }
     }
     // son sonuçlar test bittikten sonra görünebilir; onları sayma
-    ck.check("SW-3.2", "senaryo bittikten en geç 5 sn sonra görünür", worst <= 5000 && missing <= 2, format!("en kötü {worst} ms, görülmeyen {missing}"));
+    ck.check(
+        "SW-3.2",
+        "senaryo bittikten en geç 5 sn sonra görünür",
+        worst <= 5000 && missing <= 2,
+        format!("en kötü {worst} ms, görülmeyen {missing}"),
+    );
     let info: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&env_out)?)?;
     let args_s = info["args"].to_string();
     ck.check(
@@ -295,11 +361,21 @@ fn main() -> Result<()> {
         info["maven_opts"].as_str().unwrap_or("").contains("-Xmx512m") && args_s.contains("-Dtest.xmx=768m"),
         info.to_string(),
     );
-    ck.check("SW-1.5", "features.txt tag'leri testlere geçer", args_s.contains("-Dcucumber.filter.tags=(@giris)"), &args_s);
+    ck.check(
+        "SW-1.5",
+        "features.txt tag'leri testlere geçer",
+        args_s.contains("-Dcucumber.filter.tags=(@giris)"),
+        &args_s,
+    );
     if has_xvfb {
         let info2: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&env_out2).unwrap_or("{}".into()))?;
         let (d1, d2) = (info["display"].as_str().unwrap_or(""), info2["display"].as_str().unwrap_or(""));
-        ck.check("SW-1.2", "testler Xvfb ekranında koşar; aynı anda iki iş farklı ekran alır", !d1.is_empty() && !d2.is_empty() && d1 != d2, format!("{d1} / {d2}"));
+        ck.check(
+            "SW-1.2",
+            "testler Xvfb ekranında koşar; aynı anda iki iş farklı ekran alır",
+            !d1.is_empty() && !d2.is_empty() && d1 != d2,
+            format!("{d1} / {d2}"),
+        );
     } else {
         println!("  [ATLANDI] SW-1.2  xvfb-run yok");
     }
@@ -307,31 +383,66 @@ fn main() -> Result<()> {
     println!("\n-- Report işi: upload + finish");
     let up = s.run(&["upload"])?;
     let env_file = std::fs::read_to_string(proj.join("stajci.env")).unwrap_or_default();
-    ck.check("SW-5.4", "rapor linki yükleme çıktısında ve stajci.env'de", up.code == 0 && up.text.contains(&format!("Rapor: {}/runs/{run_id}", server.url())) && env_file.contains("STAJ_REPORT_URL="), &up.text);
-    ck.check("SW-10.7", "stajci çıktısında her satırda run_id", up.text.lines().filter(|l| l.starts_with("[stajci")).all(|l| l.contains(&format!("run_id={run_id}"))), &up.text);
+    ck.check(
+        "SW-5.4",
+        "rapor linki yükleme çıktısında ve stajci.env'de",
+        up.code == 0 && up.text.contains(&format!("Rapor: {}/runs/{run_id}", server.url())) && env_file.contains("STAJ_REPORT_URL="),
+        &up.text,
+    );
+    ck.check(
+        "SW-10.7",
+        "stajci çıktısında her satırda run_id",
+        up.text
+            .lines()
+            .filter(|l| l.starts_with("[stajci"))
+            .all(|l| l.contains(&format!("run_id={run_id}"))),
+        &up.text,
+    );
     let fin = s.run(&["finish"])?;
     let run = get_json(&format!("{}/api/runs/{run_id}", server.url()))?;
-    ck.check("SW-3.5", "finish koşumu bitirir", fin.code == 0 && run["kosum"]["status"] == "finished", &fin.text);
+    ck.check(
+        "SW-3.5",
+        "finish koşumu bitirir",
+        fin.code == 0 && run["kosum"]["status"] == "finished",
+        &fin.text,
+    );
     ck.check(
         "SW-3.3",
         "artımlı + toplu sonuç tutarlı: 7 senaryo, 11 deneme, tekrar yok",
         run["kosum"]["total"] == 7 && total_attempts(&run) == 11 && run["kosum"]["passed"] == 4,
         run["kosum"].to_string(),
     );
-    ck.check("SW-4.3", "CI bilgisi kaydedildi", run["kosum"]["pipeline_id"] == "777" && run["kosum"]["commit_sha"].as_str().is_some_and(|c| c.starts_with("0123")), run["kosum"].to_string());
+    ck.check(
+        "SW-4.3",
+        "CI bilgisi kaydedildi",
+        run["kosum"]["pipeline_id"] == "777" && run["kosum"]["commit_sha"].as_str().is_some_and(|c| c.starts_with("0123")),
+        run["kosum"].to_string(),
+    );
 
     println!("\n-- Bellek sınırı aşımı");
     let mut s3 = Stajci::new(&stajci_path, &proj, &server.url());
-    s3.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &root.join("env-oom.json"), "--oom")).set("STAJ_FORCE_MAVEN_ARGS", "1").set("STAJ_XVFB", "off");
+    s3.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &root.join("env-oom.json"), "--oom"))
+        .set("STAJ_FORCE_MAVEN_ARGS", "1")
+        .set("STAJ_XVFB", "off");
     let o = s3.run(&["start"])?;
-    ck.check("SW-1.7", "OutOfMemoryError → iş açık mesajla düşer", o.code == 3 && o.text.contains("BELLEK SINIRI AŞILDI"), &o.text);
+    ck.check(
+        "SW-1.7",
+        "OutOfMemoryError → iş açık mesajla düşer",
+        o.code == 3 && o.text.contains("BELLEK SINIRI AŞILDI"),
+        &o.text,
+    );
 
     println!("\n-- Windows oturum kontrolü");
     if !cfg!(windows) {
         let mut s4 = Stajci::new(&stajci_path, &proj, &server.url());
         s4.set("STAJ_FAKE_WINDOWS_SESSION", "Services");
         let o = s4.run(&["start", "--no-tests"])?;
-        ck.check("SW-1.6", "runner hizmet oturumundaysa açık mesajla düşer (benzetim)", o.code == 4 && o.text.contains("masaüstü oturumunda değil"), &o.text);
+        ck.check(
+            "SW-1.6",
+            "runner hizmet oturumundaysa açık mesajla düşer (benzetim)",
+            o.code == 4 && o.text.contains("masaüstü oturumunda değil"),
+            &o.text,
+        );
     }
 
     println!("\n-- Sunucu koşum sırasında kapanıp açılır (SW-2.6)");
@@ -351,7 +462,9 @@ fn main() -> Result<()> {
     ch.wait()?;
     let up = s5.run(&["upload"])?;
     let fin = s5.run(&["finish"])?;
-    let rid: i64 = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj3.join(".stajci/run.json"))?)?["run_id"].as_i64().unwrap();
+    let rid: i64 = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj3.join(".stajci/run.json"))?)?["run_id"]
+        .as_i64()
+        .unwrap();
     let run = get_json(&format!("{}/api/runs/{rid}", server.url()))?;
     ck.check(
         "SW-2.6",
@@ -364,17 +477,34 @@ fn main() -> Result<()> {
     let proj4 = project_copy(root, "proje4")?;
     copy_dir(&sample_dir(), &proj4.join("target/allure-results"))?;
     let mut s6 = Stajci::new(&stajci_path, &proj4, &server.url());
-    s6.set("STAJ_RETRY_MAX", "1").set("STAJ_RETRY_BASE_MS", "100").set("CI_PROJECT_PATH", "prova/kuyruk").set("CI_PROJECT_ID", "4545");
+    s6.set("STAJ_RETRY_MAX", "1")
+        .set("STAJ_RETRY_BASE_MS", "100")
+        .set("CI_PROJECT_PATH", "prova/kuyruk")
+        .set("CI_PROJECT_ID", "4545");
     server.stop();
     let up = s6.run(&["upload"])?;
     let queued = std::fs::read_dir(proj4.join(".stajci/queue")).map(|r| r.count()).unwrap_or(0);
-    ck.check("SW-2.6", "ulaşılamayınca kuyruğa yazılır", up.code == 1 && queued == 2 && up.text.contains("--resume"), &up.text);
+    ck.check(
+        "SW-2.6",
+        "ulaşılamayınca kuyruğa yazılır",
+        up.code == 1 && queued == 2 && up.text.contains("--resume"),
+        &up.text,
+    );
     server.start()?;
     let rs = s6.run(&["upload", "--resume"])?;
     let queued = std::fs::read_dir(proj4.join(".stajci/queue")).map(|r| r.count()).unwrap_or(0);
     let list = get_json(&format!("{}/api/runs", server.url()))?;
-    let found = list["kosumlar"].as_array().unwrap().iter().any(|r| r["project_path"] == "prova/kuyruk" && r["total"] == 7);
-    ck.check("SW-2.6", "--resume kuyruğu gönderir", rs.code == 0 && queued == 0 && found, &rs.text);
+    let found = list["kosumlar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["project_path"] == "prova/kuyruk" && r["total"] == 7);
+    ck.check(
+        "SW-2.6",
+        "--resume kuyruğu gönderir",
+        rs.code == 0 && queued == 0 && found,
+        &rs.text,
+    );
 
     extra_steps(&mut ck, &server, &stajci_path, root)?;
 
@@ -390,15 +520,28 @@ fn fake_opencode() -> i32 {
     let mut code = std::fs::read_to_string(steps).unwrap();
     match mode.as_str() {
         "nochange" => {}
-        "assert" => code = code.replace("assertEquals(beklenen, mesaj.getText());", "assertTrue(mesaj.getText().contains(beklenen));"),
+        "assert" => {
+            code = code.replace(
+                "assertEquals(beklenen, mesaj.getText());",
+                "assertTrue(mesaj.getText().contains(beklenen));",
+            )
+        }
         _ => code = code.replace("robot.clickOn(\"#sifremiUnuttum\");", "robot.clickOn(\"#girisButonu\");"),
     }
     std::fs::write(steps, code).unwrap();
     if mode == "outside" {
         let pom = std::fs::read_to_string("pom.xml").unwrap();
-        std::fs::write("pom.xml", pom.replace("<rerun.count>1</rerun.count>", "<rerun.count>5</rerun.count>")).unwrap();
+        std::fs::write(
+            "pom.xml",
+            pom.replace("<rerun.count>1</rerun.count>", "<rerun.count>5</rerun.count>"),
+        )
+        .unwrap();
     }
-    println!("istem {} karakter, ekran görüntüsü: {}", prompt.len(), prompt.contains("Ekran görüntüsü"));
+    println!(
+        "istem {} karakter, ekran görüntüsü: {}",
+        prompt.len(),
+        prompt.contains("Ekran görüntüsü")
+    );
     println!("STAJ_OZET: #sifremiUnuttum seçicisi olmayan bir düğümü arıyordu");
     println!("STAJ_TRIAGE: {{\"category\": \"test_kodu\", \"reason\": \"Seçici yanlış\", \"confidence\": 0.9}}");
     0
@@ -432,9 +575,14 @@ fn fake_gitlab() -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
                 v.push(String::from_utf8_lossy(&body).to_string());
                 v.len()
             };
-            let resp = format!("{{\"iid\": {n}, \"web_url\": \"https://gitlab.sirket.local/prova/ornek-test-projesi/-/merge_requests/{n}\"}}");
+            let resp =
+                format!("{{\"iid\": {n}, \"web_url\": \"https://gitlab.sirket.local/prova/ornek-test-projesi/-/merge_requests/{n}\"}}");
             let mut w = s;
-            let _ = write!(w, "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{resp}", resp.len());
+            let _ = write!(
+                w,
+                "HTTP/1.1 201 Created\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{resp}",
+                resp.len()
+            );
         }
     });
     (port, got)
@@ -450,7 +598,14 @@ fn sh(dir: &Path, args: &[&str]) -> Result<String> {
 fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> Result<()> {
     println!("\n-- Fix işi: stajci fix (sahte OpenCode ve GitLab)");
     let list = get_json(&format!("{}/api/runs", server.url()))?;
-    let run_id = list["kosumlar"].as_array().unwrap().iter().filter(|r| r["project_path"] == "prova/ornek-test-projesi").map(|r| r["id"].as_i64().unwrap()).min().unwrap();
+    let run_id = list["kosumlar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["project_path"] == "prova/ornek-test-projesi")
+        .map(|r| r["id"].as_i64().unwrap())
+        .min()
+        .unwrap();
     let proj = project_copy(root, "fix-proje")?;
     let bare = root.join("uzak.git");
     sh(root, &["init", "-q", "--bare", bare.to_str().unwrap()])?;
@@ -461,7 +616,10 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
     let (gl_port, mrs) = fake_gitlab();
     let mut s = Stajci::new(stajci, &proj, &server.url());
     s.set("STAJ_RUN_ID", run_id.to_string())
-        .set("STAJ_OPENCODE_CMD", format!("\"{}\" fake-opencode {{istem}}", exe("rehearse").display()))
+        .set(
+            "STAJ_OPENCODE_CMD",
+            format!("\"{}\" fake-opencode {{istem}}", exe("rehearse").display()),
+        )
         .set("STAJ_FIX_VALIDATE_CMD", format!("\"{}\" fake-validate", exe("rehearse").display()))
         .set("STAJ_XVFB", "off")
         .set("STAJ_GITLAB_API", format!("http://127.0.0.1:{gl_port}/api/v4"))
@@ -472,32 +630,82 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
     let branches = sh(&bare, &["branch", "--list"]).unwrap_or_default();
     let mr = mrs.lock().unwrap().first().cloned().unwrap_or_default();
     let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
-    ck.check("SW-7.2", "test kodu düzeltilir, auto-fix branch'i push edilir, MR açılır", o.code == 0 && branches.contains("auto-fix/run-") && o.text.contains("MR açıldı: !1"), format!("{}\n{branches}", o.text));
-    ck.check("SW-7.2", "doğrulama geçince MR Draft değil", !mrv["title"].as_str().unwrap_or("Draft").starts_with("Draft"), &mr);
-    ck.check("SW-5.4", "rapor linki MR açıklamasında", mrv["description"].as_str().unwrap_or("").contains(&format!("/runs/{run_id}")), &mr);
+    ck.check(
+        "SW-7.2",
+        "test kodu düzeltilir, auto-fix branch'i push edilir, MR açılır",
+        o.code == 0 && branches.contains("auto-fix/run-") && o.text.contains("MR açıldı: !1"),
+        format!("{}\n{branches}", o.text),
+    );
+    ck.check(
+        "SW-7.2",
+        "doğrulama geçince MR Draft değil",
+        !mrv["title"].as_str().unwrap_or("Draft").starts_with("Draft"),
+        &mr,
+    );
+    ck.check(
+        "SW-5.4",
+        "rapor linki MR açıklamasında",
+        mrv["description"].as_str().unwrap_or("").contains(&format!("/runs/{run_id}")),
+        &mr,
+    );
     let diff = sh(&bare, &["log", "-p", "-1", "--all", "--", "src/test"]).unwrap_or_default();
-    ck.check("SW-7.2", "değişiklik yalnızca src/test altında", diff.contains("#girisButonu") && !diff.contains("pom.xml"), &diff);
+    ck.check(
+        "SW-7.2",
+        "değişiklik yalnızca src/test altında",
+        diff.contains("#girisButonu") && !diff.contains("pom.xml"),
+        &diff,
+    );
     let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
-    ck.check("SW-4.4", "raporda düzeltme kutusu ve OpenCode !MR rozeti", html.contains("OpenCode düzeltmeleri") && html.contains("OpenCode !1"), "");
-    ck.check("SW-7.3", "fix-result rapora yazıldı (OpenCode triage önerisi dahil)", html.contains("Test kodu hatası"), "");
+    ck.check(
+        "SW-4.4",
+        "raporda düzeltme kutusu ve OpenCode !MR rozeti",
+        html.contains("OpenCode düzeltmeleri") && html.contains("OpenCode !1"),
+        "",
+    );
+    ck.check(
+        "SW-7.3",
+        "fix-result rapora yazıldı (OpenCode triage önerisi dahil)",
+        html.contains("Test kodu hatası"),
+        "",
+    );
 
     s.set("STAJ_FAKE_VALIDATE", "fail");
     let o = s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().get(1).cloned().unwrap_or_default();
     let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
-    ck.check("SW-7.2", "doğrulama geçmezse Draft MR", mrv["title"].as_str().unwrap_or("").starts_with("Draft:"), format!("{}\n{mr}", o.text));
+    ck.check(
+        "SW-7.2",
+        "doğrulama geçmezse Draft MR",
+        mrv["title"].as_str().unwrap_or("").starts_with("Draft:"),
+        format!("{}\n{mr}", o.text),
+    );
 
     s.set("STAJ_FAKE_VALIDATE", "ok").set("STAJ_FAKE_MODE", "outside");
     let before = mrs.lock().unwrap().len();
     let o = s.run(&["fix"])?;
     let clean = sh(&proj, &["status", "--porcelain"]).unwrap_or_default();
-    ck.check("SW-9.4", "izinli yolların dışındaki değişiklik reddedilir", o.text.contains("REDDEDİLDİ") && mrs.lock().unwrap().len() == before && clean.trim().is_empty(), format!("{}\n{clean}", o.text));
+    ck.check(
+        "SW-9.4",
+        "izinli yolların dışındaki değişiklik reddedilir",
+        o.text.contains("REDDEDİLDİ") && mrs.lock().unwrap().len() == before && clean.trim().is_empty(),
+        format!("{}\n{clean}", o.text),
+    );
 
     s.set("STAJ_FAKE_MODE", "assert");
     s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().last().cloned().unwrap_or_default();
-    ck.check("SW-9.4", "assertion değiştiren düzeltmede MR'a uyarı eklenir", mr.contains("assertion"), &mr);
+    ck.check(
+        "SW-9.4",
+        "assertion değiştiren düzeltmede MR'a uyarı eklenir",
+        mr.contains("assertion"),
+        &mr,
+    );
     let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
-    ck.check("SW-9.4", "reddedilen deneme raporda görünür", html.contains("Reddedildi (koruma)"), "");
+    ck.check(
+        "SW-9.4",
+        "reddedilen deneme raporda görünür",
+        html.contains("Reddedildi (koruma)"),
+        "",
+    );
     Ok(())
 }

@@ -45,7 +45,12 @@ impl DiskState {
     }
     pub fn warning_text(&self) -> Option<String> {
         let s = self.get();
-        s.warning.then(|| format!("Disk %{:.0} dolu. %{:.0} üstünde eski videolar ve ekran görüntüleri silinir.", s.used_pct, 90.0))
+        s.warning.then(|| {
+            format!(
+                "Disk %{:.0} dolu. %{:.0} üstünde eski videolar ve ekran görüntüleri silinir.",
+                s.used_pct, 90.0
+            )
+        })
     }
 }
 
@@ -69,9 +74,13 @@ fn delete_attachment(c: &Connection, paths: &Paths, id: i64, run_id: i64, source
             )
             .ok()
             .or_else(|| {
-                c.query_row("SELECT TRIM(jira_keys) FROM scenarios WHERE id = ?1 AND TRIM(jira_keys) <> ''", [sid], |r| r.get::<_, String>(0))
-                    .ok()
-                    .and_then(|s| s.split_whitespace().next().map(String::from))
+                c.query_row(
+                    "SELECT TRIM(jira_keys) FROM scenarios WHERE id = ?1 AND TRIM(jira_keys) <> ''",
+                    [sid],
+                    |r| r.get::<_, String>(0),
+                )
+                .ok()
+                .and_then(|s| s.split_whitespace().next().map(String::from))
             }),
         None => None,
     };
@@ -97,8 +106,9 @@ pub fn cleanup(c: &Connection, paths: &Paths, probe: &dyn DiskProbe, warn_pct: f
             "SELECT id, run_id, source, scenario_id FROM attachments
              WHERE deleted_at IS NULL AND mime LIKE ?1 ORDER BY run_id, id",
         )?;
-        let rows: Vec<(i64, i64, String, Option<i64>)> =
-            st.query_map([kind], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<_>>()?;
+        let rows: Vec<(i64, i64, String, Option<i64>)> = st
+            .query_map([kind], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
+            .collect::<rusqlite::Result<_>>()?;
         let mut current_run = None;
         for (id, run_id, source, sid) in rows {
             // koşum sınırında doluluğu yeniden ölç
@@ -112,7 +122,31 @@ pub fn cleanup(c: &Connection, paths: &Paths, probe: &dyn DiskProbe, warn_pct: f
             rep.deleted_files += 1;
         }
     }
+    log_cleanup(&rep);
     Ok(rep)
+}
+
+fn log_cleanup(rep: &CleanupReport) {
+    if rep.deleted_files > 0 {
+        tracing::info!(
+            silinen_dosya = rep.deleted_files,
+            bosalan_bayt = rep.freed_bytes,
+            "disk temizliği yapıldı"
+        );
+    }
+}
+
+impl DiskState {
+    /// Yeni ölçümü kaydeder; eşik ilk aşıldığında WARN yazar.
+    pub fn update(&self, pct: f64, warn_pct: f64) {
+        let mut s = self.0.lock().unwrap();
+        let was = s.warning;
+        s.used_pct = pct;
+        s.warning = pct >= warn_pct;
+        if s.warning && !was {
+            tracing::warn!(doluluk = pct, esik = warn_pct, "disk doluluk eşiği aşıldı");
+        }
+    }
 }
 
 pub async fn disk_loop(st: crate::AppState) {
@@ -120,13 +154,7 @@ pub async fn disk_loop(st: crate::AppState) {
         let (warn, clean) = (st.cfg.disk_warn_pct, st.cfg.disk_clean_pct);
         let probe = FsProbe(st.paths.root().to_path_buf());
         if let Ok(pct) = probe.used_pct() {
-            let mut s = st.disk.0.lock().unwrap();
-            let was = s.warning;
-            s.used_pct = pct;
-            s.warning = pct >= warn;
-            if s.warning && !was {
-                tracing::warn!(doluluk = pct, esik = warn, "disk doluluk eşiği aşıldı");
-            }
+            st.disk.update(pct, warn);
         }
         let paths = st.paths.clone();
         let res = st
@@ -135,7 +163,6 @@ pub async fn disk_loop(st: crate::AppState) {
             .await;
         match res {
             Ok(r) if r.deleted_files > 0 => {
-                tracing::info!(silinen_dosya = r.deleted_files, bosalan_bayt = r.freed_bytes, "disk temizliği yapıldı");
                 st.disk.0.lock().unwrap().last_cleanup = Some(crate::db::now());
             }
             Ok(_) => {}

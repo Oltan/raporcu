@@ -34,9 +34,15 @@ async fn hook(app: &TestApp, token: &str, v: Value) -> StatusCode {
 #[tokio::test]
 async fn test_sw_9_3_webhook_wrong_token_rejected() {
     let app = app();
-    assert_eq!(hook(&app, "yanlis", pipeline_hook("running", "push")).await, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        hook(&app, "yanlis", pipeline_hook("running", "push")).await,
+        StatusCode::UNAUTHORIZED
+    );
     assert_eq!(hook(&app, "", pipeline_hook("running", "push")).await, StatusCode::UNAUTHORIZED);
-    assert_eq!(hook(&app, "test-webhook-token", pipeline_hook("running", "push")).await, StatusCode::OK);
+    assert_eq!(
+        hook(&app, "test-webhook-token", pipeline_hook("running", "push")).await,
+        StatusCode::OK
+    );
 }
 
 #[tokio::test]
@@ -65,7 +71,12 @@ async fn test_sw_5_3_nightly_summary_email_once_per_pipeline_dry_run() {
     assert!(mail.contains("http://stajproje.test/runs/1"));
     assert!(mail.contains("Açılan MR'lar"));
     // push pipeline'ı e-posta göndermez
-    let n: i64 = app.state.db.read(|c| Ok(c.query_row("SELECT COUNT(*) FROM emails", [], |r| r.get(0))?)).await.unwrap();
+    let n: i64 = app
+        .state
+        .db
+        .read(|c| Ok(c.query_row("SELECT COUNT(*) FROM emails", [], |r| r.get(0))?))
+        .await
+        .unwrap();
     assert_eq!(n, 1);
 }
 
@@ -137,9 +148,17 @@ type JL = Arc<Mutex<JiraLog>>;
 async fn fake_jira(log: JL) -> String {
     async fn create(State(l): State<JL>, headers: HeaderMap, Json(v): Json<Value>) -> (StatusCode, Json<Value>) {
         let mut g = l.lock().unwrap();
-        g.auth.push(headers.get("authorization").map(|h| h.to_str().unwrap().to_string()).unwrap_or_default());
+        g.auth.push(
+            headers
+                .get("authorization")
+                .map(|h| h.to_str().unwrap().to_string())
+                .unwrap_or_default(),
+        );
         if g.reject_labels && v["fields"].get("labels").is_some() {
-            return (StatusCode::BAD_REQUEST, Json(json!({ "errors": { "labels": "Field 'labels' cannot be set." } })));
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "errors": { "labels": "Field 'labels' cannot be set." } })),
+            );
         }
         g.created.push(v);
         let key = format!("BUG-{}", g.created.len());
@@ -185,7 +204,15 @@ fn zip_without_jira_tag() -> Vec<u8> {
         let mut data = std::fs::read(&p).unwrap();
         if n.ends_with("-result.json") {
             let mut v: Value = serde_json::from_slice(&data).unwrap();
-            v["labels"] = Value::Array(v["labels"].as_array().unwrap().iter().filter(|l| l["value"] != "JIRA-STAJ-42").cloned().collect());
+            v["labels"] = Value::Array(
+                v["labels"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|l| l["value"] != "JIRA-STAJ-42")
+                    .cloned()
+                    .collect(),
+            );
             data = v.to_string().into_bytes();
         }
         std::fs::write(tmp.path().join(&n), data).unwrap();
@@ -265,7 +292,18 @@ async fn test_sw_6_3_observe_mode_records_without_writing_to_jira() {
     let id = upload_zip(&app, zip_without_jira_tag()).await;
     settle().await;
     assert!(log.lock().unwrap().created.is_empty(), "gözlem modunda Jira'ya yazılmaz");
-    let n: i64 = app.state.db.read(move |c| Ok(c.query_row("SELECT COUNT(*) FROM jira_actions WHERE run_id = ?1 AND action = 'acilacakti'", [id], |r| r.get(0))?)).await.unwrap();
+    let n: i64 = app
+        .state
+        .db
+        .read(move |c| {
+            Ok(c.query_row(
+                "SELECT COUNT(*) FROM jira_actions WHERE run_id = ?1 AND action = 'acilacakti'",
+                [id],
+                |r| r.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
     assert_eq!(n, 1, "kayıt tutulur");
     let (_, admin) = app.get_admin("/admin").await;
     assert!(admin.contains("acilacakti"));
@@ -288,7 +326,15 @@ async fn test_sw_6_3_live_mode_cap_dedup_and_retry_required() {
         let mut data = std::fs::read(&p).unwrap();
         if n.ends_with("-result.json") {
             let mut v: Value = serde_json::from_slice(&data).unwrap();
-            v["labels"] = Value::Array(v["labels"].as_array().unwrap().iter().filter(|l| l["value"] != "JIRA-STAJ-42").cloned().collect());
+            v["labels"] = Value::Array(
+                v["labels"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|l| l["value"] != "JIRA-STAJ-42")
+                    .cloned()
+                    .collect(),
+            );
             if v["name"] == "Yavaş açılan karşılama mesajı" {
                 // rerun'da da kalsın → iki deneme, ürün hatası
                 v["status"] = "failed".into();
@@ -306,7 +352,12 @@ async fn test_sw_6_3_live_mode_cap_dedup_and_retry_required() {
     settle().await;
     let created = log.lock().unwrap().created.len();
     assert!(created <= 2);
-    let links: i64 = app.state.db.read(|c| Ok(c.query_row("SELECT COUNT(*) FROM bug_links WHERE source = 'eslesme'", [], |r| r.get(0))?)).await.unwrap();
+    let links: i64 = app
+        .state
+        .db
+        .read(|c| Ok(c.query_row("SELECT COUNT(*) FROM bug_links WHERE source = 'eslesme'", [], |r| r.get(0))?))
+        .await
+        .unwrap();
     assert!(links >= 1, "aynı hata için tek bug");
 }
 
@@ -320,8 +371,20 @@ async fn test_sw_4_5_triage_rule_opencode_admin_precedence_and_history() {
     let (_, html) = app.get(&format!("/runs/{id}")).await;
     assert!(html.contains("Ürün hatası") && html.contains("Test kodu hatası") && html.contains("Kural"));
     // OpenCode düşük güven: öneri kalır, kural geçerli
-    let key = run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["id"] == broken).unwrap()["senaryo"]["scenario_key"].as_str().unwrap().to_string();
-    app.ci_json(&format!("/api/ci/runs/{id}/fix-result"), json!({ "scenario_key": key, "outcome": "no_change", "triage": { "category": "ortam", "reason": "ekran yok", "confidence": 0.4 } })).await;
+    let key = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["id"] == broken)
+        .unwrap()["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    app.ci_json(
+        &format!("/api/ci/runs/{id}/fix-result"),
+        json!({ "scenario_key": key, "outcome": "no_change", "triage": { "category": "ortam", "reason": "ekran yok", "confidence": 0.4 } }),
+    )
+    .await;
     let (_, sp) = app.get(&format!("/scenarios/{broken}")).await;
     assert!(sp.contains("kaynak: Kural"));
     // OpenCode yüksek güven: geçerli olur
@@ -330,7 +393,13 @@ async fn test_sw_4_5_triage_rule_opencode_admin_precedence_and_history() {
     assert!(sp.contains("Ortam sorunu") && sp.contains("kaynak: OpenCode"));
     // admin değiştirir: geçerli olur, eskiler geçmişte kalır
     let cookie = app.admin_cookie();
-    let r = post_form(&app, &format!("/admin/scenarios/{failed}/triage"), &cookie, "category=test_kodu&reason=Beklenen+metin+eski").await;
+    let r = post_form(
+        &app,
+        &format!("/admin/scenarios/{failed}/triage"),
+        &cookie,
+        "category=test_kodu&reason=Beklenen+metin+eski",
+    )
+    .await;
     assert_eq!(r.status(), StatusCode::SEE_OTHER);
     let (_, sp) = app.get(&format!("/scenarios/{failed}")).await;
     assert!(sp.contains("kaynak: Admin") && sp.contains("Karar geçmişi") && sp.contains("Ürün hatası"));
@@ -348,15 +417,30 @@ async fn test_sw_7_1_fix_candidates_targets() {
     let _ = st;
     // GET ucu
     let r = app
-        .send(axum::http::Request::get(format!("/api/ci/runs/{id}/fix-candidates")).header("authorization", format!("Bearer {CI_TOKEN}")).body(axum::body::Body::empty()).unwrap())
+        .send(
+            axum::http::Request::get(format!("/api/ci/runs/{id}/fix-candidates"))
+                .header("authorization", format!("Bearer {CI_TOKEN}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
         .await;
     assert_eq!(r.status(), StatusCode::OK);
     let list: Value = serde_json::from_str(&body_string(r).await).unwrap();
     let _ = v;
-    let t = |n: &str| list.as_array().unwrap().iter().find(|c| c["name"] == n).unwrap()["target"].as_str().unwrap().to_string();
+    let t = |n: &str| {
+        list.as_array().unwrap().iter().find(|c| c["name"] == n).unwrap()["target"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
     assert_eq!(t("Şifremi unuttum bağlantısı"), "opencode");
     assert_eq!(t("Yanlış şifrede özel mesaj"), "atla", "@sample-fail atlanır");
-    let c = list.as_array().unwrap().iter().find(|c| c["name"] == "Şifremi unuttum bağlantısı").unwrap();
+    let c = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap();
     assert!(c["screenshot_url"].as_str().unwrap().starts_with("http://stajproje.test/files/"));
     assert_eq!(c["feature_file"], "features/giris.feature");
 }
@@ -366,7 +450,15 @@ async fn test_sw_7_3_and_4_4_fix_result_box_and_badge_in_report() {
     let app = app();
     let id = upload_sample(&app, Q).await;
     let run = run_json(&app, id).await;
-    let key = run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["name"] == "Şifremi unuttum bağlantısı").unwrap()["senaryo"]["scenario_key"].as_str().unwrap().to_string();
+    let key = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let (st, _) = app
         .ci_json(
             &format!("/api/ci/runs/{id}/fix-result"),
@@ -388,15 +480,31 @@ async fn test_sw_7_5_healing_panel_counts_with_mr_webhook() {
     let app = app();
     let id = upload_sample(&app, Q).await;
     let run = run_json(&app, id).await;
-    let key = run["senaryolar"].as_array().unwrap()[0]["senaryo"]["scenario_key"].as_str().unwrap().to_string();
+    let key = run["senaryolar"].as_array().unwrap()[0]["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
     for (iid, outcome) in [(1, "mr_opened"), (2, "draft_mr"), (3, "mr_opened")] {
-        app.ci_json(&format!("/api/ci/runs/{id}/fix-result"), json!({ "scenario_key": key, "outcome": outcome, "mr_iid": iid })).await;
+        app.ci_json(
+            &format!("/api/ci/runs/{id}/fix-result"),
+            json!({ "scenario_key": key, "outcome": outcome, "mr_iid": iid }),
+        )
+        .await;
     }
-    app.ci_json(&format!("/api/ci/runs/{id}/fix-result"), json!({ "scenario_key": key, "outcome": "no_change" })).await;
+    app.ci_json(
+        &format!("/api/ci/runs/{id}/fix-result"),
+        json!({ "scenario_key": key, "outcome": "no_change" }),
+    )
+    .await;
     let mr = |iid: i64, state: &str| json!({ "object_kind": "merge_request", "object_attributes": { "iid": iid, "state": state }, "project": { "id": 55, "path_with_namespace": "ekip/javafx" } });
     hook(&app, "test-webhook-token", mr(1, "merged")).await;
     hook(&app, "test-webhook-token", mr(2, "closed")).await;
-    let days = app.state.db.read(|c| stajproje::web::pages::healing_days(c, chrono::Utc::now().date_naive())).await.unwrap();
+    let days = app
+        .state
+        .db
+        .read(|c| stajproje::web::pages::healing_days(c, chrono::Utc::now().date_naive()))
+        .await
+        .unwrap();
     assert_eq!(days.len(), 30, "son 30 gece");
     let today = days.last().unwrap();
     assert_eq!((today.attempts, today.mrs, today.merged, today.rejected), (4, 3, 1, 1));
@@ -410,13 +518,26 @@ async fn test_sw_7_7_previous_successful_fix_given_as_example() {
     let app = app();
     let id = upload_sample(&app, Q).await;
     let run = run_json(&app, id).await;
-    let key = run["senaryolar"].as_array().unwrap().iter().find(|s| s["senaryo"]["name"] == "Şifremi unuttum bağlantısı").unwrap()["senaryo"]["scenario_key"].as_str().unwrap().to_string();
+    let key = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
     app.ci_json(&format!("/api/ci/runs/{id}/fix-result"), json!({ "scenario_key": key, "outcome": "mr_opened", "mr_iid": 5, "diff": "-robot.clickOn(\"#sifremiUnuttum\")\n+robot.clickOn(\"#sifreSifirla\")" })).await;
     hook(&app, "test-webhook-token", json!({ "object_kind": "merge_request", "object_attributes": { "iid": 5, "state": "merged" }, "project": { "id": 55, "path_with_namespace": "ekip/javafx" } })).await;
     // yeni koşumda benzer senaryo
     let id2 = upload_sample(&app, Q).await;
     let r = app
-        .send(axum::http::Request::get(format!("/api/ci/runs/{id2}/fix-candidates")).header("authorization", format!("Bearer {CI_TOKEN}")).body(axum::body::Body::empty()).unwrap())
+        .send(
+            axum::http::Request::get(format!("/api/ci/runs/{id2}/fix-candidates"))
+                .header("authorization", format!("Bearer {CI_TOKEN}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
         .await;
     let list: Value = serde_json::from_str(&body_string(r).await).unwrap();
     let c = list.as_array().unwrap().iter().find(|c| c["target"] == "opencode").unwrap();
@@ -427,11 +548,23 @@ async fn test_sw_7_7_previous_successful_fix_given_as_example() {
 #[tokio::test]
 async fn test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api() {
     let got: Arc<Mutex<Vec<(String, String, Value)>>> = Default::default();
-    async fn trigger(State(g): State<Arc<Mutex<Vec<(String, String, Value)>>>>, Path(p): Path<String>, headers: HeaderMap, Json(v): Json<Value>) -> Json<Value> {
-        g.lock().unwrap().push((p, headers["private-token"].to_str().unwrap().to_string(), v));
+    async fn trigger(
+        State(g): State<Arc<Mutex<Vec<(String, String, Value)>>>>,
+        Path(p): Path<String>,
+        headers: HeaderMap,
+        Json(v): Json<Value>,
+    ) -> Json<Value> {
+        g.lock()
+            .unwrap()
+            .push((p, headers["private-token"].to_str().unwrap().to_string(), v));
         Json(json!({ "id": 4242, "web_url": "https://gitlab/p/-/pipelines/4242" }))
     }
-    let url = spawn_fake(Router::new().route("/api/v4/projects/{p}/pipeline", post(trigger)).with_state(got.clone())).await;
+    let url = spawn_fake(
+        Router::new()
+            .route("/api/v4/projects/{p}/pipeline", post(trigger))
+            .with_state(got.clone()),
+    )
+    .await;
     let app = app_with(move |c| {
         c.gitlab_url = Some(url);
         c.gitlab_token = Some(stajproje::config::Secret::new("glpat-gizli-token"));
@@ -449,14 +582,19 @@ async fn test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api() {
     assert_eq!(body["ref"], "main");
     let vars = body["variables"].as_array().unwrap();
     assert!(vars.iter().any(|v| v["key"] == "STAJ_FIX_ONLY" && v["value"] == "true"));
-    assert!(vars.iter().any(|v| v["key"] == "STAJ_RUN_ID" && v["value"] == id.to_string().as_str()));
+    assert!(vars
+        .iter()
+        .any(|v| v["key"] == "STAJ_RUN_ID" && v["value"] == id.to_string().as_str()));
 }
 
 #[tokio::test]
 async fn test_sw_9_2_gitlab_token_not_in_error_messages_or_logs() {
     // GitLab hata döner ve yanıtında token'ı yansıtır
     async fn bad(headers: HeaderMap) -> (StatusCode, String) {
-        (StatusCode::UNAUTHORIZED, format!("401 Unauthorized token={}", headers["private-token"].to_str().unwrap()))
+        (
+            StatusCode::UNAUTHORIZED,
+            format!("401 Unauthorized token={}", headers["private-token"].to_str().unwrap()),
+        )
     }
     let url = spawn_fake(Router::new().route("/api/v4/projects/{p}/pipeline", post(bad))).await;
     let app = app_with(move |c| {

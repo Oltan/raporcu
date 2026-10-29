@@ -6,7 +6,14 @@ use rusqlite::{params, Connection};
 use std::collections::HashSet;
 
 /// Senaryonun geçmiş koşumlardaki son denemeleri, en yeniden eskiye.
-pub fn scenario_history(c: &Connection, project_id: i64, branch: Option<&str>, key: &str, limit: i64, offset: i64) -> Result<Vec<ScenarioRow>> {
+pub fn scenario_history(
+    c: &Connection,
+    project_id: i64,
+    branch: Option<&str>,
+    key: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<ScenarioRow>> {
     let mut st = c.prepare(&format!(
         "SELECT {SCEN_COLS} FROM scenarios s
          WHERE s.project_id = ?1 AND (?2 IS NULL OR s.branch = ?2) AND s.scenario_key = ?3 AND s.is_latest = 1

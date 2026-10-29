@@ -35,7 +35,9 @@ pub fn ensure_project(c: &Connection, ci: &CiInfo) -> Result<i64> {
         }
     }
     if let Some(id) = c
-        .query_row("SELECT id FROM projects WHERE path = ?1", [&ci.project_path], |r| r.get::<_, i64>(0))
+        .query_row("SELECT id FROM projects WHERE path = ?1", [&ci.project_path], |r| {
+            r.get::<_, i64>(0)
+        })
         .optional()?
     {
         c.execute(
@@ -54,26 +56,49 @@ pub fn ensure_project(c: &Connection, ci: &CiInfo) -> Result<i64> {
 }
 
 pub fn create_run(c: &Connection, project_id: i64, ci: &CiInfo, status: &str, total_expected: Option<i64>) -> Result<RunCtx> {
-    let branch = if ci.branch.trim().is_empty() { "unknown".to_string() } else { ci.branch.clone() };
+    let branch = if ci.branch.trim().is_empty() {
+        "unknown".to_string()
+    } else {
+        ci.branch.clone()
+    };
     let t = now();
     c.execute(
         "INSERT INTO runs (project_id, branch, commit_sha, pipeline_id, pipeline_url, job_id, job_url, os, status,
                            total_expected, started_at, last_activity_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
-        params![project_id, branch, ci.commit, ci.pipeline_id, ci.pipeline_url, ci.job_id, ci.job_url, ci.os, status, total_expected, t],
+        params![
+            project_id,
+            branch,
+            ci.commit,
+            ci.pipeline_id,
+            ci.pipeline_url,
+            ci.job_id,
+            ci.job_url,
+            ci.os,
+            status,
+            total_expected,
+            t
+        ],
     )?;
     let run_id = c.last_insert_rowid();
     tracing::info!(run_id, proje = %ci.project_path, branch = %branch, pipeline_id = ci.pipeline_id.as_deref().unwrap_or(""),
         beklenen = total_expected.unwrap_or(-1), "koşum açıldı");
-    Ok(RunCtx { run_id, project_id, branch })
+    Ok(RunCtx {
+        run_id,
+        project_id,
+        branch,
+    })
 }
 
 pub fn run_ctx(c: &Connection, run_id: i64) -> Result<Option<RunCtx>> {
-    Ok(c
-        .query_row("SELECT project_id, branch FROM runs WHERE id = ?1", [run_id], |r| {
-            Ok(RunCtx { run_id, project_id: r.get(0)?, branch: r.get(1)? })
+    Ok(c.query_row("SELECT project_id, branch FROM runs WHERE id = ?1", [run_id], |r| {
+        Ok(RunCtx {
+            run_id,
+            project_id: r.get(0)?,
+            branch: r.get(1)?,
         })
-        .optional()?)
+    })
+    .optional()?)
 }
 
 fn space_list(items: &[String]) -> String {
@@ -141,7 +166,17 @@ fn insert_steps(c: &Connection, run_id: i64, sid: i64, parent: Option<i64>, dept
         c.execute(
             "INSERT INTO steps (scenario_id, parent_id, position, depth, name, status, message, start_ms, stop_ms)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![sid, parent, *pos, depth, s.name, s.status.unwrap_or_default().as_str(), msg, s.start, s.stop],
+            params![
+                sid,
+                parent,
+                *pos,
+                depth,
+                s.name,
+                s.status.unwrap_or_default().as_str(),
+                msg,
+                s.start,
+                s.stop
+            ],
         )?;
         let step_id = c.last_insert_rowid();
         for a in &s.attachments {
@@ -176,7 +211,10 @@ fn insert_attachment(
 /// SW-2.2: container dosyası. `@Before/@After` ekleri `children` üzerinden senaryoya bağlanır.
 pub fn ingest_container(c: &Connection, run_id: i64, ct: &Container) -> Result<bool> {
     anyhow::ensure!(!ct.uuid.is_empty(), "container uuid boş");
-    let inserted = c.execute("INSERT OR IGNORE INTO containers (run_id, uuid) VALUES (?1, ?2)", params![run_id, ct.uuid])?;
+    let inserted = c.execute(
+        "INSERT OR IGNORE INTO containers (run_id, uuid) VALUES (?1, ?2)",
+        params![run_id, ct.uuid],
+    )?;
     if inserted == 0 {
         return Ok(false);
     }
@@ -290,10 +328,21 @@ pub fn finish_run(c: &Connection, run_id: i64, status: &str) -> Result<RunCounts
     )?;
     let k = run_counts(c, run_id)?;
     if status == "interrupted" {
-        tracing::warn!(run_id, toplam = k.total, gecen = k.passed, kalan = k.failed + k.broken, "koşum interrupted oldu");
+        tracing::warn!(
+            run_id,
+            toplam = k.total,
+            gecen = k.passed,
+            kalan = k.failed + k.broken,
+            "koşum interrupted oldu"
+        );
     } else {
-        tracing::info!(run_id, toplam = k.total, gecen = k.passed, kalan = k.failed + k.broken, "koşum bitti");
+        tracing::info!(
+            run_id,
+            toplam = k.total,
+            gecen = k.passed,
+            kalan = k.failed + k.broken,
+            "koşum bitti"
+        );
     }
     Ok(k)
 }
-

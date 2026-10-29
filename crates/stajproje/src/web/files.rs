@@ -18,9 +18,13 @@ pub async fn serve_attachment_file(st: &AppState, att: &queries::AttachmentRow, 
         return (StatusCode::NOT_FOUND, "Ek dosyası henüz gelmedi ya da yok").into_response();
     }
     let mime = att.mime.clone().unwrap_or_else(|| "application/octet-stream".into());
-    match ServeFile::new_with_mime(&path, &mime.parse().unwrap_or(mime_guess::mime::APPLICATION_OCTET_STREAM)).oneshot(req).await {
+    match ServeFile::new_with_mime(&path, &mime.parse().unwrap_or(mime_guess::mime::APPLICATION_OCTET_STREAM))
+        .oneshot(req)
+        .await
+    {
         Ok(mut r) => {
-            r.headers_mut().insert(header::CACHE_CONTROL, "private, max-age=86400".parse().unwrap());
+            r.headers_mut()
+                .insert(header::CACHE_CONTROL, "private, max-age=86400".parse().unwrap());
             r.map(Body::new).into_response()
         }
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),

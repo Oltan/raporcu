@@ -39,7 +39,12 @@ impl Client {
             token: token.to_string(),
             agent,
             retries: std::env::var("STAJ_RETRY_MAX").ok().and_then(|v| v.parse().ok()).unwrap_or(5),
-            base_delay: Duration::from_millis(std::env::var("STAJ_RETRY_BASE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(2000)),
+            base_delay: Duration::from_millis(
+                std::env::var("STAJ_RETRY_BASE_MS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(2000),
+            ),
         }
     }
 
@@ -49,7 +54,8 @@ impl Client {
             "PUT" => self.agent.put(&url),
             _ => self.agent.post(&url),
         };
-        b.header("Authorization", &format!("Bearer {}", self.token)).header(common::VERSION_HEADER, common::VERSION)
+        b.header("Authorization", &format!("Bearer {}", self.token))
+            .header(common::VERSION_HEADER, common::VERSION)
     }
 
     fn finish(resp: Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> Result<Reply> {
@@ -61,7 +67,11 @@ impl Client {
     }
 
     pub fn post_json(&self, path: &str, v: &serde_json::Value) -> Result<Reply> {
-        Self::finish(self.req("POST", path).header("Content-Type", "application/json").send(v.to_string()))
+        Self::finish(
+            self.req("POST", path)
+                .header("Content-Type", "application/json")
+                .send(v.to_string()),
+        )
     }
 
     pub fn post_bytes(&self, path: &str, content_type: &str, data: &[u8]) -> Result<Reply> {
@@ -95,7 +105,12 @@ impl Client {
                 Err(e) => last = Some(e),
             }
             if attempt < self.retries {
-                eprintln!("[stajci] {what} başarısız, {} sn sonra tekrar denenecek ({}/{})", delay.as_secs_f32(), attempt + 1, self.retries);
+                eprintln!(
+                    "[stajci] {what} başarısız, {} sn sonra tekrar denenecek ({}/{})",
+                    delay.as_secs_f32(),
+                    attempt + 1,
+                    self.retries
+                );
                 std::thread::sleep(delay);
                 delay = (delay * 2).min(Duration::from_secs(60));
             }

@@ -247,8 +247,7 @@ impl TestResult {
 pub fn doors_id(tag: &str) -> Option<String> {
     let t = tag.trim_start_matches('@');
     let rest = t.strip_prefix("DOORS-").or_else(|| t.strip_prefix("doors-"))?;
-    (!rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
-        .then(|| format!("DOORS-{rest}"))
+    (!rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')).then(|| format!("DOORS-{rest}"))
 }
 
 pub fn jira_key(tag: &str) -> Option<String> {

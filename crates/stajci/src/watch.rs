@@ -14,7 +14,11 @@ pub fn watch(c: &Ctx, run_id: i64) -> i32 {
     let interval = Duration::from_millis(env("STAJ_WATCH_INTERVAL_MS").and_then(|v| v.parse().ok()).unwrap_or(1000));
     let max_life = Duration::from_secs(env("STAJ_WATCH_MAX_SECS").and_then(|v| v.parse().ok()).unwrap_or(6 * 3600));
     let sent_path = c.state_dir.join("sent.txt");
-    let mut sent: HashSet<String> = std::fs::read_to_string(&sent_path).unwrap_or_default().lines().map(String::from).collect();
+    let mut sent: HashSet<String> = std::fs::read_to_string(&sent_path)
+        .unwrap_or_default()
+        .lines()
+        .map(String::from)
+        .collect();
     let mut sizes: HashMap<String, u64> = HashMap::new();
     let started = Instant::now();
     let mut backoff_until = Instant::now();
@@ -38,7 +42,11 @@ pub fn watch(c: &Ctx, run_id: i64) -> i32 {
                     }
                     let Ok(meta) = e.metadata() else { continue };
                     // yazımı süren dosyayı gönderme: boyut iki tur aynı kalmalı ya da dosya 300 ms'den eski olmalı
-                    let fresh = meta.modified().ok().and_then(|m| SystemTime::now().duration_since(m).ok()).is_some_and(|age| age < Duration::from_millis(300));
+                    let fresh = meta
+                        .modified()
+                        .ok()
+                        .and_then(|m| SystemTime::now().duration_since(m).ok())
+                        .is_some_and(|age| age < Duration::from_millis(300));
                     let prev = sizes.insert(name.clone(), meta.len());
                     if fresh && prev != Some(meta.len()) && !stopping {
                         continue;
@@ -48,10 +56,14 @@ pub fn watch(c: &Ctx, run_id: i64) -> i32 {
                     match client.post_bytes(&path, "application/octet-stream", &data) {
                         Ok(r) if (200..300).contains(&r.status) => {
                             sent.insert(name.clone());
-                            let _ = std::fs::OpenOptions::new().create(true).append(true).open(&sent_path).and_then(|mut f| {
-                                use std::io::Write;
-                                writeln!(f, "{name}")
-                            });
+                            let _ = std::fs::OpenOptions::new()
+                                .create(true)
+                                .append(true)
+                                .open(&sent_path)
+                                .and_then(|mut f| {
+                                    use std::io::Write;
+                                    writeln!(f, "{name}")
+                                });
                         }
                         Ok(r) if r.status < 500 => {
                             say(format!("{name} reddedildi ({}): {}", r.status, r.body));

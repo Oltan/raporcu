@@ -20,8 +20,14 @@ pub struct Migration {
 
 /// Gömülü migration'lar. Yeni migration eklemek için dosyayı `migrations/` altına koyup buraya ekle.
 pub const MIGRATIONS: &[Migration] = &[
-    Migration { name: "0001_ilk", sql: include_str!("../../../migrations/0001_ilk.sql") },
-    Migration { name: "0002_triage_kolonu", sql: include_str!("../../../migrations/0002_triage_kolonu.sql") },
+    Migration {
+        name: "0001_ilk",
+        sql: include_str!("../../../migrations/0001_ilk.sql"),
+    },
+    Migration {
+        name: "0002_triage_kolonu",
+        sql: include_str!("../../../migrations/0002_triage_kolonu.sql"),
+    },
 ];
 
 #[derive(Clone)]
@@ -83,7 +89,10 @@ impl Db {
         }
         Ok(Db {
             writer: Arc::new(Mutex::new(writer)),
-            readers: Arc::new(ReadPool { conns: Mutex::new(pool), available: Condvar::new() }),
+            readers: Arc::new(ReadPool {
+                conns: Mutex::new(pool),
+                available: Condvar::new(),
+            }),
             path,
         })
     }
@@ -166,20 +175,17 @@ impl Db {
 }
 
 fn apply_migrations(conn: &mut Connection, migrations: &[Migration]) -> Result<()> {
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);",
-    )?;
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);")?;
     for m in migrations {
-        let done: bool = conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name = ?1)",
-            [m.name],
-            |r| r.get(0),
-        )?;
+        let done: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE name = ?1)", [m.name], |r| {
+            r.get(0)
+        })?;
         if done {
             continue;
         }
         let tx = conn.transaction()?;
-        tx.execute_batch(m.sql).with_context(|| format!("migration {} uygulanamadı", m.name))?;
+        tx.execute_batch(m.sql)
+            .with_context(|| format!("migration {} uygulanamadı", m.name))?;
         tx.execute(
             "INSERT INTO schema_migrations (name, applied_at) VALUES (?1, ?2)",
             rusqlite::params![m.name, now()],
@@ -219,7 +225,9 @@ mod tests {
     use super::*;
 
     fn tables(c: &Connection) -> Vec<String> {
-        let mut st = c.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").unwrap();
+        let mut st = c
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap();
         st.query_map([], |r| r.get(0)).unwrap().map(|r| r.unwrap()).collect()
     }
 
@@ -230,12 +238,25 @@ mod tests {
         let db = Db::open(&paths, 1024, 1).unwrap();
         assert!(paths.db().is_file());
         let t = db.read_blocking(|c| Ok(tables(c))).unwrap();
-        for name in ["runs", "scenarios", "steps", "attachments", "bug_links", "share_links", "fix_attempts", "users"] {
+        for name in [
+            "runs",
+            "scenarios",
+            "steps",
+            "attachments",
+            "bug_links",
+            "share_links",
+            "fix_attempts",
+            "users",
+        ] {
             assert!(t.contains(&name.to_string()), "{name} tablosu yok");
         }
-        let mode: String = db.read_blocking(|c| Ok(c.query_row("PRAGMA journal_mode", [], |r| r.get(0))?)).unwrap();
+        let mode: String = db
+            .read_blocking(|c| Ok(c.query_row("PRAGMA journal_mode", [], |r| r.get(0))?))
+            .unwrap();
         assert_eq!(mode.to_lowercase(), "wal");
-        let fk: i64 = db.write_blocking(|c| Ok(c.query_row("PRAGMA foreign_keys", [], |r| r.get(0))?)).unwrap();
+        let fk: i64 = db
+            .write_blocking(|c| Ok(c.query_row("PRAGMA foreign_keys", [], |r| r.get(0))?))
+            .unwrap();
         assert_eq!(fk, 1);
     }
 
@@ -245,9 +266,18 @@ mod tests {
         let paths = Paths::new(tmp.path());
         drop(Db::open_with(&paths, 1024, 1, &MIGRATIONS[..1]).unwrap());
         let extra = [
-            Migration { name: MIGRATIONS[0].name, sql: MIGRATIONS[0].sql },
-            Migration { name: MIGRATIONS[1].name, sql: MIGRATIONS[1].sql },
-            Migration { name: "0099_deneme", sql: "CREATE TABLE deneme (x INTEGER);" },
+            Migration {
+                name: MIGRATIONS[0].name,
+                sql: MIGRATIONS[0].sql,
+            },
+            Migration {
+                name: MIGRATIONS[1].name,
+                sql: MIGRATIONS[1].sql,
+            },
+            Migration {
+                name: "0099_deneme",
+                sql: "CREATE TABLE deneme (x INTEGER);",
+            },
         ];
         let db = Db::open_with(&paths, 1024, 1, &extra).unwrap();
         let t = db.read_blocking(|c| Ok(tables(c))).unwrap();

@@ -78,7 +78,9 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     }
     let mut maven_opts = env("MAVEN_OPTS").unwrap_or_default();
     if !maven_opts.contains("-Xmx") {
-        maven_opts = format!("{maven_opts} -Xmx{maven_xmx} -XX:+ExitOnOutOfMemoryError").trim().to_string();
+        maven_opts = format!("{maven_opts} -Xmx{maven_xmx} -XX:+ExitOnOutOfMemoryError")
+            .trim()
+            .to_string();
     }
     if !maven_opts.contains("stdout.encoding") {
         maven_opts.push_str(" -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8");
@@ -87,7 +89,11 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
         ("MAVEN_OPTS".to_string(), maven_opts),
         ("STAJ_VIDEO_FPS".to_string(), env_or("STAJ_VIDEO_FPS", "5")),
     ];
-    wrap_display(TestCommand { program, args: parts, envs })
+    wrap_display(TestCommand {
+        program,
+        args: parts,
+        envs,
+    })
 }
 
 /// SW-1.2: Linux'ta komutu Xvfb ekranında çalıştırır (`xvfb-run -a`: her işe boş ekran numarası).
@@ -98,29 +104,50 @@ pub fn wrap_display(mut cmd: TestCommand) -> TestCommand {
         return cmd;
     }
     let screen = env_or("STAJ_SCREEN", "1920x1080");
-    let mut args = vec!["-a".to_string(), "-s".to_string(), format!("-screen 0 {screen}x24 -nolisten tcp"), cmd.program];
+    let mut args = vec![
+        "-a".to_string(),
+        "-s".to_string(),
+        format!("-screen 0 {screen}x24 -nolisten tcp"),
+        cmd.program,
+    ];
     args.append(&mut cmd.args);
     cmd.envs.push(("GDK_BACKEND".into(), "x11".into()));
-    TestCommand { program: env_or("STAJ_XVFB_RUN", "xvfb-run"), args, envs: cmd.envs }
+    TestCommand {
+        program: env_or("STAJ_XVFB_RUN", "xvfb-run"),
+        args,
+        envs: cmd.envs,
+    }
 }
 
 fn is_oom_line(l: &str) -> bool {
-    l.contains("java.lang.OutOfMemoryError") || l.contains("Terminating due to java.lang.OutOfMemoryError") || l.contains("Cannot allocate memory")
+    l.contains("java.lang.OutOfMemoryError")
+        || l.contains("Terminating due to java.lang.OutOfMemoryError")
+        || l.contains("Cannot allocate memory")
 }
 
 /// Komutu koşar; çıktıyı satır satır basar, bellek hatasını yakalar. (çıkış kodu, oom)
 pub fn run_streaming(cmd: &TestCommand, cwd: &std::path::Path) -> Result<(i32, bool)> {
     let mut command = Command::new(&cmd.program);
-    command.args(&cmd.args).current_dir(cwd).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    command
+        .args(&cmd.args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
     for (k, v) in &cmd.envs {
         command.env(k, v);
     }
-    let mut child = command.spawn().with_context(|| format!("test komutu başlatılamadı: {}", cmd.program))?;
+    let mut child = command
+        .spawn()
+        .with_context(|| format!("test komutu başlatılamadı: {}", cmd.program))?;
     let oom = Arc::new(AtomicBool::new(false));
     let mut handles = Vec::new();
-    for stream in [child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>), child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>)]
-        .into_iter()
-        .flatten()
+    for stream in [
+        child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+        child.stderr.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>),
+    ]
+    .into_iter()
+    .flatten()
     {
         let oom = oom.clone();
         handles.push(std::thread::spawn(move || {
@@ -183,16 +210,27 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
     let ci = ctx::ci_info(&c.project_dir);
     let mut body = serde_json::to_value(&ci)?;
     body["total"] = (planned.len() as i64).into();
-    body["expected"] = planned.iter().map(|p| serde_json::json!({ "name": p.name, "feature": p.feature })).collect::<Vec<_>>().into();
+    body["expected"] = planned
+        .iter()
+        .map(|p| serde_json::json!({ "name": p.name, "feature": p.feature }))
+        .collect::<Vec<_>>()
+        .into();
     let client = c.client();
     let reply = client.with_retry("koşum açma", || client.post_json("/api/ci/runs/start", &body));
     let saved = match reply.and_then(|r| crate::client::ensure_ok(r, "koşum açma")) {
         Ok(r) => {
             let v = r.json()?;
-            let saved = SavedRun { run_id: v["run_id"].as_i64().unwrap_or(0), report_url: v["report_url"].as_str().unwrap_or("").to_string() };
+            let saved = SavedRun {
+                run_id: v["run_id"].as_i64().unwrap_or(0),
+                report_url: v["report_url"].as_str().unwrap_or("").to_string(),
+            };
             c.save_run(&saved)?;
             ctx::set_run_id(saved.run_id);
-            say(format!("koşum açıldı: {} senaryo bekleniyor. Canlı durum: {}/live", planned.len(), saved.report_url));
+            say(format!(
+                "koşum açıldı: {} senaryo bekleniyor. Canlı durum: {}/live",
+                planned.len(),
+                saved.report_url
+            ));
             Some(saved)
         }
         Err(e) => {
@@ -200,7 +238,9 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
                 say(format!("HATA: {e}"));
                 return Ok(2);
             }
-            say(format!("UYARI: sunucuya ulaşılamadı ({e}); testler yine koşacak, sonuçlar sonra gönderilecek (SW-2.6)"));
+            say(format!(
+                "UYARI: sunucuya ulaşılamadı ({e}); testler yine koşacak, sonuçlar sonra gönderilecek (SW-2.6)"
+            ));
             None
         }
     };
@@ -247,7 +287,13 @@ mod tests {
 
     #[test]
     fn test_sw_1_7_memory_limits_in_test_command() {
-        let c = Ctx { server: String::new(), token: String::new(), project_dir: ".".into(), state_dir: ".stajci".into(), results_dir: "r".into() };
+        let c = Ctx {
+            server: String::new(),
+            token: String::new(),
+            project_dir: ".".into(),
+            state_dir: ".stajci".into(),
+            results_dir: "r".into(),
+        };
         let cmd = build_test_command(&c, Some("@smoke"));
         let all = format!("{} {}", cmd.program, cmd.args.join(" "));
         assert!(all.contains("-Dtest.xmx="));
@@ -258,7 +304,9 @@ mod tests {
 
     #[test]
     fn test_sw_1_7_oom_detected() {
-        assert!(is_oom_line("Exception in thread \"main\" java.lang.OutOfMemoryError: Java heap space"));
+        assert!(is_oom_line(
+            "Exception in thread \"main\" java.lang.OutOfMemoryError: Java heap space"
+        ));
         assert!(!is_oom_line("Tests run: 3"));
     }
 }

@@ -13,7 +13,10 @@ use std::io::Read;
 pub fn apply_pipeline_event(c: &Connection, v: &Value) -> Result<Option<(i64, String, String, Option<String>)>> {
     let attrs = &v["object_attributes"];
     let project = &v["project"];
-    let pid = attrs["id"].as_i64().map(|i| i.to_string()).or_else(|| attrs["id"].as_str().map(String::from));
+    let pid = attrs["id"]
+        .as_i64()
+        .map(|i| i.to_string())
+        .or_else(|| attrs["id"].as_str().map(String::from));
     let Some(pipeline_id) = pid else { bail!("pipeline id yok") };
     let status = attrs["status"].as_str().unwrap_or("unknown").to_string();
     let ci = common::api::CiInfo {
@@ -23,7 +26,10 @@ pub fn apply_pipeline_event(c: &Connection, v: &Value) -> Result<Option<(i64, St
         ..Default::default()
     };
     let project_id = crate::ingest::ensure_project(c, &ci)?;
-    let url = attrs["url"].as_str().map(String::from).or_else(|| ci.project_url.as_ref().map(|u| format!("{u}/-/pipelines/{pipeline_id}")));
+    let url = attrs["url"]
+        .as_str()
+        .map(String::from)
+        .or_else(|| ci.project_url.as_ref().map(|u| format!("{u}/-/pipelines/{pipeline_id}")));
     let source = attrs["source"].as_str().map(String::from);
     c.execute(
         "INSERT INTO pipelines (project_id, pipeline_id, ref, status, source, url, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -47,7 +53,11 @@ pub fn apply_mr_event(c: &Connection, v: &Value) -> Result<usize> {
     let project_gid = v["project"]["id"].as_i64().map(|i| i.to_string());
     let path = v["project"]["path_with_namespace"].as_str().unwrap_or("");
     let project_id: Option<i64> = c
-        .query_row("SELECT id FROM projects WHERE gitlab_id = ?1 OR path = ?2 LIMIT 1", params![project_gid, path], |r| r.get(0))
+        .query_row(
+            "SELECT id FROM projects WHERE gitlab_id = ?1 OR path = ?2 LIMIT 1",
+            params![project_gid, path],
+            |r| r.get(0),
+        )
         .optional()?;
     let Some(pid) = project_id else { return Ok(0) };
     let n = c.execute(

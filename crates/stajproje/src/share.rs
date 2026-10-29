@@ -62,7 +62,10 @@ mod tests {
 
     #[test]
     fn test_sw_5_1_text_sanitized() {
-        let s = sanitize_text("Bkz STAJ-42, token=abc123 Bearer eyJhbGci glpat-XYZ DOORS-1003 ok", &["gizli-deger".into()]);
+        let s = sanitize_text(
+            "Bkz STAJ-42, token=abc123 Bearer eyJhbGci glpat-XYZ DOORS-1003 ok",
+            &["gizli-deger".into()],
+        );
         assert!(!s.contains("STAJ-42"));
         assert!(!s.contains("abc123"));
         assert!(!s.contains("eyJhbGci"));

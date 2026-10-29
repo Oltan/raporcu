@@ -74,9 +74,16 @@ pub fn check(project: &Path) -> Report {
     }
 
     let lower = pom.to_lowercase();
-    if ["openjfx-monocle", "<artifactid>monocle", "glass.platform=monocle", "testfx.headless=true", "<testfx.headless>true", "prism.order=sw"]
-        .iter()
-        .any(|n| lower.contains(n))
+    if [
+        "openjfx-monocle",
+        "<artifactid>monocle",
+        "glass.platform=monocle",
+        "testfx.headless=true",
+        "<testfx.headless>true",
+        "prism.order=sw",
+    ]
+    .iter()
+    .any(|n| lower.contains(n))
     {
         r.errors.push("Headless/Monocle ayarı bulundu. Testler gerçek ekranda koşmalı (Linux: Xvfb, Windows: masaüstü oturumu); Monocle kaldırılmalı.".into());
     } else {
@@ -84,10 +91,12 @@ pub fn check(project: &Path) -> Report {
     }
 
     if !pom.contains("-Xmx") {
-        r.warnings.push("surefire argLine içinde -Xmx yok; test JVM belleği sınırsız. Örnek: <argLine>-Xmx${test.xmx}</argLine>".into());
+        r.warnings
+            .push("surefire argLine içinde -Xmx yok; test JVM belleği sınırsız. Örnek: <argLine>-Xmx${test.xmx}</argLine>".into());
     }
     if pom.contains("maven-surefire-plugin") && !pom.contains("<forkCount>1</forkCount>") {
-        r.warnings.push("surefire forkCount 1 değil; bellek için tek fork önerilir (SW-1.7)".into());
+        r.warnings
+            .push("surefire forkCount 1 değil; bellek için tek fork önerilir (SW-1.7)".into());
     }
 
     let plan_all = gherkin::plan(project, None).unwrap_or_default();
@@ -109,7 +118,8 @@ pub fn check(project: &Path) -> Report {
             }
             let n = plan_all.iter().filter(|p| expr.eval(&p.tags)).count();
             if n == 0 {
-                r.errors.push(format!("features.txt ({}) hiçbir senaryo seçmiyor", lines.join(" | ")));
+                r.errors
+                    .push(format!("features.txt ({}) hiçbir senaryo seçmiyor", lines.join(" | ")));
             } else {
                 r.ok.push(format!("features.txt: {} satır, {n} senaryo seçiliyor", lines.len()));
             }
@@ -175,7 +185,9 @@ mod tests {
     fn test_sw_1_5_missing_allure_adapter_fails_clearly() {
         let tmp = tempfile::tempdir().unwrap();
         let p = sample(tmp.path());
-        let pom = std::fs::read_to_string(p.join("pom.xml")).unwrap().replace("allure-cucumber7-jvm", "baska-bir-sey");
+        let pom = std::fs::read_to_string(p.join("pom.xml"))
+            .unwrap()
+            .replace("allure-cucumber7-jvm", "baska-bir-sey");
         std::fs::write(p.join("pom.xml"), pom).unwrap();
         let r = check(&p);
         assert!(r.errors.iter().any(|e| e.contains("Allure adaptörü eksik")));
@@ -186,7 +198,11 @@ mod tests {
     fn test_sw_1_5_missing_plugin_config_fails() {
         let tmp = tempfile::tempdir().unwrap();
         let p = sample(tmp.path());
-        std::fs::write(p.join("src/test/resources/junit-platform.properties"), "cucumber.glue=com.ornek.test\n").unwrap();
+        std::fs::write(
+            p.join("src/test/resources/junit-platform.properties"),
+            "cucumber.glue=com.ornek.test\n",
+        )
+        .unwrap();
         assert!(check(&p).errors.iter().any(|e| e.contains("eklentisi ayarlı değil")));
     }
 
@@ -205,7 +221,10 @@ mod tests {
     fn test_sw_1_5_monocle_rejected() {
         let tmp = tempfile::tempdir().unwrap();
         let p = sample(tmp.path());
-        let pom = std::fs::read_to_string(p.join("pom.xml")).unwrap().replace("</dependencies>", "<dependency><artifactId>openjfx-monocle</artifactId></dependency></dependencies>");
+        let pom = std::fs::read_to_string(p.join("pom.xml")).unwrap().replace(
+            "</dependencies>",
+            "<dependency><artifactId>openjfx-monocle</artifactId></dependency></dependencies>",
+        );
         std::fs::write(p.join("pom.xml"), pom).unwrap();
         assert!(check(&p).errors.iter().any(|e| e.contains("Monocle")));
     }

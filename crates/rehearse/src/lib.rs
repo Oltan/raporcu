@@ -25,7 +25,8 @@ pub fn build_binaries() -> Result<()> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let release = bin_dir().ends_with("release");
     let mut cmd = Command::new(cargo);
-    cmd.args(["build", "-q", "-p", "stajproje", "-p", "stajci"]).current_dir(workspace_root());
+    cmd.args(["build", "-q", "-p", "stajproje", "-p", "stajci"])
+        .current_dir(workspace_root());
     if release {
         cmd.arg("--release");
     }
@@ -49,7 +50,12 @@ pub struct Server {
 
 impl Server {
     pub fn new(data_dir: &Path) -> Server {
-        Server { data_dir: data_dir.to_path_buf(), port: free_port(), extra_env: vec![], child: None }
+        Server {
+            data_dir: data_dir.to_path_buf(),
+            port: free_port(),
+            extra_env: vec![],
+            child: None,
+        }
     }
 
     pub fn url(&self) -> String {
@@ -104,6 +110,7 @@ impl Drop for Server {
 fn agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .http_status_as_error(false)
+        .max_redirects(0)
         .proxy(None)
         .timeout_global(Some(Duration::from_secs(60)))
         .build()
@@ -125,7 +132,11 @@ pub fn get_with(url: &str, headers: &[(&str, &str)]) -> Result<(u16, Headers, Ve
         b = b.header(*k, *v);
     }
     let mut r = b.call()?;
-    let hs = r.headers().iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect();
+    let hs = r
+        .headers()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect();
     let mut out = Vec::new();
     r.body_mut().as_reader().read_to_end(&mut out)?;
     Ok((r.status().as_u16(), hs, out))
@@ -150,7 +161,11 @@ pub fn post(url: &str, headers: &[(&str, &str)], body: &[u8]) -> Result<(u16, He
         b = b.header(*k, *v);
     }
     let mut r = b.send(body)?;
-    let hs = r.headers().iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect();
+    let hs = r
+        .headers()
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+        .collect();
     let mut s = String::new();
     r.body_mut().as_reader().read_to_string(&mut s)?;
     Ok((r.status().as_u16(), hs, s))
@@ -199,12 +214,21 @@ impl Stajci {
                 ("CI_API_TOKEN".into(), TOKEN.into()),
                 ("CI_PROJECT_ID".into(), "4242".into()),
                 ("CI_PROJECT_PATH".into(), "prova/ornek-test-projesi".into()),
-                ("CI_PROJECT_URL".into(), "https://gitlab.sirket.local/prova/ornek-test-projesi".into()),
+                (
+                    "CI_PROJECT_URL".into(),
+                    "https://gitlab.sirket.local/prova/ornek-test-projesi".into(),
+                ),
                 ("CI_COMMIT_REF_NAME".into(), "main".into()),
                 ("CI_COMMIT_SHA".into(), "0123456789abcdef0123456789abcdef01234567".into()),
                 ("CI_PIPELINE_ID".into(), "777".into()),
-                ("CI_PIPELINE_URL".into(), "https://gitlab.sirket.local/prova/ornek-test-projesi/-/pipelines/777".into()),
-                ("CI_JOB_URL".into(), "https://gitlab.sirket.local/prova/ornek-test-projesi/-/jobs/1".into()),
+                (
+                    "CI_PIPELINE_URL".into(),
+                    "https://gitlab.sirket.local/prova/ornek-test-projesi/-/pipelines/777".into(),
+                ),
+                (
+                    "CI_JOB_URL".into(),
+                    "https://gitlab.sirket.local/prova/ornek-test-projesi/-/jobs/1".into(),
+                ),
                 ("STAJ_RETRY_BASE_MS".into(), "200".into()),
             ],
         }
@@ -226,9 +250,15 @@ impl Stajci {
     }
 
     pub fn run(&self, args: &[&str]) -> Result<Output> {
-        let out = self.command(args).output().with_context(|| format!("stajci {args:?} çalıştırılamadı"))?;
+        let out = self
+            .command(args)
+            .output()
+            .with_context(|| format!("stajci {args:?} çalıştırılamadı"))?;
         let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
-        Ok(Output { code: out.status.code().unwrap_or(-1), text })
+        Ok(Output {
+            code: out.status.code().unwrap_or(-1),
+            text,
+        })
     }
 }
 
@@ -245,7 +275,10 @@ impl Checks {
             self.passed += 1;
             println!("  [GEÇTİ] {id:<8} {what}");
         } else {
-            println!("  [KALDI] {id:<8} {what}\n           {}", detail.as_ref().replace('\n', "\n           "));
+            println!(
+                "  [KALDI] {id:<8} {what}\n           {}",
+                detail.as_ref().replace('\n', "\n           ")
+            );
             self.failed.push(format!("{id} {what}"));
         }
     }

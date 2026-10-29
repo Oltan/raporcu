@@ -20,7 +20,11 @@ impl IntoResponse for UploadError {
 }
 
 fn limits(st: &AppState) -> Limits {
-    Limits { max_upload: st.cfg.max_upload_bytes, max_entry: st.cfg.max_entry_bytes, max_entries: st.cfg.max_zip_entries }
+    Limits {
+        max_upload: st.cfg.max_upload_bytes,
+        max_entry: st.cfg.max_entry_bytes,
+        max_entries: st.cfg.max_zip_entries,
+    }
 }
 
 pub fn report_url(st: &AppState, run_id: i64) -> String {
@@ -33,7 +37,9 @@ async fn handle_zip(st: AppState, body: Body, target: Target, log_ci: CiInfo) ->
         tracing::warn!(proje = %log_ci.project_path, branch = %log_ci.branch, neden = %e.reason, durum = e.status.as_u16(), "yükleme reddedildi");
         e
     };
-    let (zip_path, size) = upload::body_to_file(body, &st.paths.tmp_dir(), st.cfg.max_upload_bytes).await.map_err(reject)?;
+    let (zip_path, size) = upload::body_to_file(body, &st.paths.tmp_dir(), st.cfg.max_upload_bytes)
+        .await
+        .map_err(reject)?;
     let (paths, lim, zp) = (st.paths.clone(), limits(&st), zip_path.clone());
     let res = st.db.write(move |c| Ok(upload::process_zip(c, &paths, lim, &zp, target))).await;
     let _ = tokio::fs::remove_file(&zip_path).await;
@@ -67,7 +73,10 @@ pub async fn upload_new(State(st): State<AppState>, Query(ci): Query<CiInfo>, bo
 
 /// Canlı koşumun son toplu zip'i (SW-3.3: artımlı sonuçlarla tutarlı, tekrarlar sayılmaz).
 pub async fn upload_existing(State(st): State<AppState>, Path(id): Path<i64>, body: Body) -> Result<Json<IngestSummary>, UploadError> {
-    let ci = CiInfo { project_path: format!("run:{id}"), ..Default::default() };
+    let ci = CiInfo {
+        project_path: format!("run:{id}"),
+        ..Default::default()
+    };
     handle_zip(st, body, Target::Existing(id), ci).await
 }
 
@@ -96,7 +105,11 @@ pub async fn start(State(st): State<AppState>, Json(b): Json<StartBody>) -> Resu
         .write(move |c| {
             let tx = c.transaction()?;
             let pid = ingest::ensure_project(&tx, &b.ci)?;
-            let total = b.total.or(if b.expected.is_empty() { None } else { Some(b.expected.len() as i64) });
+            let total = b.total.or(if b.expected.is_empty() {
+                None
+            } else {
+                Some(b.expected.len() as i64)
+            });
             let run = ingest::create_run(&tx, pid, &b.ci, "running", total)?;
             for (i, e) in b.expected.iter().enumerate() {
                 tx.execute(
@@ -109,7 +122,10 @@ pub async fn start(State(st): State<AppState>, Json(b): Json<StartBody>) -> Resu
         })
         .await?;
     crate::hooks::after_results(&st, run_id).await;
-    Ok(Json(RunCreated { run_id, report_url: report_url(&st, run_id) }))
+    Ok(Json(RunCreated {
+        run_id,
+        report_url: report_url(&st, run_id),
+    }))
 }
 
 #[derive(Deserialize)]
@@ -136,7 +152,10 @@ pub async fn result_file(
             let Some(run) = ingest::run_ctx(c, id)? else {
                 return Ok(Err(UploadError::new(StatusCode::NOT_FOUND, "koşum bulunamadı")));
             };
-            let mut s = IngestSummary { run_id: id, ..Default::default() };
+            let mut s = IngestSummary {
+                run_id: id,
+                ..Default::default()
+            };
             match kind {
                 common::allure::FileKind::Attachment => {
                     let dir = paths.run_files_dir(id);
@@ -148,7 +167,10 @@ pub async fn result_file(
                         std::fs::rename(&tmp, &dest)?;
                         s.attachments = 1;
                     }
-                    c.execute("UPDATE runs SET last_activity_at = ?2 WHERE id = ?1", rusqlite::params![id, crate::db::now()])?;
+                    c.execute(
+                        "UPDATE runs SET last_activity_at = ?2 WHERE id = ?1",
+                        rusqlite::params![id, crate::db::now()],
+                    )?;
                 }
                 common::allure::FileKind::Result | common::allure::FileKind::Container => {
                     let tx = c.transaction()?;
@@ -205,7 +227,11 @@ pub async fn fix_candidates(State(st): State<AppState>, Path(id): Path<i64>) -> 
 }
 
 /// SW-7.3: fix sonucu.
-pub async fn fix_result(State(st): State<AppState>, Path(id): Path<i64>, Json(r): Json<common::api::FixResult>) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn fix_result(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<common::api::FixResult>,
+) -> Result<Json<serde_json::Value>, AppError> {
     let conf = st.cfg.triage_auto_confidence;
     let fid = st
         .db
@@ -223,7 +249,11 @@ pub async fn fix_result(State(st): State<AppState>, Path(id): Path<i64>, Json(r)
 
 /// SW-7.2: OpenCode isteğine eklenecek ekran görüntüsü (CI token ile).
 pub async fn fix_started(State(st): State<AppState>, Path(id): Path<i64>, Json(v): Json<serde_json::Value>) -> Json<serde_json::Value> {
-    tracing::info!(run_id = id, senaryo = v["scenario_key"].as_str().unwrap_or(""), "OpenCode denemesi başladı");
+    tracing::info!(
+        run_id = id,
+        senaryo = v["scenario_key"].as_str().unwrap_or(""),
+        "OpenCode denemesi başladı"
+    );
     let _ = st;
     Json(serde_json::json!({ "ok": true }))
 }

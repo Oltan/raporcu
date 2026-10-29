@@ -46,11 +46,20 @@ pub fn examples(c: &Connection, project_id: i64, name: &str, message: &str, limi
     )?;
     let me = words(&format!("{name} {message}"));
     let mut scored: Vec<(f64, FixExample)> = st
-        .query_map([project_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?)))?
+        .query_map([project_id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, String>(2)?))
+        })?
         .filter_map(|x| x.ok())
         .map(|(n, m, d)| {
             let score = similarity(&me, &words(&format!("{n} {}", m.as_deref().unwrap_or(""))));
-            (score, FixExample { scenario: n, message: m.map(|m| crate::logging::truncate(&m, 500)), diff: crate::logging::truncate(&d, 8000) })
+            (
+                score,
+                FixExample {
+                    scenario: n,
+                    message: m.map(|m| crate::logging::truncate(&m, 500)),
+                    diff: crate::logging::truncate(&d, 8000),
+                },
+            )
         })
         .filter(|(s, _)| *s > 0.1)
         .collect();
@@ -64,16 +73,47 @@ pub fn candidates(c: &Connection, run_id: i64, public_url: &str) -> Result<Vec<F
         "SELECT id, scenario_key, name, feature, feature_file, status, message, trace, tags, triage_category
          FROM scenarios WHERE run_id = ?1 AND is_latest = 1 AND status IN ('failed', 'broken') ORDER BY id",
     )?;
-    let rows: Vec<(i64, String, String, Option<String>, Option<String>, String, Option<String>, Option<String>, String, Option<String>)> = st
-        .query_map([run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?)))?
+    let rows: Vec<(
+        i64,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<String>,
+    )> = st
+        .query_map([run_id], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+                r.get(8)?,
+                r.get(9)?,
+            ))
+        })?
         .collect::<rusqlite::Result<_>>()?;
     let mut out = Vec::new();
     for (id, key, name, feature, ffile, status, msg, trace, tags, cat) in rows {
         let tags: Vec<String> = tags.split_whitespace().map(String::from).collect();
         let t = target(&status, &tags, cat.as_deref());
-        let steps = crate::queries::steps(c, id)?.into_iter().map(|s| format!("{} [{}]", s.name, s.status)).collect();
+        let steps = crate::queries::steps(c, id)?
+            .into_iter()
+            .map(|s| format!("{} [{}]", s.name, s.status))
+            .collect();
         let shot = crate::queries::first_screenshot(c, id)?.map(|a| format!("{public_url}/files/{}", a.id));
-        let ex = if t == "opencode" { examples(c, project_id, &name, msg.as_deref().unwrap_or(""), 2)? } else { vec![] };
+        let ex = if t == "opencode" {
+            examples(c, project_id, &name, msg.as_deref().unwrap_or(""), 2)?
+        } else {
+            vec![]
+        };
         out.push(FixCandidate {
             scenario_id: id,
             scenario_key: key,

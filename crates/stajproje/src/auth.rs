@@ -143,7 +143,10 @@ pub fn cookie_value(headers: &axum::http::HeaderMap, name: &str) -> Option<Strin
 }
 
 pub fn session_cookie(token: &str) -> String {
-    format!("{SESSION_COOKIE}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={}", SESSION_TTL.as_secs())
+    format!(
+        "{SESSION_COOKIE}={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age={}",
+        SESSION_TTL.as_secs()
+    )
 }
 
 pub fn clear_cookie() -> String {
@@ -161,9 +164,7 @@ pub enum AdminRejection {
 impl IntoResponse for AdminRejection {
     fn into_response(self) -> Response {
         match self {
-            AdminRejection::Redirect(next) => {
-                Redirect::to(&format!("/login?next={}", urlencoding::encode(&next))).into_response()
-            }
+            AdminRejection::Redirect(next) => Redirect::to(&format!("/login?next={}", urlencoding::encode(&next))).into_response(),
             AdminRejection::Unauthorized => (StatusCode::UNAUTHORIZED, "Admin girişi gerekli").into_response(),
         }
     }

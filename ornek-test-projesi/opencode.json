@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Şirket içi vLLM",
+      "options": {
+        "baseURL": "{env:VLLM_BASE_URL}",
+        "apiKey": "{env:VLLM_API_KEY}"
+      },
+      "models": {
+        "gorsel-model": {
+          "name": "vLLM görsel destekli model",
+          "attachment": true,
+          "limit": { "context": 32768, "output": 4096 }
+        }
+      }
+    }
+  },
+  "model": "vllm/gorsel-model",
+  "mcp": {
+    "testfx": {
+      "type": "local",
+      "command": ["java", "-jar", "{env:TESTFX_MCP_JAR}"],
+      "enabled": true
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "bash": "deny",
+    "webfetch": "deny"
+  },
+  "share": "disabled",
+  "autoupdate": false
+}

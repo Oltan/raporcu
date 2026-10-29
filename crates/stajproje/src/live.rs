@@ -76,7 +76,16 @@ pub fn snapshot(c: &Connection, run_id: i64) -> anyhow::Result<Option<Snapshot>>
                 } else {
                     "bilinmiyor"
                 };
-                out.push(LiveScenario { name, feature, state: state.into(), status: None, message: None, scenario_id: None, screenshot_id: None, attempt: None });
+                out.push(LiveScenario {
+                    name,
+                    feature,
+                    state: state.into(),
+                    status: None,
+                    message: None,
+                    scenario_id: None,
+                    screenshot_id: None,
+                    attempt: None,
+                });
             }
         }
     }
@@ -101,7 +110,11 @@ pub fn snapshot(c: &Connection, run_id: i64) -> anyhow::Result<Option<Snapshot>>
 }
 
 fn from_result(c: &Connection, r: &queries::ScenarioRow) -> anyhow::Result<LiveScenario> {
-    let shot = if r.is_failure() { queries::first_screenshot(c, r.id)?.map(|a| a.id) } else { None };
+    let shot = if r.is_failure() {
+        queries::first_screenshot(c, r.id)?.map(|a| a.id)
+    } else {
+        None
+    };
     Ok(LiveScenario {
         name: r.name.clone(),
         feature: r.feature.clone(),
@@ -120,7 +133,10 @@ pub async fn ws(State(st): State<AppState>, Path(run_id): Path<i64>, up: WebSock
 
 async fn send_snapshot(st: &AppState, run_id: i64, sock: &mut WebSocket) -> bool {
     match st.db.read(move |c| snapshot(c, run_id)).await {
-        Ok(Some(s)) => sock.send(Message::Text(serde_json::to_string(&s).unwrap_or_default().into())).await.is_ok(),
+        Ok(Some(s)) => sock
+            .send(Message::Text(serde_json::to_string(&s).unwrap_or_default().into()))
+            .await
+            .is_ok(),
         _ => false,
     }
 }

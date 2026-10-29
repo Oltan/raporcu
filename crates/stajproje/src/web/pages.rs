@@ -63,7 +63,11 @@ impl Layout {
 
 pub fn layout(st: &AppState, headers: &HeaderMap) -> Layout {
     let admin = auth::cookie_value(headers, auth::SESSION_COOKIE).is_some_and(|t| st.sessions.valid(&t));
-    Layout { admin, banner: if admin { st.disk.warning_text() } else { None }, share: None }
+    Layout {
+        admin,
+        banner: if admin { st.disk.warning_text() } else { None },
+        share: None,
+    }
 }
 
 fn message(l: Layout, status: StatusCode, title: &str, text: &str) -> Response {
@@ -139,7 +143,13 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
             Ok((projects, runs, pipelines, flaky))
         })
         .await?;
-    let branches = projects.iter().filter(|p| project.is_none_or(|id| id == p.id)).flat_map(|p| p.branches.clone()).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+    let branches = projects
+        .iter()
+        .filter(|p| project.is_none_or(|id| id == p.id))
+        .flat_map(|p| p.branches.clone())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
     let mut filter_qs = String::new();
     if let Some(p) = project {
         filter_qs.push_str(&format!("project={p}"));
@@ -147,7 +157,19 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
     if let Some(b) = &branch {
         filter_qs.push_str(&format!("&branch={}", urlencoding::encode(b)));
     }
-    Ok(render(&Dashboard { l, projects, branches, project, branch, runs, pipelines, flaky, window, page, filter_qs }))
+    Ok(render(&Dashboard {
+        l,
+        projects,
+        branches,
+        project,
+        branch,
+        runs,
+        pipelines,
+        flaky,
+        window,
+        page,
+        filter_qs,
+    }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -173,7 +195,12 @@ struct RunPage {
     notice: Option<String>,
 }
 
-pub fn load_run(c: &rusqlite::Connection, id: i64, auto_conf: f64, window: usize) -> anyhow::Result<Option<(RunRow, Vec<RunScenario>, Vec<FixRow>)>> {
+pub fn load_run(
+    c: &rusqlite::Connection,
+    id: i64,
+    auto_conf: f64,
+    window: usize,
+) -> anyhow::Result<Option<(RunRow, Vec<RunScenario>, Vec<FixRow>)>> {
     let Some(run) = queries::run(c, id)? else { return Ok(None) };
     let flaky: HashSet<String> = crate::history::flaky_keys(c, run.project_id, &run.branch, window)?;
     let fixes = queries::fixes_for_run(c, id)?;
@@ -187,7 +214,11 @@ pub fn load_run(c: &rusqlite::Connection, id: i64, auto_conf: f64, window: usize
     }
     let mut rows = Vec::new();
     for s in queries::run_scenarios(c, id)? {
-        let triage = if s.is_failure() { triage::current(c, s.id, auto_conf)? } else { None };
+        let triage = if s.is_failure() {
+            triage::current(c, s.id, auto_conf)?
+        } else {
+            None
+        };
         let mut jira = s.jira_keys.clone();
         for b in queries::bug_links(c, s.id)? {
             if !jira.contains(&b.jira_key) {
@@ -195,7 +226,11 @@ pub fn load_run(c: &rusqlite::Connection, id: i64, auto_conf: f64, window: usize
             }
         }
         let fix = fixes.iter().rev().find(|f| f.scenario_key == s.scenario_key).cloned();
-        let shot = if s.is_failure() { queries::first_screenshot(c, s.id)?.map(|a| a.id) } else { None };
+        let shot = if s.is_failure() {
+            queries::first_screenshot(c, s.id)?.map(|a| a.id)
+        } else {
+            None
+        };
         rows.push(RunScenario {
             attempts: *counts.get(&s.scenario_key).unwrap_or(&1),
             flaky: flaky.contains(&s.scenario_key),
@@ -214,7 +249,12 @@ pub struct NoticeQuery {
     notice: Option<String>,
 }
 
-pub async fn run_page(State(st): State<AppState>, headers: HeaderMap, Path(id): Path<i64>, Query(nq): Query<NoticeQuery>) -> Result<Response, AppError> {
+pub async fn run_page(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Query(nq): Query<NoticeQuery>,
+) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     let (conf, window) = (st.cfg.triage_auto_confidence, st.cfg.flaky_window);
     let Some((run, rows, fixes)) = st.db.read(move |c| load_run(c, id, conf, window)).await? else {
@@ -229,7 +269,13 @@ pub async fn run_page(State(st): State<AppState>, headers: HeaderMap, Path(id): 
         }
         _ => None,
     };
-    Ok(render(&RunPage { l, run, rows, fixes, notice }))
+    Ok(render(&RunPage {
+        l,
+        run,
+        rows,
+        fixes,
+        notice,
+    }))
 }
 
 fn html_escape(s: &str) -> String {
@@ -270,7 +316,11 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
         }
     }
     Ok(Some(ScenarioPage {
-        l: Layout { admin: false, banner: None, share: None },
+        l: Layout {
+            admin: false,
+            banner: None,
+            share: None,
+        },
         message: s.message.clone(),
         trace,
         steps: queries::steps(c, id)?,
@@ -308,7 +358,12 @@ pub async fn scenario_page(State(st): State<AppState>, headers: HeaderMap, Path(
             p.jira_url = st.cfg.jira_url.clone();
             Ok(render(&p))
         }
-        None => Ok(message(l, StatusCode::NOT_FOUND, "Senaryo bulunamadı", "Bu numarada bir senaryo yok.")),
+        None => Ok(message(
+            l,
+            StatusCode::NOT_FOUND,
+            "Senaryo bulunamadı",
+            "Bu numarada bir senaryo yok.",
+        )),
     }
 }
 
@@ -364,7 +419,9 @@ pub async fn history_page(State(st): State<AppState>, headers: HeaderMap, Query(
         .db
         .read(move |c| {
             let rows = crate::history::scenario_history(c, q.project, b2.as_deref(), &key, 50, (page - 1) * 50)?;
-            let path: String = c.query_row("SELECT path FROM projects WHERE id = ?1", [q.project], |r| r.get(0)).unwrap_or_default();
+            let path: String = c
+                .query_row("SELECT path FROM projects WHERE id = ?1", [q.project], |r| r.get(0))
+                .unwrap_or_default();
             let flaky = match &b2 {
                 Some(b) => crate::history::is_flaky(c, q.project, b, &key, window)?,
                 None => false,
@@ -379,7 +436,16 @@ pub async fn history_page(State(st): State<AppState>, headers: HeaderMap, Query(
         urlencoding::encode(branch.as_deref().unwrap_or("")),
         urlencoding::encode(&q.key)
     );
-    Ok(render(&HistoryPage { l, name, project_path: path, branch, flaky, rows, page, qs }))
+    Ok(render(&HistoryPage {
+        l,
+        name,
+        project_path: path,
+        branch,
+        flaky,
+        rows,
+        page,
+        qs,
+    }))
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -408,7 +474,14 @@ impl SearchPage {
     }
 }
 
-const STATUSES: &[(&str, &str)] = &[("kaldi", "Kaldı (failed + broken)"), ("passed", "Geçti"), ("failed", "Failed"), ("broken", "Broken"), ("skipped", "Atlandı"), ("unknown", "Bilinmiyor")];
+const STATUSES: &[(&str, &str)] = &[
+    ("kaldi", "Kaldı (failed + broken)"),
+    ("passed", "Geçti"),
+    ("failed", "Failed"),
+    ("broken", "Broken"),
+    ("skipped", "Atlandı"),
+    ("unknown", "Bilinmiyor"),
+];
 
 /// Sorgu dizesini (boş alanlar ve `?run=` gibi sayılar dahil) SearchFilter'a çevirir.
 pub fn parse_filter(raw: Option<&str>) -> (SearchFilter, Vec<(String, String)>) {
@@ -418,11 +491,21 @@ pub fn parse_filter(raw: Option<&str>) -> (SearchFilter, Vec<(String, String)>) 
         .filter_map(|kv| kv.split_once('=').or(Some((kv, ""))))
         .filter(|(k, _)| !k.is_empty())
         .map(|(k, v)| {
-            let dec = |s: &str| urlencoding::decode(&s.replace('+', " ")).map(|c| c.into_owned()).unwrap_or_default();
+            let dec = |s: &str| {
+                urlencoding::decode(&s.replace('+', " "))
+                    .map(|c| c.into_owned())
+                    .unwrap_or_default()
+            };
             (dec(k), dec(v))
         })
         .collect();
-    let get = |k: &str| pairs.iter().find(|(a, _)| a == k).map(|(_, v)| v.clone()).filter(|v| !v.trim().is_empty());
+    let get = |k: &str| {
+        pairs
+            .iter()
+            .find(|(a, _)| a == k)
+            .map(|(_, v)| v.clone())
+            .filter(|v| !v.trim().is_empty())
+    };
     let f = SearchFilter {
         project: get("project").and_then(|v| v.parse().ok()),
         branch: get("branch"),
@@ -472,11 +555,24 @@ pub async fn search_page(State(st): State<AppState>, headers: HeaderMap, RawQuer
 pub async fn export_csv(State(st): State<AppState>, RawQuery(raw): RawQuery) -> Response {
     let (f, pairs) = parse_filter(raw.as_deref());
     // fields=a,b,c (sıralı) ya da formdan alan=a&alan=b
-    let fields_param = pairs.iter().find(|(k, _)| k == "fields").map(|(_, v)| v.clone()).unwrap_or_else(|| {
-        pairs.iter().filter(|(k, _)| k == "alan").map(|(_, v)| v.as_str()).collect::<Vec<_>>().join(",")
-    });
+    let fields_param = pairs
+        .iter()
+        .find(|(k, _)| k == "fields")
+        .map(|(_, v)| v.clone())
+        .unwrap_or_else(|| {
+            pairs
+                .iter()
+                .filter(|(k, _)| k == "alan")
+                .map(|(_, v)| v.as_str())
+                .collect::<Vec<_>>()
+                .join(",")
+        });
     let fields = crate::export::parse_fields(Some(&fields_param));
-    let sep = if pairs.iter().any(|(k, v)| k == "sep" && v == ";") { ';' } else { ',' };
+    let sep = if pairs.iter().any(|(k, v)| k == "sep" && v == ";") {
+        ';'
+    } else {
+        ','
+    };
     let name = match f.run {
         Some(r) => format!("stajproje-kosum-{r}.csv"),
         None => format!("stajproje-senaryolar-{}.csv", chrono::Local::now().format("%Y%m%d-%H%M")),
@@ -492,7 +588,10 @@ pub async fn doors_csv(State(st): State<AppState>, Path(id): Path<i64>) -> Resul
     Ok((
         [
             (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
-            (axum::http::header::CONTENT_DISPOSITION, format!("attachment; filename=\"doors-kosum-{id}.csv\"")),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"doors-kosum-{id}.csv\""),
+            ),
         ],
         crate::export::doors_csv(&rows, id),
     )
@@ -505,7 +604,10 @@ pub async fn doors_dxl(State(st): State<AppState>, Path(id): Path<i64>) -> Resul
     Ok((
         [
             (axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8".to_string()),
-            (axum::http::header::CONTENT_DISPOSITION, format!("attachment; filename=\"doors-kosum-{id}.dxl\"")),
+            (
+                axum::http::header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"doors-kosum-{id}.dxl\""),
+            ),
         ],
         crate::export::doors_dxl(&rows, id, &url),
     )
@@ -538,26 +640,45 @@ async fn share_run_id(st: &AppState, token: &str) -> Result<Option<i64>, AppErro
 }
 
 fn share_layout(token: &str) -> Layout {
-    Layout { admin: false, banner: None, share: Some(token.to_string()) }
+    Layout {
+        admin: false,
+        banner: None,
+        share: Some(token.to_string()),
+    }
 }
 
 pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -> Result<Response, AppError> {
     let Some(id) = share_run_id(&st, &token).await? else {
-        return Ok(message(share_layout(&token), StatusCode::NOT_FOUND, "Link geçersiz", "Bu paylaşım linki iptal edilmiş ya da hiç yok."));
+        return Ok(message(
+            share_layout(&token),
+            StatusCode::NOT_FOUND,
+            "Link geçersiz",
+            "Bu paylaşım linki iptal edilmiş ya da hiç yok.",
+        ));
     };
     let (conf, window) = (st.cfg.triage_auto_confidence, st.cfg.flaky_window);
     let Some((mut run, mut rows, _)) = st.db.read(move |c| load_run(c, id, conf, window)).await? else {
         return Err(AppError::not_found());
     };
     sanitize_run(&st, &mut run, &mut rows);
-    Ok(render(&RunPage { l: share_layout(&token), run, rows, fixes: vec![], notice: None }))
+    Ok(render(&RunPage {
+        l: share_layout(&token),
+        run,
+        rows,
+        fixes: vec![],
+        notice: None,
+    }))
 }
 
 pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path<(String, i64)>) -> Result<Response, AppError> {
-    let Some(run_id) = share_run_id(&st, &token).await? else { return Err(AppError::not_found()) };
+    let Some(run_id) = share_run_id(&st, &token).await? else {
+        return Err(AppError::not_found());
+    };
     let conf = st.cfg.triage_auto_confidence;
     let paths = st.paths.clone();
-    let Some(mut p) = st.db.read(move |c| load_scenario(c, &paths, sid, conf)).await? else { return Err(AppError::not_found()) };
+    let Some(mut p) = st.db.read(move |c| load_scenario(c, &paths, sid, conf)).await? else {
+        return Err(AppError::not_found());
+    };
     if p.s.run_id != run_id {
         return Err(AppError::not_found());
     }
@@ -583,8 +704,12 @@ pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path
 }
 
 pub async fn share_file(State(st): State<AppState>, Path((token, aid)): Path<(String, i64)>, req: Request) -> Result<Response, AppError> {
-    let Some(run_id) = share_run_id(&st, &token).await? else { return Err(AppError::not_found()) };
-    let Some(att) = st.db.read(move |c| queries::attachment(c, aid)).await? else { return Err(AppError::not_found()) };
+    let Some(run_id) = share_run_id(&st, &token).await? else {
+        return Err(AppError::not_found());
+    };
+    let Some(att) = st.db.read(move |c| queries::attachment(c, aid)).await? else {
+        return Err(AppError::not_found());
+    };
     if att.run_id != run_id {
         return Err(AppError::not_found());
     }
@@ -611,7 +736,10 @@ pub async fn revoke_share(State(st): State<AppState>, _a: Admin, Path(id): Path<
     let run_id: Option<i64> = st
         .db
         .write(move |c| {
-            c.execute("UPDATE share_links SET revoked_at = ?2 WHERE id = ?1 AND revoked_at IS NULL", rusqlite::params![id, crate::db::now()])?;
+            c.execute(
+                "UPDATE share_links SET revoked_at = ?2 WHERE id = ?1 AND revoked_at IS NULL",
+                rusqlite::params![id, crate::db::now()],
+            )?;
             Ok(c.query_row("SELECT run_id FROM share_links WHERE id = ?1", [id], |r| r.get(0)).ok())
         })
         .await?;
@@ -628,7 +756,12 @@ pub struct TriageForm {
     reason: String,
 }
 
-pub async fn set_triage(State(st): State<AppState>, _a: Admin, Path(id): Path<i64>, Form(f): Form<TriageForm>) -> Result<Response, AppError> {
+pub async fn set_triage(
+    State(st): State<AppState>,
+    _a: Admin,
+    Path(id): Path<i64>,
+    Form(f): Form<TriageForm>,
+) -> Result<Response, AppError> {
     if !triage::is_category(&f.category) {
         return Err(AppError::bad("geçersiz kategori"));
     }
@@ -660,7 +793,12 @@ struct AdminPage {
     notice: Option<String>,
 }
 
-pub async fn admin_page(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Query(nq): Query<NoticeQuery>) -> Result<Response, AppError> {
+pub async fn admin_page(
+    State(st): State<AppState>,
+    _a: Admin,
+    headers: HeaderMap,
+    Query(nq): Query<NoticeQuery>,
+) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     let (shares, jira_actions) = st
         .db
@@ -677,7 +815,9 @@ pub async fn admin_page(State(st): State<AppState>, _a: Admin, headers: HeaderMa
         .into_iter()
         .map(|v| {
             let mut rest = v.as_object().cloned().unwrap_or_default();
-            let take = |m: &mut serde_json::Map<String, serde_json::Value>, k: &str| m.remove(k).and_then(|x| x.as_str().map(String::from)).unwrap_or_default();
+            let take = |m: &mut serde_json::Map<String, serde_json::Value>, k: &str| {
+                m.remove(k).and_then(|x| x.as_str().map(String::from)).unwrap_or_default()
+            };
             let (z, s, o) = (take(&mut rest, "zaman"), take(&mut rest, "seviye"), take(&mut rest, "olay"));
             (z, s, o, serde_json::Value::Object(rest).to_string())
         })
@@ -733,7 +873,15 @@ pub fn healing_days(c: &rusqlite::Connection, today: chrono::NaiveDate) -> anyho
     let mut map = std::collections::HashMap::new();
     let mut rows = st.query([start.format("%Y-%m-%d").to_string()])?;
     while let Some(r) = rows.next()? {
-        map.insert(r.get::<_, String>(0)?, (r.get::<_, i64>(1)?, r.get::<_, Option<i64>>(2)?.unwrap_or(0), r.get::<_, Option<i64>>(3)?.unwrap_or(0), r.get::<_, Option<i64>>(4)?.unwrap_or(0)));
+        map.insert(
+            r.get::<_, String>(0)?,
+            (
+                r.get::<_, i64>(1)?,
+                r.get::<_, Option<i64>>(2)?.unwrap_or(0),
+                r.get::<_, Option<i64>>(3)?.unwrap_or(0),
+                r.get::<_, Option<i64>>(4)?.unwrap_or(0),
+            ),
+        );
     }
     let max = map.values().map(|v| v.0).max().unwrap_or(1).max(1);
     let scale = |n: i64| n * 110 / max;
@@ -759,7 +907,9 @@ pub fn healing_days(c: &rusqlite::Connection, today: chrono::NaiveDate) -> anyho
 pub async fn healing_page(State(st): State<AppState>, headers: HeaderMap) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     let days = st.db.read(|c| healing_days(c, chrono::Utc::now().date_naive())).await?;
-    let totals = days.iter().fold((0, 0, 0, 0), |t, d| (t.0 + d.attempts, t.1 + d.mrs, t.2 + d.merged, t.3 + d.rejected));
+    let totals = days.iter().fold((0, 0, 0, 0), |t, d| {
+        (t.0 + d.attempts, t.1 + d.mrs, t.2 + d.merged, t.3 + d.rejected)
+    });
     Ok(render(&HealingPage { l, days, totals }))
 }
 
@@ -769,10 +919,19 @@ pub async fn healing_page(State(st): State<AppState>, headers: HeaderMap) -> Res
 pub async fn create_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Path(id): Path<i64>) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     let Some(j) = crate::jira::Jira::from_config(&st.cfg) else {
-        return Ok(message(l, StatusCode::BAD_REQUEST, "Jira ayarlı değil", "JIRA_URL, JIRA_TOKEN ve JIRA_PROJECT ayarlanmalı."));
+        return Ok(message(
+            l,
+            StatusCode::BAD_REQUEST,
+            "Jira ayarlı değil",
+            "JIRA_URL, JIRA_TOKEN ve JIRA_PROJECT ayarlanmalı.",
+        ));
     };
     let (paths, cfg) = (st.paths.clone(), st.cfg.clone());
-    match st.db.write(move |c| crate::jira::create_for_scenario(c, &paths, &cfg, &j, id)).await {
+    match st
+        .db
+        .write(move |c| crate::jira::create_for_scenario(c, &paths, &cfg, &j, id))
+        .await
+    {
         Ok(_) => Ok(Redirect::to(&format!("/scenarios/{id}")).into_response()),
         Err(e) => Ok(message(l, StatusCode::BAD_GATEWAY, "Jira bug açılamadı", &e.to_string())),
     }
@@ -791,13 +950,19 @@ pub async fn trigger_fix(State(st): State<AppState>, _a: Admin, headers: HeaderM
             .ok())
         })
         .await?;
-    let Some((gid, path, branch)) = info else { return Err(AppError::not_found()) };
+    let Some((gid, path, branch)) = info else {
+        return Err(AppError::not_found());
+    };
     let project = gid.unwrap_or(path);
     let st2 = st.clone();
     let res = tokio::task::spawn_blocking(move || crate::gitlab::trigger_fix_pipeline(&st2, &project, &branch, id)).await;
     match res {
         Ok(Ok(v)) => {
-            tracing::info!(run_id = id, pipeline_id = v["id"].as_i64().unwrap_or(0), "OpenCode fix işi tetiklendi");
+            tracing::info!(
+                run_id = id,
+                pipeline_id = v["id"].as_i64().unwrap_or(0),
+                "OpenCode fix işi tetiklendi"
+            );
             Ok(Redirect::to(&format!("/runs/{id}?notice=fix")).into_response())
         }
         Ok(Err(e)) => Ok(message(l, StatusCode::BAD_GATEWAY, "Fix işi tetiklenemedi", &e.to_string())),

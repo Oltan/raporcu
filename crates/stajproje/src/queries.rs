@@ -83,9 +83,12 @@ fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
 }
 
 pub fn run(c: &Connection, id: i64) -> Result<Option<RunRow>> {
-    Ok(c
-        .query_row(&format!("SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1"), [id], run_row)
-        .optional()?)
+    Ok(c.query_row(
+        &format!("SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1"),
+        [id],
+        run_row,
+    )
+    .optional()?)
 }
 
 pub fn list_runs(c: &Connection, project_id: Option<i64>, branch: Option<&str>, limit: i64, offset: i64) -> Result<Vec<RunRow>> {
@@ -142,11 +145,17 @@ pub struct ScenarioRow {
 impl ScenarioRow {
     /// DOORS ve Jira tag'leri ayrı rozetle gösterildiği için düz tag listesinden çıkarılır.
     pub fn plain_tags(&self) -> Vec<&String> {
-        self.tags.iter().filter(|t| common::allure::doors_id(t).is_none() && common::allure::jira_key(t).is_none()).collect()
+        self.tags
+            .iter()
+            .filter(|t| common::allure::doors_id(t).is_none() && common::allure::jira_key(t).is_none())
+            .collect()
     }
     /// `giris.feature:21` — aynı adlı senaryo taslağı satırlarını ayırt eder.
     pub fn location(&self) -> String {
-        self.full_name.as_deref().map(|f| f.rsplit('/').next().unwrap_or(f).to_string()).unwrap_or_default()
+        self.full_name
+            .as_deref()
+            .map(|f| f.rsplit('/').next().unwrap_or(f).to_string())
+            .unwrap_or_default()
     }
     pub fn duration(&self) -> String {
         match self.duration_ms {
@@ -156,7 +165,10 @@ impl ScenarioRow {
         }
     }
     pub fn short_message(&self) -> String {
-        self.message.as_deref().map(|m| crate::logging::truncate(m.lines().next().unwrap_or(""), 160)).unwrap_or_default()
+        self.message
+            .as_deref()
+            .map(|m| crate::logging::truncate(m.lines().next().unwrap_or(""), 160))
+            .unwrap_or_default()
     }
     pub fn is_failure(&self) -> bool {
         self.status == "failed" || self.status == "broken"
@@ -205,7 +217,10 @@ pub fn run_scenarios(c: &Connection, run_id: i64) -> Result<Vec<ScenarioRow>> {
 }
 
 pub fn scenario(c: &Connection, id: i64) -> Result<Option<ScenarioRow>> {
-    Ok(c.query_row(&format!("SELECT {SCEN_COLS} FROM scenarios s WHERE s.id = ?1"), [id], scenario_row).optional()?)
+    Ok(
+        c.query_row(&format!("SELECT {SCEN_COLS} FROM scenarios s WHERE s.id = ?1"), [id], scenario_row)
+            .optional()?,
+    )
 }
 
 /// SW-4.9: aynı koşumdaki tüm denemeler, sırayla.
@@ -228,11 +243,17 @@ pub struct StepRow {
 }
 
 pub fn steps(c: &Connection, scenario_id: i64) -> Result<Vec<StepRow>> {
-    let mut st = c.prepare(
-        "SELECT id, depth, name, status, message, stop_ms - start_ms FROM steps WHERE scenario_id = ?1 ORDER BY position",
-    )?;
+    let mut st =
+        c.prepare("SELECT id, depth, name, status, message, stop_ms - start_ms FROM steps WHERE scenario_id = ?1 ORDER BY position")?;
     let rows = st.query_map([scenario_id], |r| {
-        Ok(StepRow { id: r.get(0)?, depth: r.get(1)?, name: r.get(2)?, status: r.get(3)?, message: r.get(4)?, duration_ms: r.get(5)? })
+        Ok(StepRow {
+            id: r.get(0)?,
+            depth: r.get(1)?,
+            name: r.get(2)?,
+            status: r.get(3)?,
+            message: r.get(4)?,
+            duration_ms: r.get(5)?,
+        })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
@@ -254,7 +275,9 @@ pub struct AttachmentRow {
 
 impl AttachmentRow {
     pub fn is_text(&self) -> bool {
-        self.mime.as_deref().is_some_and(|m| m.starts_with("text/") || m == "application/json")
+        self.mime
+            .as_deref()
+            .is_some_and(|m| m.starts_with("text/") || m == "application/json")
     }
     pub fn is_image(&self) -> bool {
         self.mime.as_deref().is_some_and(|m| m.starts_with("image/"))
@@ -294,20 +317,22 @@ pub fn attachments(c: &Connection, scenario_id: i64) -> Result<Vec<AttachmentRow
 }
 
 pub fn attachment(c: &Connection, id: i64) -> Result<Option<AttachmentRow>> {
-    Ok(c.query_row(&format!("SELECT {ATT_COLS} FROM attachments WHERE id = ?1"), [id], att_row).optional()?)
+    Ok(
+        c.query_row(&format!("SELECT {ATT_COLS} FROM attachments WHERE id = ?1"), [id], att_row)
+            .optional()?,
+    )
 }
 
 /// Senaryonun ilk ekran görüntüsü (rapor listesi ve OpenCode için).
 pub fn first_screenshot(c: &Connection, scenario_id: i64) -> Result<Option<AttachmentRow>> {
-    Ok(c
-        .query_row(
-            &format!(
-                "SELECT {ATT_COLS} FROM attachments WHERE scenario_id = ?1 AND mime LIKE 'image/%' AND deleted_at IS NULL ORDER BY id LIMIT 1"
-            ),
-            [scenario_id],
-            att_row,
-        )
-        .optional()?)
+    Ok(c.query_row(
+        &format!(
+            "SELECT {ATT_COLS} FROM attachments WHERE scenario_id = ?1 AND mime LIKE 'image/%' AND deleted_at IS NULL ORDER BY id LIMIT 1"
+        ),
+        [scenario_id],
+        att_row,
+    )
+    .optional()?)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -321,7 +346,12 @@ pub struct BugLink {
 
 pub fn bug_links(c: &Connection, scenario_id: i64) -> Result<Vec<BugLink>> {
     let mut st = c.prepare("SELECT jira_key, source FROM bug_links WHERE scenario_id = ?1 ORDER BY id")?;
-    let rows = st.query_map([scenario_id], |r| Ok(BugLink { jira_key: r.get(0)?, source: r.get(1)? }))?;
+    let rows = st.query_map([scenario_id], |r| {
+        Ok(BugLink {
+            jira_key: r.get(0)?,
+            source: r.get(1)?,
+        })
+    })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
@@ -385,13 +415,17 @@ fn fix_row(r: &Row) -> rusqlite::Result<FixRow> {
 }
 
 pub fn fixes_for_run(c: &Connection, run_id: i64) -> Result<Vec<FixRow>> {
-    let mut st = c.prepare(&format!("SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.run_id = ?1 ORDER BY f.id"))?;
+    let mut st = c.prepare(&format!(
+        "SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.run_id = ?1 ORDER BY f.id"
+    ))?;
     let rows = st.query_map([run_id], fix_row)?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
 pub fn fixes_for_scenario(c: &Connection, scenario_id: i64) -> Result<Vec<FixRow>> {
-    let mut st = c.prepare(&format!("SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.scenario_id = ?1 ORDER BY f.id"))?;
+    let mut st = c.prepare(&format!(
+        "SELECT {FIX_COLS} FROM fix_attempts f LEFT JOIN scenarios s ON s.id = f.scenario_id WHERE f.scenario_id = ?1 ORDER BY f.id"
+    ))?;
     let rows = st.query_map([scenario_id], fix_row)?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
@@ -483,9 +517,12 @@ pub fn share_links(c: &Connection, limit: i64) -> Result<Vec<ShareRow>> {
 
 /// Geçerli (iptal edilmemiş) paylaşım linkinin koşumu.
 pub fn share_run(c: &Connection, token: &str) -> Result<Option<i64>> {
-    Ok(c
-        .query_row("SELECT run_id FROM share_links WHERE token = ?1 AND revoked_at IS NULL", [token], |r| r.get(0))
-        .optional()?)
+    Ok(c.query_row(
+        "SELECT run_id FROM share_links WHERE token = ?1 AND revoked_at IS NULL",
+        [token],
+        |r| r.get(0),
+    )
+    .optional()?)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -520,7 +557,13 @@ impl SearchFilter {
             run: self.run,
             tag: nonempty(&self.tag).map(|t| t.trim_start_matches('@').to_string()),
             feature: nonempty(&self.feature),
-            doors: nonempty(&self.doors).map(|d| if d.to_uppercase().starts_with("DOORS-") { d.to_uppercase() } else { format!("DOORS-{d}") }),
+            doors: nonempty(&self.doors).map(|d| {
+                if d.to_uppercase().starts_with("DOORS-") {
+                    d.to_uppercase()
+                } else {
+                    format!("DOORS-{d}")
+                }
+            }),
             jira: nonempty(&self.jira).map(|j| j.to_uppercase()),
             triage: nonempty(&self.triage),
             status: nonempty(&self.status),
@@ -588,7 +631,10 @@ pub fn search_where(f: &SearchFilter) -> (String, Vec<rusqlite::types::Value>) {
         p.push(V::Text(like(&format!(" {x} "))));
         let a = p.len();
         p.push(V::Text(x.clone()));
-        w.push(format!("(s.jira_keys LIKE ?{a} ESCAPE '\\' OR EXISTS (SELECT 1 FROM bug_links b WHERE b.scenario_id = s.id AND b.jira_key = ?{}))", p.len()));
+        w.push(format!(
+            "(s.jira_keys LIKE ?{a} ESCAPE '\\' OR EXISTS (SELECT 1 FROM bug_links b WHERE b.scenario_id = s.id AND b.jira_key = ?{}))",
+            p.len()
+        ));
     }
     if let Some(x) = &f.triage {
         p.push(V::Text(x.clone()));
@@ -604,7 +650,10 @@ pub fn search_where(f: &SearchFilter) -> (String, Vec<rusqlite::types::Value>) {
     }
     if let Some(x) = &f.q {
         p.push(V::Text(like(x)));
-        w.push(format!("(s.message LIKE ?{0} ESCAPE '\\' OR s.name LIKE ?{0} ESCAPE '\\')", p.len()));
+        w.push(format!(
+            "(s.message LIKE ?{0} ESCAPE '\\' OR s.name LIKE ?{0} ESCAPE '\\')",
+            p.len()
+        ));
     }
     (w.join(" AND "), p)
 }
@@ -626,7 +675,11 @@ impl SearchRow {
 
 pub fn search(c: &Connection, f: &SearchFilter) -> Result<(Vec<SearchRow>, i64)> {
     let (w, p) = search_where(f);
-    let total: i64 = c.query_row(&format!("SELECT COUNT(*) FROM scenarios s WHERE {w}"), rusqlite::params_from_iter(p.iter()), |r| r.get(0))?;
+    let total: i64 = c.query_row(
+        &format!("SELECT COUNT(*) FROM scenarios s WHERE {w}"),
+        rusqlite::params_from_iter(p.iter()),
+        |r| r.get(0),
+    )?;
     let page = f.page.unwrap_or(1).max(1);
     let mut st = c.prepare(&format!(
         "SELECT {SCEN_COLS}, p.path, s.triage_category FROM scenarios s JOIN projects p ON p.id = s.project_id WHERE {w}
@@ -634,7 +687,11 @@ pub fn search(c: &Connection, f: &SearchFilter) -> Result<(Vec<SearchRow>, i64)>
         (page - 1) * PAGE_SIZE
     ))?;
     let rows = st.query_map(rusqlite::params_from_iter(p.iter()), |r| {
-        Ok(SearchRow { s: scenario_row(r)?, project_path: r.get(18)?, triage_category: r.get(19)? })
+        Ok(SearchRow {
+            s: scenario_row(r)?,
+            project_path: r.get(18)?,
+            triage_category: r.get(19)?,
+        })
     })?;
     Ok((rows.collect::<rusqlite::Result<_>>()?, total))
 }

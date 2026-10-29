@@ -40,7 +40,8 @@ fn candidates(st: &AppState, os: &str) -> Vec<PathBuf> {
 }
 
 pub async fn stajci(State(st): State<AppState>, Query(q): Query<OsQuery>) -> Response {
-    let os = q.os.unwrap_or_else(|| if cfg!(windows) { "windows".into() } else { "linux".into() });
+    let os =
+        q.os.unwrap_or_else(|| if cfg!(windows) { "windows".into() } else { "linux".into() });
     let Some(name) = binary_name(&os) else {
         return (StatusCode::BAD_REQUEST, "os linux ya da windows olmalı").into_response();
     };

@@ -38,8 +38,12 @@ pub struct Ctx {
 
 impl Ctx {
     pub fn from_env() -> Ctx {
-        let project_dir = env("STAJ_PROJECT_DIR").map(PathBuf::from).unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()));
-        let state_dir = env("STAJ_STATE_DIR").map(PathBuf::from).unwrap_or_else(|| project_dir.join(".stajci"));
+        let project_dir = env("STAJ_PROJECT_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()));
+        let state_dir = env("STAJ_STATE_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| project_dir.join(".stajci"));
         let results_dir = env("STAJ_RESULTS_DIR")
             .map(|p| {
                 let p = PathBuf::from(p);
@@ -102,7 +106,13 @@ pub fn write_dotenv(path: &Path, r: &SavedRun) -> anyhow::Result<()> {
 }
 
 pub fn os_name() -> String {
-    env("STAJ_OS").unwrap_or_else(|| if cfg!(windows) { "windows".into() } else { std::env::consts::OS.into() })
+    env("STAJ_OS").unwrap_or_else(|| {
+        if cfg!(windows) {
+            "windows".into()
+        } else {
+            std::env::consts::OS.into()
+        }
+    })
 }
 
 /// GitLab CI değişkenlerinden koşum bilgisi (SW-4.3, SW-4.6).
@@ -110,10 +120,15 @@ pub fn ci_info(project_dir: &Path) -> CiInfo {
     CiInfo {
         project_id: env("CI_PROJECT_ID"),
         project_path: env("CI_PROJECT_PATH").or_else(|| env("STAJ_PROJECT")).unwrap_or_else(|| {
-            project_dir.file_name().map(|n| format!("yerel/{}", n.to_string_lossy())).unwrap_or_else(|| "yerel/proje".into())
+            project_dir
+                .file_name()
+                .map(|n| format!("yerel/{}", n.to_string_lossy()))
+                .unwrap_or_else(|| "yerel/proje".into())
         }),
         project_url: env("CI_PROJECT_URL"),
-        branch: env("CI_COMMIT_REF_NAME").or_else(|| env("STAJ_BRANCH")).unwrap_or_else(|| "yerel".into()),
+        branch: env("CI_COMMIT_REF_NAME")
+            .or_else(|| env("STAJ_BRANCH"))
+            .unwrap_or_else(|| "yerel".into()),
         commit: env("CI_COMMIT_SHA"),
         pipeline_id: env("CI_PIPELINE_ID"),
         pipeline_url: env("CI_PIPELINE_URL"),

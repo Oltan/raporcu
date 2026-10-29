@@ -48,7 +48,9 @@ impl AppState {
     pub fn new(cfg: Config, recent_logs: logging::RecentLogs) -> anyhow::Result<AppState> {
         let paths = Paths::new(&cfg.data_dir);
         let db = Db::open(&paths, cfg.sqlite_cache_kib, cfg.read_pool_size)?;
-        let auth = Arc::new(auth::LocalAdmin::new(cfg.admin_password_hash.as_ref().map(|s| s.expose().to_string())));
+        let auth = Arc::new(auth::LocalAdmin::new(
+            cfg.admin_password_hash.as_ref().map(|s| s.expose().to_string()),
+        ));
         Ok(AppState {
             cfg: Arc::new(cfg),
             paths,
@@ -88,7 +90,12 @@ pub fn router(state: AppState) -> Router {
 pub fn spawn_background(state: &AppState) {
     tokio::spawn(stall::stall_loop(state.clone()));
     tokio::spawn(disk::disk_loop(state.clone()));
-    tokio::spawn(db::backup_loop(state.db.clone(), state.paths.clone(), state.cfg.backup_hour, state.cfg.backup_keep));
+    tokio::spawn(db::backup_loop(
+        state.db.clone(),
+        state.paths.clone(),
+        state.cfg.backup_hour,
+        state.cfg.backup_keep,
+    ));
     let (dir, days, bytes) = (state.paths.logs_dir(), state.cfg.log_max_days, state.cfg.log_max_bytes);
     tokio::spawn(async move {
         loop {

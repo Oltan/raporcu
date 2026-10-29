@@ -53,7 +53,9 @@ fn main() -> anyhow::Result<()> {
             let state = AppState::new(cfg, log.recent.clone())?;
             stajproje::spawn_background(&state);
             let app = stajproje::router(state);
-            let listener = tokio::net::TcpListener::bind(bind).await.with_context(|| format!("{bind} dinlenemedi"))?;
+            let listener = tokio::net::TcpListener::bind(bind)
+                .await
+                .with_context(|| format!("{bind} dinlenemedi"))?;
             tracing::info!(adres = %bind, surum = common::VERSION, "sunucu başladı");
             axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
                 .with_graceful_shutdown(async {

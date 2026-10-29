@@ -61,7 +61,15 @@ impl Paths {
     }
 
     pub fn ensure(&self) -> std::io::Result<()> {
-        for d in [self.root.clone(), self.backup_dir(), self.logs_dir(), self.tmp_dir(), self.runs_dir(), self.outbox_dir(), self.tools_dir()] {
+        for d in [
+            self.root.clone(),
+            self.backup_dir(),
+            self.logs_dir(),
+            self.tmp_dir(),
+            self.runs_dir(),
+            self.outbox_dir(),
+            self.tools_dir(),
+        ] {
             std::fs::create_dir_all(d)?;
         }
         Ok(())
@@ -77,7 +85,17 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let p = Paths::new(tmp.path().join("veri"));
         p.ensure().unwrap();
-        for path in [p.db(), p.backup_dir(), p.logs_dir(), p.tmp_dir(), p.runs_dir(), p.run_files_dir(7), p.attachment(7, "a-attachment.png"), p.outbox_dir(), p.tools_dir()] {
+        for path in [
+            p.db(),
+            p.backup_dir(),
+            p.logs_dir(),
+            p.tmp_dir(),
+            p.runs_dir(),
+            p.run_files_dir(7),
+            p.attachment(7, "a-attachment.png"),
+            p.outbox_dir(),
+            p.tools_dir(),
+        ] {
             assert!(path.starts_with(tmp.path().join("veri")), "{path:?}");
         }
         assert!(p.backup_dir().is_dir());

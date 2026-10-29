@@ -159,10 +159,16 @@ pub fn init(logs_dir: &Path, max_days: usize, max_bytes: u64, to_stdout: bool) -
     let filter = EnvFilter::try_from_env("LOG_LEVEL").unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::registry()
         .with(filter)
-        .with(JsonLayer { sinks, recent: recent.clone() })
+        .with(JsonLayer {
+            sinks,
+            recent: recent.clone(),
+        })
         .try_init()
         .map_err(|e| anyhow::anyhow!("logger kurulamadı: {e}"))?;
-    Ok(LogHandle { recent, _guard: Some(guard) })
+    Ok(LogHandle {
+        recent,
+        _guard: Some(guard),
+    })
 }
 
 /// Log dosyalarını sınırlar: en fazla `max_files` dosya ve toplam `max_bytes`; en eskiden silinir.
@@ -191,6 +197,14 @@ pub fn enforce_retention(dir: &Path, max_files: usize, max_bytes: u64) -> (usize
 }
 
 /// Testler için: global logger yerine bellekte satır toplayan bir logger kurar (bir kez).
+static TEST_RECENT: std::sync::OnceLock<RecentLogs> = std::sync::OnceLock::new();
+
+/// Test logger'ının son WARN/ERROR listesi (testlerdeki AppState bunu kullanır).
+pub fn test_recent() -> RecentLogs {
+    test_capture();
+    TEST_RECENT.get_or_init(RecentLogs::default).clone()
+}
+
 pub fn test_capture() -> Arc<Mutex<Vec<String>>> {
     static CAP: std::sync::OnceLock<Arc<Mutex<Vec<String>>>> = std::sync::OnceLock::new();
     CAP.get_or_init(|| {
@@ -205,7 +219,10 @@ pub fn test_capture() -> Arc<Mutex<Vec<String>>> {
                 Ok(())
             }
         }
-        let layer = JsonLayer { sinks: vec![Mutex::new(Box::new(VecSink(buf.clone())))], recent: RecentLogs::default() };
+        let layer = JsonLayer {
+            sinks: vec![Mutex::new(Box::new(VecSink(buf.clone())))],
+            recent: TEST_RECENT.get_or_init(RecentLogs::default).clone(),
+        };
         let _ = tracing_subscriber::registry().with(EnvFilter::new("info")).with(layer).try_init();
         buf
     })

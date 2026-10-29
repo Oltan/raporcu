@@ -567,6 +567,7 @@ name = "e2esmoke"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "rehearse",
  "serde_json",
  "tempfile",
  "ureq",

@@ -71,7 +71,9 @@ impl Decision {
         }
     }
     pub fn confidence_pct(&self) -> String {
-        self.confidence.map(|c| format!("%{}", (c * 100.0).round() as i64)).unwrap_or_default()
+        self.confidence
+            .map(|c| format!("%{}", (c * 100.0).round() as i64))
+            .unwrap_or_default()
     }
 }
 
@@ -95,7 +97,14 @@ pub fn add(c: &Connection, scenario_id: i64, category: &str, source: &str, reaso
     anyhow::ensure!(is_category(category), "geçersiz kategori: {category}");
     c.execute(
         "INSERT INTO triage_decisions (scenario_id, category, source, reason, confidence, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![scenario_id, category, source, crate::logging::truncate(reason, 2000), confidence, now()],
+        params![
+            scenario_id,
+            category,
+            source,
+            crate::logging::truncate(reason, 2000),
+            confidence,
+            now()
+        ],
     )?;
     let id = c.last_insert_rowid();
     tracing::info!(senaryo_id = scenario_id, kategori = category, kaynak = source, "triage kararı");
@@ -117,7 +126,9 @@ fn dec_row(r: &rusqlite::Row) -> rusqlite::Result<Decision> {
 const COLS: &str = "id, scenario_id, category, source, reason, confidence, created_at";
 
 pub fn history(c: &Connection, scenario_id: i64) -> Result<Vec<Decision>> {
-    let mut st = c.prepare(&format!("SELECT {COLS} FROM triage_decisions WHERE scenario_id = ?1 ORDER BY id DESC"))?;
+    let mut st = c.prepare(&format!(
+        "SELECT {COLS} FROM triage_decisions WHERE scenario_id = ?1 ORDER BY id DESC"
+    ))?;
     let rows = st.query_map([scenario_id], dec_row)?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
@@ -147,22 +158,29 @@ pub fn refresh(c: &Connection, scenario_id: i64, auto_conf: f64) -> Result<Optio
     let d = current(c, scenario_id, auto_conf)?;
     c.execute(
         "UPDATE scenarios SET triage_category = ?2, triage_source = ?3 WHERE id = ?1",
-        params![scenario_id, d.as_ref().map(|d| d.category.clone()), d.as_ref().map(|d| d.source.clone())],
+        params![
+            scenario_id,
+            d.as_ref().map(|d| d.category.clone()),
+            d.as_ref().map(|d| d.source.clone())
+        ],
     )?;
     Ok(d)
 }
 
 /// Koşum bitince: kararı olmayan her başarısız son deneme için kural kararı.
 pub fn apply_rules(c: &Connection, run_id: i64, window: usize, auto_conf: f64) -> Result<usize> {
-    let (project_id, branch): (i64, String) = c.query_row("SELECT project_id, branch FROM runs WHERE id = ?1", [run_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
+    let (project_id, branch): (i64, String) = c.query_row("SELECT project_id, branch FROM runs WHERE id = ?1", [run_id], |r| {
+        Ok((r.get(0)?, r.get(1)?))
+    })?;
     let flaky = crate::history::flaky_keys(c, project_id, &branch, window)?;
     let mut st = c.prepare(
         "SELECT id, scenario_key, status, message, trace FROM scenarios s
          WHERE run_id = ?1 AND is_latest = 1 AND status IN ('failed', 'broken')
            AND NOT EXISTS (SELECT 1 FROM triage_decisions d WHERE d.scenario_id = s.id AND d.source = 'kural')",
     )?;
-    let rows: Vec<(i64, String, String, Option<String>, Option<String>)> =
-        st.query_map([run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?.collect::<rusqlite::Result<_>>()?;
+    let rows: Vec<(i64, String, String, Option<String>, Option<String>)> = st
+        .query_map([run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
+        .collect::<rusqlite::Result<_>>()?;
     for (id, key, status, msg, trace) in &rows {
         let (cat, reason) = rule_decision(status, msg.as_deref(), trace.as_deref(), flaky.contains(key));
         add(c, *id, &cat, "kural", &reason, None)?;
@@ -178,8 +196,14 @@ mod tests {
     #[test]
     fn test_sw_4_5_rule_categories() {
         assert_eq!(rule_decision("failed", Some("expected x"), None, true).0, "flaky");
-        assert_eq!(rule_decision("failed", Some("java.util.concurrent.TimeoutException: 10s"), None, false).0, "ortam");
-        assert_eq!(rule_decision("broken", None, Some("java.net.ConnectException: Connection refused"), false).0, "ortam");
+        assert_eq!(
+            rule_decision("failed", Some("java.util.concurrent.TimeoutException: 10s"), None, false).0,
+            "ortam"
+        );
+        assert_eq!(
+            rule_decision("broken", None, Some("java.net.ConnectException: Connection refused"), false).0,
+            "ortam"
+        );
         assert_eq!(rule_decision("broken", Some("NullPointerException"), None, false).0, "test_kodu");
         assert_eq!(rule_decision("failed", Some("expected: <a> but was: <b>"), None, false).0, "urun");
         assert_eq!(rule_decision("unknown", None, None, false).0, "bilinmiyor");

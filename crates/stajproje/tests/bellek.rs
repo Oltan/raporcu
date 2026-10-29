@@ -83,7 +83,14 @@ async fn test_sw_10_6_large_zip_upload_stays_under_memory_target() {
 
     let peak_kb = status_kb("VmHWM:");
     let growth_mb = peak_kb.saturating_sub(baseline_kb) / 1024;
-    eprintln!("zip {} MB, başlangıç RSS {} MB, tepe {} MB, artış {} MB (hedef {} MB)", zip_size / 1024 / 1024, baseline_kb / 1024, peak_kb / 1024, growth_mb, target_mb);
+    eprintln!(
+        "zip {} MB, başlangıç RSS {} MB, tepe {} MB, artış {} MB (hedef {} MB)",
+        zip_size / 1024 / 1024,
+        baseline_kb / 1024,
+        peak_kb / 1024,
+        growth_mb,
+        target_mb
+    );
     assert!(growth_mb < target_mb, "bellek artışı {growth_mb} MB, hedef {target_mb} MB");
 }
 

@@ -78,7 +78,19 @@ Eşleştirme kuralları:
 2. Ubuntu ve Windows runner'ları ayrı makinedeyse tek merkezi sunucu mu? (SW-3.2, 3.6, 4.2) — faz 6'dan önce.
 3. Triage ayrıntıları (SW-4.5) — faz 8'den önce.
 
-## Bu oturumda yapılanlar
+## Durum
 
-Bkz. `GEREKSINIMLER_1.md` durumları. SW-10.3 manuel (şirket GitLab'ına repo açma) olduğu için
-burada yapılamaz.
+Tüm fazlar uygulandı: 58 gereksinimden 34'ü MEVCUT, 23'ü KISMEN, 1'i YAPILACAK (SW-10.3,
+şirket GitLab'ı gerekiyor). KISMEN olanların hepsinde kod ve buradaki testler tamam; eksik kısım
+GitLab pilotu, Windows VM ya da gerçek Jira / OpenCode / SMTP ile doğrulamadır:
+`docs/PILOT_KONTROL_LISTESI.md`. Açık sorulardaki varsayımlar: `docs/KARARLAR.md`.
+
+| Doğrulama | Sonuç (Linux) |
+|-----------|---------------|
+| `cargo clippy --all-targets -- -D warnings` | temiz |
+| `cargo test` | 95 test geçiyor |
+| `cargo run -p rehearse` | 43/43 adım |
+| `cargo run -p e2esmoke` | 18/18 adım |
+| `cargo build --release` (Linux, `x86_64-pc-windows-gnu`) | derleniyor |
+| Gerçek JavaFX/TestFX koşusu Xvfb + `stajci start/upload/finish` | geçti |
+| Release sunucu bellek (200 MB zip + 40 eşzamanlı istek) | tepe ~28 MB |

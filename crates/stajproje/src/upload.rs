@@ -27,7 +27,10 @@ pub struct UploadError {
 
 impl UploadError {
     pub fn new(status: StatusCode, reason: impl Into<String>) -> Self {
-        UploadError { status, reason: reason.into() }
+        UploadError {
+            status,
+            reason: reason.into(),
+        }
     }
 }
 
@@ -115,10 +118,13 @@ pub fn process_zip(
     target: Target,
 ) -> Result<(IngestSummary, RunCtx, bool), UploadError> {
     let file = std::fs::File::open(zip_path)?;
-    let mut za = zip::ZipArchive::new(file)
-        .map_err(|e| UploadError::new(StatusCode::BAD_REQUEST, format!("geçerli bir zip değil: {e}")))?;
+    let mut za =
+        zip::ZipArchive::new(file).map_err(|e| UploadError::new(StatusCode::BAD_REQUEST, format!("geçerli bir zip değil: {e}")))?;
     if za.len() > limits.max_entries {
-        return Err(UploadError::new(StatusCode::BAD_REQUEST, format!("zip'te çok fazla dosya var ({})", za.len())));
+        return Err(UploadError::new(
+            StatusCode::BAD_REQUEST,
+            format!("zip'te çok fazla dosya var ({})", za.len()),
+        ));
     }
     // 1. geçiş: adlar ve boyutlar (içerik açılmadan)
     let mut total_uncompressed: u64 = 0;
@@ -127,10 +133,16 @@ pub fn process_zip(
         let e = za
             .by_index_raw(i)
             .map_err(|e| UploadError::new(StatusCode::BAD_REQUEST, format!("zip girişi okunamadı: {e}")))?;
-        let raw_name = e.name().map_err(|_| UploadError::new(StatusCode::BAD_REQUEST, "zip giriş adı okunamadı"))?.to_string();
+        let raw_name = e
+            .name()
+            .map_err(|_| UploadError::new(StatusCode::BAD_REQUEST, "zip giriş adı okunamadı"))?
+            .to_string();
         let Some(base) = validate_entry_name(&raw_name)? else { continue };
         if e.size() > limits.max_entry {
-            return Err(UploadError::new(StatusCode::PAYLOAD_TOO_LARGE, format!("zip girişi çok büyük: {base}")));
+            return Err(UploadError::new(
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!("zip girişi çok büyük: {base}"),
+            ));
         }
         total_uncompressed += e.size();
         if allure::file_kind(&base) == FileKind::Result {
@@ -157,14 +169,20 @@ pub fn process_zip(
     };
     let files_dir = paths.run_files_dir(run.run_id);
     std::fs::create_dir_all(&files_dir)?;
-    let mut summary = IngestSummary { run_id: run.run_id, ..Default::default() };
+    let mut summary = IngestSummary {
+        run_id: run.run_id,
+        ..Default::default()
+    };
 
     let res: Result<(), UploadError> = (|| {
         for i in 0..za.len() {
             let mut e = za
                 .by_index(i)
                 .map_err(|e| UploadError::new(StatusCode::BAD_REQUEST, format!("zip girişi açılamadı: {e}")))?;
-            let raw_name = e.name().map_err(|_| UploadError::new(StatusCode::BAD_REQUEST, "zip giriş adı okunamadı"))?.to_string();
+            let raw_name = e
+                .name()
+                .map_err(|_| UploadError::new(StatusCode::BAD_REQUEST, "zip giriş adı okunamadı"))?
+                .to_string();
             let Some(base) = validate_entry_name(&raw_name)? else { continue };
             match allure::file_kind(&base) {
                 FileKind::Result | FileKind::Container => {
@@ -249,7 +267,10 @@ mod tests {
 
     #[test]
     fn test_sw_2_1_zip_entry_names() {
-        assert_eq!(validate_entry_name("allure-results/a-result.json").unwrap().as_deref(), Some("a-result.json"));
+        assert_eq!(
+            validate_entry_name("allure-results/a-result.json").unwrap().as_deref(),
+            Some("a-result.json")
+        );
         assert_eq!(validate_entry_name("allure-results/").unwrap(), None);
         for bad in ["../x-result.json", "a/../../x", "/etc/passwd", "C:\\x", "a\\..\\b"] {
             assert!(validate_entry_name(bad).is_err(), "{bad}");
