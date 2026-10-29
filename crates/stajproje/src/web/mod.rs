@@ -1,6 +1,8 @@
 //! HTTP uçları ve sayfalar.
 
 pub mod admin;
+pub mod ci;
+pub mod files;
 
 use crate::AppState;
 use axum::http::StatusCode;
@@ -14,6 +16,10 @@ pub fn routes() -> Router<AppState> {
         .route("/logout", post(admin::logout))
         .route("/api/admin/me", get(admin::me))
         .route("/static/{*path}", get(static_file))
+        .route("/files/{id}", get(files::attachment))
+        .route("/api/runs", get(api::runs))
+        .route("/api/runs/{id}", get(api::run))
+        .route("/api/scenarios/{id}", get(api::scenario))
 }
 
 #[derive(rust_embed::RustEmbed)]
@@ -74,5 +80,70 @@ pub fn render<T: askama::Template>(t: &T) -> Response {
             tracing::error!(hata = %e, "şablon işlenemedi");
             (StatusCode::INTERNAL_SERVER_ERROR, "Şablon hatası").into_response()
         }
+    }
+}
+
+pub mod api {
+    //! Salt okunur JSON API (giriş gerektirmez; kapalı ağ).
+    use super::AppError;
+    use crate::queries;
+    use crate::AppState;
+    use axum::extract::{Path, Query, State};
+    use axum::Json;
+    use serde::Deserialize;
+    use serde_json::{json, Value};
+
+    #[derive(Deserialize, Default)]
+    pub struct RunListQuery {
+        pub project: Option<i64>,
+        pub branch: Option<String>,
+        pub page: Option<i64>,
+    }
+
+    pub async fn runs(State(st): State<AppState>, Query(q): Query<RunListQuery>) -> Result<Json<Value>, AppError> {
+        let page = q.page.unwrap_or(1).max(1);
+        let v = st
+            .db
+            .read(move |c| {
+                let runs = queries::list_runs(c, q.project, q.branch.as_deref(), 50, (page - 1) * 50)?;
+                Ok(json!({ "sayfa": page, "kosumlar": runs }))
+            })
+            .await?;
+        Ok(Json(v))
+    }
+
+    pub async fn run(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Json<Value>, AppError> {
+        let v = st
+            .db
+            .read(move |c| {
+                let Some(run) = queries::run(c, id)? else { return Ok(None) };
+                let mut list = Vec::new();
+                for s in queries::run_scenarios(c, id)? {
+                    let atts = queries::attachments(c, s.id)?;
+                    let attempts = queries::attempts(c, id, &s.scenario_key)?.len();
+                    list.push(json!({ "senaryo": s, "ekler": atts, "deneme_sayisi": attempts }));
+                }
+                Ok(Some(json!({ "kosum": run, "senaryolar": list })))
+            })
+            .await?
+            .ok_or_else(AppError::not_found)?;
+        Ok(Json(v))
+    }
+
+    pub async fn scenario(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Json<Value>, AppError> {
+        let v = st
+            .db
+            .read(move |c| {
+                let Some(s) = queries::scenario(c, id)? else { return Ok(None) };
+                Ok(Some(json!({
+                    "senaryo": s,
+                    "adimlar": queries::steps(c, id)?,
+                    "ekler": queries::attachments(c, id)?,
+                    "denemeler": queries::attempts(c, s.run_id, &s.scenario_key)?,
+                })))
+            })
+            .await?
+            .ok_or_else(AppError::not_found)?;
+        Ok(Json(v))
     }
 }

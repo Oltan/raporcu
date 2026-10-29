@@ -3,11 +3,16 @@
 pub mod auth;
 pub mod config;
 pub mod db;
+pub mod history;
+pub mod hooks;
+pub mod ingest;
 pub mod logging;
 pub mod paths;
+pub mod queries;
+pub mod upload;
 pub mod web;
 
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use std::sync::Arc;
 
@@ -46,6 +51,12 @@ impl AppState {
 pub fn router(state: AppState) -> Router {
     let ci = Router::new()
         .route("/ping", get(|| async { "ok" }))
+        .route("/runs", post(web::ci::upload_new))
+        .route("/runs/start", post(web::ci::start))
+        .route("/runs/{id}/upload", post(web::ci::upload_existing))
+        .route("/runs/{id}/results", post(web::ci::result_file))
+        .route("/runs/{id}/finish", post(web::ci::finish))
+        .layer(axum::extract::DefaultBodyLimit::max(state.cfg.max_entry_bytes as usize))
         .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth::ci_guard));
     Router::new()
         .route("/api/health", get(web::health))
