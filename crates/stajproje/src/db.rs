@@ -191,7 +191,7 @@ fn apply_migrations(conn: &mut Connection, migrations: &[Migration]) -> Result<(
 }
 
 pub fn now() -> String {
-    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
 /// Gecelik yedek zamanlayıcısı: her gün `hour` (yerel saat) geçince bir kez.

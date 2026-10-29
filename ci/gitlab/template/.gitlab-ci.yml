@@ -1,0 +1,146 @@
+# stajproje merkezi CI şablonu (SW-1.1, SW-1.4)
+#
+# Test projesi yalnızca şunu ekler:
+#
+#   include:
+#     - project: 'ekip/stajproje'
+#       ref: main
+#       file: '/ci/gitlab/template/.gitlab-ci.yml'
+#   variables:
+#     STAJ_OS: linux        # ya da windows
+#
+# Aşamalar: test → report → fix. Test işi düşse de report ve fix çalışır.
+# İşler STAJ_OS'a göre `linux` ya da `windows` etiketli runner'a gider.
+# Script satırları yalnızca `stajci` alt komutlarını çağırır; işletim sistemine özgü tek kısım
+# stajci'yi sunucudan indiren before_script satırlarıdır (SW-10.9).
+
+variables:
+  STAJ_OS: "linux"
+  # stajproje sunucusu runner ile aynı makinede (SW-3.2)
+  STAJ_SERVER: "http://127.0.0.1:8080"
+  STAJ_RESULTS_DIR: "target/allure-results"
+  # SW-1.7: bellek sınırları (CI değişkeniyle değiştirilebilir)
+  STAJ_MAVEN_XMX: "512m"
+  STAJ_TEST_XMX: "768m"
+  STAJ_VIDEO_FPS: "5"
+  # SW-1.2: Xvfb ekranı (yalnızca Linux)
+  STAJ_XVFB: "on"
+  STAJ_SCREEN: "1920x1080"
+  # STAJ_TAGS: "@smoke"           # boşsa features.txt kullanılır
+  # STAJ_FIX: "off"               # self-healing'i kapatmak için
+  # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)
+
+stages:
+  - test
+  - report
+  - fix
+
+# --- İşletim sistemine göre ortak ayarlar -------------------------------------------------
+
+.staj-linux:
+  tags: [linux]
+  before_script:
+    - curl -fsS -o stajci "$STAJ_SERVER/api/tools/stajci?os=linux"
+    - chmod +x stajci
+    - export PATH="$PWD:$PATH"
+
+.staj-windows:
+  tags: [windows]
+  before_script:
+    - curl.exe -fsS -o stajci.exe "$env:STAJ_SERVER/api/tools/stajci?os=windows"
+    - $env:PATH = "$PWD;$env:PATH"
+
+.staj-test:
+  stage: test
+  script:
+    - stajci preflight
+    - stajci start
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - target/allure-results/
+      - .stajci/
+    reports:
+      dotenv: stajci.env
+  rules:
+    - if: '$STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+.staj-report:
+  stage: report
+  script:
+    - stajci upload
+    - stajci finish
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      # SW-2.6: gönderilemeyen sonuçlar burada saklanır → stajci upload --resume
+      - .stajci/queue/
+  environment:
+    name: rapor/$CI_COMMIT_REF_SLUG
+    url: $STAJ_REPORT_URL
+  rules:
+    - if: '$STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+.staj-fix:
+  stage: fix
+  script:
+    - stajci fix
+  allow_failure: true
+  rules:
+    - if: '$STAJ_FIX == "off"'
+      when: never
+    - when: always
+
+# --- İşler ------------------------------------------------------------------------------
+
+staj-test-linux:
+  extends: [.staj-linux, .staj-test]
+  rules:
+    - if: '$STAJ_OS != "linux" || $STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+staj-test-windows:
+  extends: [.staj-windows, .staj-test]
+  variables:
+    STAJ_XVFB: "off"
+  rules:
+    - if: '$STAJ_OS != "windows" || $STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+staj-report-linux:
+  extends: [.staj-linux, .staj-report]
+  rules:
+    - if: '$STAJ_OS != "linux" || $STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+staj-report-windows:
+  extends: [.staj-windows, .staj-report]
+  rules:
+    - if: '$STAJ_OS != "windows" || $STAJ_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+staj-fix-linux:
+  extends: [.staj-linux, .staj-fix]
+  rules:
+    - if: '$STAJ_OS != "linux" || $STAJ_FIX == "off"'
+      when: never
+    - when: always
+
+staj-fix-windows:
+  extends: [.staj-windows, .staj-fix]
+  variables:
+    STAJ_XVFB: "off"
+  rules:
+    - if: '$STAJ_OS != "windows" || $STAJ_FIX == "off"'
+      when: never
+    - when: always

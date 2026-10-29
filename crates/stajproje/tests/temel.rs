@@ -123,3 +123,53 @@ async fn test_sw_9_5_admin_page_redirects_to_login() {
     assert_eq!(r.status(), StatusCode::SEE_OTHER);
     assert!(r.headers()["location"].to_str().unwrap().starts_with("/login"));
 }
+
+#[tokio::test]
+async fn test_sw_10_9_stajci_served_per_os() {
+    let app = app();
+    std::fs::write(app.state.paths.tools_dir().join("stajci-linux"), b"ELF-sahte").unwrap();
+    std::fs::write(app.state.paths.tools_dir().join("stajci-windows.exe"), b"MZ-sahte").unwrap();
+    let r = app.send(Request::get("/api/tools/stajci?os=linux").body(Body::empty()).unwrap()).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    assert_eq!(r.headers()["x-stajci-version"], common::VERSION);
+    assert_eq!(body_string(r).await, "ELF-sahte");
+    let (st, body) = app.get("/api/tools/stajci?os=windows").await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(body, "MZ-sahte");
+    let (st, _) = app.get("/api/tools/stajci?os=mac").await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_sw_3_5_stalled_run_becomes_interrupted() {
+    let app = app();
+    let (_, v) = app
+        .ci_json("/api/ci/runs/start", serde_json::json!({ "project_path": "ekip/yarida", "branch": "main", "total": 5 }))
+        .await;
+    let id = v["run_id"].as_i64().unwrap();
+    // zaman aşımı 0: hemen interrupted
+    let ids = app.state.db.write(|c| stajproje::stall::mark_stalled(c, std::time::Duration::ZERO)).await.unwrap();
+    assert!(ids.contains(&id));
+    let (_, run) = app.get(&format!("/api/runs/{id}")).await;
+    assert!(run.contains("\"status\":\"interrupted\""));
+    assert!(log_lines("koşum interrupted oldu").iter().any(|l| l["run_id"] == id));
+    // süresi dolmamış koşuma dokunulmaz
+    let (_, v) = app
+        .ci_json("/api/ci/runs/start", serde_json::json!({ "project_path": "ekip/yarida", "branch": "main" }))
+        .await;
+    let id2 = v["run_id"].as_i64().unwrap();
+    let ids = app.state.db.write(|c| stajproje::stall::mark_stalled(c, std::time::Duration::from_secs(600))).await.unwrap();
+    assert!(!ids.contains(&id2));
+}
+
+#[tokio::test]
+async fn test_sw_3_5_finish_endpoint_marks_interrupted() {
+    let app = app();
+    let (_, v) = app.ci_json("/api/ci/runs/start", serde_json::json!({ "project_path": "ekip/f", "branch": "main" })).await;
+    let id = v["run_id"].as_i64().unwrap();
+    let (st, v) = app.ci_json(&format!("/api/ci/runs/{id}/finish"), serde_json::json!({ "status": "interrupted" })).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(v["status"], "interrupted");
+    let (st, _) = app.ci_json(&format!("/api/ci/runs/{id}/finish"), serde_json::json!({ "status": "baska" })).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+}

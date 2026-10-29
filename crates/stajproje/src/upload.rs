@@ -92,7 +92,7 @@ pub fn validate_entry_name(name: &str) -> Result<Option<String>, UploadError> {
         return Err(bad());
     }
     let parts: Vec<&str> = name.split(['/', '\\']).collect();
-    if parts.iter().any(|p| *p == "..") {
+    if parts.contains(&"..") {
         return Err(bad());
     }
     match parts.last() {
@@ -102,7 +102,7 @@ pub fn validate_entry_name(name: &str) -> Result<Option<String>, UploadError> {
 }
 
 pub enum Target {
-    New(CiInfo),
+    New(Box<CiInfo>),
     Existing(i64),
 }
 

@@ -1,0 +1,12 @@
+# GitLab runner ayarı (SW-1.7: aynı anda tek iş)
+concurrent = 1
+check_interval = 0
+
+[[runners]]
+  name = "stajproje-linux"          # Windows için: stajproje-windows
+  url = "https://gitlab.sirket.local/"
+  token = "glrt-..."                # runner kayıt token'ı
+  executor = "shell"
+  # Windows'ta: shell = "powershell"
+  limit = 1
+  [runners.custom_build_dir]

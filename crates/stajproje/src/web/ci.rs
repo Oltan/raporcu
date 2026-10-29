@@ -62,7 +62,7 @@ pub async fn upload_new(State(st): State<AppState>, Query(ci): Query<CiInfo>, bo
     if ci.project_path.trim().is_empty() {
         return Err(UploadError::new(StatusCode::BAD_REQUEST, "project_path gerekli"));
     }
-    handle_zip(st, body, Target::New(ci.clone()), ci).await
+    handle_zip(st, body, Target::New(Box::new(ci.clone())), ci).await
 }
 
 /// Canlı koşumun son toplu zip'i (SW-3.3: artımlı sonuçlarla tutarlı, tekrarlar sayılmaz).

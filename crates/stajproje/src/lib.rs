@@ -9,6 +9,7 @@ pub mod ingest;
 pub mod logging;
 pub mod paths;
 pub mod queries;
+pub mod stall;
 pub mod upload;
 pub mod web;
 
@@ -67,6 +68,7 @@ pub fn router(state: AppState) -> Router {
 
 /// Arka plan görevleri: gecelik yedek, log temizliği, ...
 pub fn spawn_background(state: &AppState) {
+    tokio::spawn(stall::stall_loop(state.clone()));
     tokio::spawn(db::backup_loop(state.db.clone(), state.paths.clone(), state.cfg.backup_hour, state.cfg.backup_keep));
     let (dir, days, bytes) = (state.paths.logs_dir(), state.cfg.log_max_days, state.cfg.log_max_bytes);
     tokio::spawn(async move {

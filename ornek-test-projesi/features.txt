@@ -1,0 +1,3 @@
+# Koşulacak senaryoların tag ifadeleri (her satır bir ifade, satırlar "or" ile birleşir).
+# stajci preflight bu tag'lerin senaryolarda bulunduğunu kontrol eder.
+@giris

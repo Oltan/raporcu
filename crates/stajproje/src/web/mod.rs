@@ -3,6 +3,7 @@
 pub mod admin;
 pub mod ci;
 pub mod files;
+pub mod tools;
 
 use crate::AppState;
 use axum::http::StatusCode;
@@ -17,6 +18,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/admin/me", get(admin::me))
         .route("/static/{*path}", get(static_file))
         .route("/files/{id}", get(files::attachment))
+        .route("/api/tools/stajci", get(tools::stajci))
         .route("/api/runs", get(api::runs))
         .route("/api/runs/{id}", get(api::run))
         .route("/api/scenarios/{id}", get(api::scenario))
