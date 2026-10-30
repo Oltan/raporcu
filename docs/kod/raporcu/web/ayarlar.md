@@ -10,6 +10,10 @@
 | `GET /admin/scenarios/{id}/jira` | bug formu: şablondan taslak (`jira::draft_for_scenario`); Jira alan listesi alınabildiyse formda alan kutuları |
 | `POST /admin/scenarios/{id}/jira` | formdan bug, `jira::create_for_scenario`; başarı → senaryo sayfası; hata → 502 ve Jira'nın alan bazlı mesajı |
 
+| `GET /admin/scenarios/{id}/jira?taslak=N` | form, bekleyen taslağın içeriğiyle; gizli `taslak` alanı → bug açılınca taslak `acildi` |
+| `POST /admin/taslaklar/{id}/ac` | taslağı olduğu gibi açar (`jira::open_draft`); `geri` (yerel yol) varsa oraya döner; hata → 502 ve düzenleme linki |
+| `POST /admin/taslaklar/{id}/yoksay` | bekleyen taslak `yok_sayildi` |
+
 ## Form alanları (`form_fields`)
 Jira'nın alanlarından: `SYSTEM_FIELDS` (project, issuetype, summary, description, reporter,
 attachment, issuelinks) ve `labels` hariç; **zorunlu olup varsayılanı olmayanlar** ya da şablonun ek

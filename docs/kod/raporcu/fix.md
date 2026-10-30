@@ -26,3 +26,8 @@ kırpılır) ve geçerli karar tazelenir.
 
 ## Testler
 `test_sw_7_1_target_for_each_case`; `tests/entegrasyon.rs` (7.1, 7.3/4.4, 7.5, 7.7).
+
+## Açık MR kontrolü
+`open_fix_mr(c, proje, scenario_key)`: son 14 günde `mr_opened`/`draft_mr` sonuçlu ve `mr_state`
+`opened` (ya da webhook gelmediği için boş) deneme varsa URL/branch. `candidates` bu durumda hedefi
+`opencode` yerine `acik-mr` yapar; stajci atlar (senaryo düğmesi `STAJ_FIX_SCENARIO_ID` yine çalışır).

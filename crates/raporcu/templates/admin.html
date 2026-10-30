@@ -24,6 +24,12 @@
 </section>
 
 <section class="kart">
+  <h2>Onay bekleyen Jira bug taslakları ({{ drafts.len() }})</h2>
+  {% if drafts.is_empty() %}<p class="kucuk">Bekleyen taslak yok. Gözlem modunda (JIRA_AUTO_CREATE=observe) ürün hatası olan senaryolar için burada taslak hazırlanır.</p>{% endif %}
+  {% include "_taslaklar.html" %}
+</section>
+
+<section class="kart">
   <h2>Jira gözlem kayıtları</h2>
   {% if jira_actions.is_empty() %}<p class="kucuk">Kayıt yok.</p>{% else %}
   <div class="tablo"><table>

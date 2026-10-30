@@ -172,6 +172,8 @@ struct BugPage {
     fields: Vec<FormField>,
     meta_hata: Option<String>,
     hata: Option<String>,
+    /// taslaktan açılıyorsa taslak numarası (gönderilince taslak "açıldı" olur)
+    taslak: Option<i64>,
 }
 
 fn not_configured(l: Layout) -> Response {
@@ -232,17 +234,40 @@ fn form_value(v: &Value) -> String {
     }
 }
 
-pub async fn bug_form(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Path(sid): Path<i64>) -> Result<Response, AppError> {
+#[derive(Deserialize, Default)]
+pub struct TaslakQuery {
+    taslak: Option<i64>,
+}
+
+pub async fn bug_form(
+    State(st): State<AppState>,
+    _a: Admin,
+    headers: HeaderMap,
+    Path(sid): Path<i64>,
+    Query(q): Query<TaslakQuery>,
+) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     if Jira::from_config(&st.cfg).is_none() {
         return Ok(not_configured(l));
     }
     let (cfg, sablon) = (st.cfg.clone(), st.ayarlar.get().jira);
+    let taslak = q.taslak;
     let draft = st
         .db
         .read(move |c| {
             let name = crate::queries::scenario(c, sid)?.map(|s| s.name);
-            Ok(name.map(|n| (n, jira::draft_for_scenario(c, &cfg, &sablon, sid))))
+            // taslaktan düzenleme: taslağın içeriği; değilse şablondan
+            let from_draft = match taslak {
+                Some(id) => jira::draft(c, id)?.filter(|d| d.scenario_id == sid && d.pending()).map(|d| d.bug()),
+                None => None,
+            };
+            Ok(name.map(|n| {
+                let bug = match from_draft {
+                    Some(b) => Ok(b),
+                    None => jira::draft_for_scenario(c, &cfg, &sablon, sid),
+                };
+                (n, bug)
+            }))
         })
         .await?;
     let Some((scenario, bug)) = draft else {
@@ -252,11 +277,19 @@ pub async fn bug_form(State(st): State<AppState>, _a: Admin, headers: HeaderMap,
         Ok(b) => (b, None),
         Err(e) => (NewBug::default(), Some(e.to_string())),
     };
-    Ok(form_page(&st, l, sid, scenario, bug, hata).await.into_response())
+    Ok(form_page(&st, l, sid, scenario, bug, hata, taslak).await.into_response())
 }
 
 /// Formu çizer: alanlar Jira'dan, değerler `bug`'dan (şablon taslağı ya da gönderilen form).
-async fn form_page(st: &AppState, l: Layout, sid: i64, scenario: String, bug: NewBug, hata: Option<String>) -> Response {
+async fn form_page(
+    st: &AppState,
+    l: Layout,
+    sid: i64,
+    scenario: String,
+    bug: NewBug,
+    hata: Option<String>,
+    taslak: Option<i64>,
+) -> Response {
     let (fields, meta_hata) = match fetch_meta(st).await {
         Some(Ok(m)) => (form_fields(&m, &bug.extra), None),
         Some(Err(e)) => (vec![], Some(e)),
@@ -286,6 +319,7 @@ async fn form_page(st: &AppState, l: Layout, sid: i64, scenario: String, bug: Ne
             fields,
             meta_hata,
             hata,
+            taslak,
         }),
     )
         .into_response()
@@ -358,6 +392,7 @@ pub async fn bug_create(
         return Ok(not_configured(l));
     };
     let (cfg, sablon, paths) = (st.cfg.clone(), st.ayarlar.get().jira, st.paths.clone());
+    let taslak: Option<i64> = form.iter().find(|(k, _)| k == "taslak").and_then(|(_, v)| v.parse().ok());
     // dış hata: senaryo yok / JSON bozuk; iç hata: Jira reddetti (form girilen değerlerle yeniden gösterilir)
     let res = st
         .db
@@ -368,12 +403,15 @@ pub async fn bug_create(
             let draft = jira::draft_for_scenario(c, &cfg, &sablon, sid)?;
             let bug = bug_from_form(&form, draft)?;
             let created = jira::create_for_scenario(c, &paths, &j, sid, &bug).map_err(|e| e.to_string());
+            if let (Ok(k), Some(id)) = (&created, taslak) {
+                jira::mark_draft(c, id, "acildi", Some(k))?;
+            }
             Ok((name, bug, created))
         })
         .await;
     match res {
         Ok((_, _, Ok(_))) => Ok(Redirect::to(&format!("/scenarios/{sid}")).into_response()),
-        Ok((name, bug, Err(e))) => Ok(form_page(&st, l, sid, name, bug, Some(e)).await),
+        Ok((name, bug, Err(e))) => Ok(form_page(&st, l, sid, name, bug, Some(e), taslak).await),
         Err(e) => Ok(crate::web::pages::message_page(
             l,
             StatusCode::BAD_REQUEST,
@@ -381,6 +419,71 @@ pub async fn bug_create(
             &e.to_string(),
         )),
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bug taslakları: tek tıkla aç / yok say
+
+#[derive(Deserialize, Default)]
+pub struct GeriForm {
+    geri: Option<String>,
+}
+
+fn back(g: Option<String>, fallback: String) -> String {
+    g.filter(|u| u.starts_with('/') && !u.starts_with("//")).unwrap_or(fallback)
+}
+
+pub async fn draft_open(
+    State(st): State<AppState>,
+    _a: Admin,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Form(g): Form<GeriForm>,
+) -> Result<Response, AppError> {
+    let l = layout(&st, &headers);
+    let Some(j) = Jira::from_config(&st.cfg) else {
+        return Ok(not_configured(l));
+    };
+    let paths = st.paths.clone();
+    let res = st
+        .db
+        .write(move |c| {
+            let sid = jira::draft(c, id)?.map(|d| d.scenario_id);
+            Ok((sid, jira::open_draft(c, &paths, &j, id, None).map_err(|e| e.to_string())))
+        })
+        .await?;
+    match res {
+        (None, _) => Err(AppError::not_found()),
+        (Some(sid), Ok(_)) => Ok(Redirect::to(&back(g.geri, format!("/scenarios/{sid}"))).into_response()),
+        (Some(sid), Err(e)) => Ok(crate::web::pages::message_page(
+            l,
+            StatusCode::BAD_GATEWAY,
+            "Jira bug açılamadı",
+            &format!("{e}\n\nTaslağı düzenleyip açmak için: /admin/scenarios/{sid}/jira?taslak={id}"),
+        )),
+    }
+}
+
+pub async fn draft_dismiss(
+    State(st): State<AppState>,
+    _a: Admin,
+    Path(id): Path<i64>,
+    Form(g): Form<GeriForm>,
+) -> Result<Response, AppError> {
+    let sid = st
+        .db
+        .write(move |c| {
+            let d = jira::draft(c, id)?;
+            if let Some(d) = &d {
+                if d.pending() {
+                    jira::mark_draft(c, id, "yok_sayildi", None)?;
+                }
+            }
+            Ok(d.map(|d| d.scenario_id))
+        })
+        .await?
+        .ok_or_else(AppError::not_found)?;
+    Ok(Redirect::to(&back(g.geri, format!("/scenarios/{sid}"))).into_response())
 }
 
 #[cfg(test)]

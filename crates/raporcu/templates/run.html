@@ -80,6 +80,14 @@
 </section>
 {% endif %}
 
+{% if l.share.is_none() && !drafts.is_empty() %}
+<section class="kart">
+  <h2>Jira bug taslakları</h2>
+  <p class="kucuk">Ürün hatası olarak sınıflanan senaryolar için hazırlanan bug'lar. Jira'ya henüz yazılmadı; göz atıp tek tıkla açın, düzenleyip açın ya da yok sayın.</p>
+  {% include "_taslaklar.html" %}
+</section>
+{% endif %}
+
 <section class="kart">
   <h2>Senaryolar (feature bazında)</h2>
   {% if groups.is_empty() %}<div class="bos">Henüz sonuç gelmedi.</div>{% endif %}

@@ -42,6 +42,28 @@ kodu değiştirecek, doğrulama koşusu yapacak ve branch push edecek olan odur.
 Düğmeler admin girişi ister. Sonuç birkaç dakika içinde senaryo ve koşum sayfasındaki
 "OpenCode" kutusuna yazılır (MR linki, doğrulama, özet, uyarılar).
 
+### Sonuç türlerine göre ne olur
+
+| OpenCode'un kararı | Sonuç |
+|--------------------|-------|
+| test kodu hatası, düzeltti, tek senaryo koşusu geçti | `auto-fix/…` branch'i + **MR** |
+| test kodu hatası, düzeltti, koşu geçmedi | **Draft MR** (incelenip tamamlanır) |
+| **ürün hatası** (`STAJ_TRIAGE` `urun`, güven ≥ 0,70) | kod değişmez; raporcu **Jira bug taslağı** hazırlar, admin tek tıkla açar (`docs/JIRA_DOORS_AYARLARI.md` §5) |
+| izinli yol dışına dokundu | hepsi geri alınır, "reddedildi" |
+| değişiklik yok / ortam / flaky | raporda not, triage kararı güncellenir |
+
+### Döngü ve tekrar önleme
+
+- **auto-fix branch'ine push yeni bir tam koşum başlatmaz:** şablondaki işler `auto-fix/…`
+  branch'lerinde koşmaz (düzeltme fix işinde tek senaryoyla zaten doğrulandı). Tüm e2e'yi o branch'te
+  de koşmak isterseniz CI değişkeni `STAJ_FIX_PIPELINE=on`; o durumda bile **fix işi** auto-fix
+  branch'inde asla koşmaz (düzeltmenin düzeltmesi döngüsü olmaz).
+- **MR pipeline'ı:** şablon işleri `merge_request_event` pipeline'ında koşmaz (aynı commit'in branch
+  pipeline'ı zaten koşuyor; çift koşum olmaz). Projenizin diğer işleri etkilenmez.
+- **Aynı senaryo için tekrar MR açılmaz:** senaryonun açık bir auto-fix MR'ı varsa (son 14 gün,
+  GitLab webhook'u kapanınca/birleşince günceller) aday olmaz, stajci "atlandı (hedef: acik-mr)" der.
+  MR birleşince ertesi gece normal koşumda düzeltme sınanır.
+
 ## Ajan tanımı (OpenCode)
 
 Test projesinde **`.opencode/agents/fix.md`** (OpenCode'un güncel yolu `agents/`; şablon:

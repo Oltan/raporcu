@@ -87,3 +87,8 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   komut satırındaki Türkçe karakterleri bozuyor (`-Dcucumber.filter.name=^Geçerli…$` hiç eşleşmiyor;
   gerçek Maven ile görüldü). stajci Maven'a `LC_ALL=C.UTF-8` verir; fix doğrulamasında ad filtresi
   ayrıca ASCII'ye indirilir (`ş` → `.`).
+- **Ürün hatası için taslak:** gözlem modunda raporcu Jira'ya yazmadan bug taslağı hazırlar, admin tek
+  tıkla açar (kullanıcı isteği). OpenCode "ürün hatası" dediğinde de taslak hazırlanır.
+- **auto-fix döngüsü:** auto-fix branch push'u varsayılan olarak tam e2e koşturmaz (fix işi tek senaryoyu
+  zaten doğruladı); fix işi auto-fix branch'inde hiç koşmaz; açık MR'ı olan senaryo yeniden denenmez.
+  `workflow:` kuralı yerine iş kuralları kullanıldı: test projesinin kendi işleri etkilenmesin.

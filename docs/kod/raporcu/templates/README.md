@@ -35,6 +35,7 @@ görünümünde linkler `/s/<token>/…` biçimine döner, iç linkler (admin, a
 | `live.html` | `/runs/{id}/live` | sayaçlar (ilerleme x/N, geçti, kaldı, koşuyor, bekliyor), **"şu an koşuyor" kartı** (`#simdi`: senaryo, feature:satır, geçen süre sayacı, adımlar + koşan adım; adım yoksa "Hazırlık: @Before"), senaryo tablosu (durum, ad→rapor linki, ilk hata satırı, feature, ekran görüntüsü) |
 | `ayarlar.html` | `/admin/ayarlar` | Jira bug şablonu (özet, açıklama, ek alanlar JSON, DOORS label), yer tutucu ve alan biçimi tabloları, "Jira alanlarını getir" tablosu, DOORS ayarları |
 | `jira_bug.html` | `/admin/scenarios/{id}/jira` | bug formu: özet, açıklama, Jira alanları (seçenekli → açılır liste, çoklu → çoklu liste), diğer alanlar JSON |
+| `_taslaklar.html` | include | Jira bug taslağı kartları (`drafts`, `taslak_geri`): durum, özet, kaynak ve gerekçe, içerik (açılır), admin için Jira'da aç / Düzenleyip aç / Yok say |
 | `admin.html` | `/admin` | disk doluluğu, Jira modu, sürüm; paylaşım linkleri (iptal et); Jira gözlem kayıtları (SW-6.3); son uyarı/hata log satırları |
 | `healing.html` | `/healing` | son 30 gece: deneme / MR / birleşen / reddedilen grafiği ve tablosu (SW-7.5) |
 

@@ -520,25 +520,29 @@ pub fn process_run(
             rep.matched += 1;
             continue;
         }
-        let Some(j) = jira else { continue };
-        // 2) Jira'da açık bug ara
-        match j.find_open_bug(&f.doors, &f.name) {
-            Ok(Some(k)) => {
-                link(c, f, &k, "eslesme", Some(&fp))?;
-                record(c, run_id, Some(f.id), "eslesti", Some(&fp), Some(&k), "Jira araması")?;
-                tracing::info!(run_id, senaryo_id = f.id, issue = %k, "Jira bug'ı eşleşti");
-                if let Some((n, d)) = screenshot(c, paths, f.id) {
-                    if let Err(e) = j.attach(&k, &n, &d) {
-                        tracing::warn!(servis = "jira", hata = %e, "ekran görüntüsü eklenemedi");
+        // 2) Jira'da açık bug ara (Jira bağlıysa; değilse yalnızca taslak hazırlanabilir)
+        if let Some(j) = jira {
+            match j.find_open_bug(&f.doors, &f.name) {
+                Ok(Some(k)) => {
+                    link(c, f, &k, "eslesme", Some(&fp))?;
+                    record(c, run_id, Some(f.id), "eslesti", Some(&fp), Some(&k), "Jira araması")?;
+                    tracing::info!(run_id, senaryo_id = f.id, issue = %k, "Jira bug'ı eşleşti");
+                    if let Some((n, d)) = screenshot(c, paths, f.id) {
+                        if let Err(e) = j.attach(&k, &n, &d) {
+                            tracing::warn!(servis = "jira", hata = %e, "ekran görüntüsü eklenemedi");
+                        }
+                    }
+                    rep.matched += 1;
+                    continue;
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(servis = "jira", run_id, hata = %e, "Jira eşleşmesi yapılamadı");
+                    // gözlem modunda taslağı bir insan inceleyecek: Jira'ya ulaşılamasa da hazırlanır
+                    if cfg.jira_mode != JiraMode::Observe {
+                        continue;
                     }
                 }
-                rep.matched += 1;
-                continue;
-            }
-            Ok(None) => {}
-            Err(e) => {
-                tracing::warn!(servis = "jira", run_id, hata = %e, "Jira eşleşmesi yapılamadı");
-                continue;
             }
         }
         // 3) Otomatik bug açma (SW-6.3)
@@ -582,11 +586,22 @@ pub fn process_run(
             }
         };
         if cfg.jira_mode == JiraMode::Observe {
+            // taslak: admin göz atıp tek tıkla açar (ya da düzenleyip açar, yok sayar)
+            let draft = create_draft(
+                c,
+                run_id,
+                f.id,
+                Some(&fp),
+                "kural",
+                &format!("{}. denemede de kaldı", f.attempt),
+                &bug,
+            )?;
             record(c, run_id, Some(f.id), "acilacakti", Some(&fp), None, &bug.summary)?;
-            tracing::info!(run_id, senaryo_id = f.id, ozet = %bug.summary, "Jira bug'ı açılacaktı (gözlem modu)");
+            tracing::info!(run_id, senaryo_id = f.id, taslak = draft.unwrap_or(0), ozet = %bug.summary, "Jira bug taslağı hazırlandı (gözlem modu)");
             rep.would_create += 1;
             continue;
         }
+        let Some(j) = jira else { continue };
         match j.create_bug(&bug) {
             Ok(k) => {
                 link(c, f, &k, "otomatik", Some(&fp))?;
@@ -638,6 +653,204 @@ pub fn create_for_scenario(c: &Connection, paths: &Paths, j: &Jira, sid: i64, bu
         let _ = j.attach(&k, &n, &d);
     }
     Ok(k)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bug taslakları: Jira'ya yazılmadan hazırlanır, admin tek tıkla açar (SW-6.3)
+
+#[derive(Debug, Clone)]
+pub struct Draft {
+    pub id: i64,
+    pub run_id: i64,
+    pub scenario_id: i64,
+    pub scenario_name: String,
+    pub source: String,
+    pub reason: Option<String>,
+    pub summary: String,
+    pub description: String,
+    pub labels: Vec<String>,
+    pub fields: Map<String, Value>,
+    pub status: String,
+    pub jira_key: Option<String>,
+    pub created_at: String,
+}
+
+impl Draft {
+    pub fn pending(&self) -> bool {
+        self.status == "bekliyor"
+    }
+    pub fn status_label(&self) -> &'static str {
+        match self.status.as_str() {
+            "bekliyor" => "onay bekliyor",
+            "acildi" => "açıldı",
+            _ => "yok sayıldı",
+        }
+    }
+    pub fn source_label(&self) -> &'static str {
+        if self.source == "opencode" {
+            "OpenCode: ürün hatası"
+        } else {
+            "kural: ürün hatası"
+        }
+    }
+    pub fn fields_text(&self) -> String {
+        if self.fields.is_empty() {
+            String::new()
+        } else {
+            serde_json::to_string(&self.fields).unwrap_or_default()
+        }
+    }
+    pub fn bug(&self) -> NewBug {
+        NewBug {
+            summary: self.summary.clone(),
+            description: self.description.clone(),
+            labels: self.labels.clone(),
+            extra: self.fields.clone(),
+        }
+    }
+}
+
+/// Taslak oluşturur. Senaryonun bağlı bug'ı varsa ya da aynı projede aynı hata (parmak izi) ya da aynı
+/// senaryo için bekleyen bir taslak varsa yenisi açılmaz (her gece aynı taslak birikmesin).
+pub fn create_draft(
+    c: &Connection,
+    run_id: i64,
+    sid: i64,
+    fp: Option<&str>,
+    source: &str,
+    reason: &str,
+    bug: &NewBug,
+) -> Result<Option<i64>> {
+    let (project_id, key): (i64, String) = c.query_row("SELECT project_id, scenario_key FROM scenarios WHERE id = ?1", [sid], |r| {
+        Ok((r.get(0)?, r.get(1)?))
+    })?;
+    let linked: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM bug_links WHERE scenario_id = ?1)", [sid], |r| r.get(0))?;
+    let pending: bool = c.query_row(
+        "SELECT EXISTS(SELECT 1 FROM bug_taslaklari WHERE project_id = ?1 AND status = 'bekliyor'
+                       AND (scenario_key = ?2 OR (?3 IS NOT NULL AND fingerprint = ?3)))",
+        params![project_id, key, fp],
+        |r| r.get(0),
+    )?;
+    if linked || pending {
+        return Ok(None);
+    }
+    let t = now();
+    c.execute(
+        "INSERT INTO bug_taslaklari (run_id, scenario_id, project_id, scenario_key, fingerprint, source, reason, summary, description,
+                                     labels, fields, status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'bekliyor', ?12, ?12)",
+        params![
+            run_id,
+            sid,
+            project_id,
+            key,
+            fp,
+            source,
+            crate::logging::truncate(reason, 500),
+            crate::logging::truncate(&bug.summary, 250),
+            bug.description,
+            serde_json::to_string(&bug.labels)?,
+            serde_json::to_string(&bug.extra)?,
+            t
+        ],
+    )?;
+    Ok(Some(c.last_insert_rowid()))
+}
+
+/// OpenCode ürün hatası dedi: şablondan taslak (koşum sonrası kural bunu göremez, fix işi daha sonra gelir).
+pub fn draft_from_opencode(c: &Connection, cfg: &Config, sablon: &JiraSablon, sid: i64, reason: &str) -> Result<Option<i64>> {
+    if cfg.jira_mode == JiraMode::Off {
+        return Ok(None);
+    }
+    let (run_id, project_id, message): (i64, i64, Option<String>) =
+        c.query_row("SELECT run_id, project_id, message FROM scenarios WHERE id = ?1", [sid], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?;
+    let fp = fingerprint(project_id, message.as_deref().unwrap_or(""));
+    let bug = draft_for_scenario(c, cfg, sablon, sid)?;
+    let id = create_draft(c, run_id, sid, Some(&fp), "opencode", reason, &bug)?;
+    if let Some(id) = id {
+        tracing::info!(
+            run_id,
+            senaryo_id = sid,
+            taslak = id,
+            "Jira bug taslağı hazırlandı (OpenCode: ürün hatası)"
+        );
+    }
+    Ok(id)
+}
+
+const DRAFT_COLS: &str = "d.id, d.run_id, d.scenario_id, s.name, d.source, d.reason, d.summary, d.description, d.labels, d.fields,
+     d.status, d.jira_key, d.created_at";
+
+fn draft_row(r: &rusqlite::Row) -> rusqlite::Result<Draft> {
+    Ok(Draft {
+        id: r.get(0)?,
+        run_id: r.get(1)?,
+        scenario_id: r.get(2)?,
+        scenario_name: r.get(3)?,
+        source: r.get(4)?,
+        reason: r.get(5)?,
+        summary: r.get(6)?,
+        description: r.get(7)?,
+        labels: serde_json::from_str(&r.get::<_, String>(8)?).unwrap_or_default(),
+        fields: serde_json::from_str(&r.get::<_, String>(9)?).unwrap_or_default(),
+        status: r.get(10)?,
+        jira_key: r.get(11)?,
+        created_at: r.get(12)?,
+    })
+}
+
+fn drafts_where(c: &Connection, cond: &str, p: impl rusqlite::Params) -> Result<Vec<Draft>> {
+    let mut st = c.prepare(&format!(
+        "SELECT {DRAFT_COLS} FROM bug_taslaklari d JOIN scenarios s ON s.id = d.scenario_id WHERE {cond} ORDER BY d.id DESC LIMIT 200"
+    ))?;
+    let rows = st.query_map(p, draft_row)?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+pub fn draft(c: &Connection, id: i64) -> Result<Option<Draft>> {
+    Ok(drafts_where(c, "d.id = ?1", [id])?.into_iter().next())
+}
+pub fn drafts_for_run(c: &Connection, run_id: i64) -> Result<Vec<Draft>> {
+    drafts_where(c, "d.run_id = ?1", [run_id])
+}
+/// Senaryonun (aynı scenario_key, aynı proje) bekleyen ve son taslakları.
+pub fn drafts_for_scenario(c: &Connection, sid: i64) -> Result<Vec<Draft>> {
+    drafts_where(
+        c,
+        "d.project_id = (SELECT project_id FROM scenarios WHERE id = ?1) AND d.scenario_key = (SELECT scenario_key FROM scenarios WHERE id = ?1)",
+        [sid],
+    )
+}
+pub fn pending_drafts(c: &Connection) -> Result<Vec<Draft>> {
+    drafts_where(c, "d.status = 'bekliyor'", [])
+}
+
+/// Taslağı Jira'da açar (`bug` verilirse düzenlenmiş hali). Bekleyen taslak değilse hata.
+pub fn open_draft(c: &Connection, paths: &Paths, j: &Jira, id: i64, bug: Option<&NewBug>) -> Result<String> {
+    let d = draft(c, id)?.ok_or_else(|| anyhow::anyhow!("taslak yok"))?;
+    if !d.pending() {
+        bail!("Bu taslak zaten {}", d.status_label());
+    }
+    let bug = bug.cloned().unwrap_or_else(|| d.bug());
+    let k = create_for_scenario(c, paths, j, d.scenario_id, &bug)?;
+    mark_draft(c, id, "acildi", Some(&k))?;
+    Ok(k)
+}
+
+pub fn mark_draft(c: &Connection, id: i64, status: &str, key: Option<&str>) -> Result<()> {
+    c.execute(
+        "UPDATE bug_taslaklari SET status = ?2, jira_key = COALESCE(?3, jira_key), updated_at = ?4 WHERE id = ?1",
+        params![id, status, key, now()],
+    )?;
+    tracing::info!(
+        taslak = id,
+        durum = status,
+        issue = key.unwrap_or(""),
+        "Jira bug taslağı güncellendi"
+    );
+    Ok(())
 }
 
 #[cfg(test)]

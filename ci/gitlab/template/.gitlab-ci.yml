@@ -107,6 +107,13 @@ stages:
 staj-test-linux:
   extends: [.staj-linux, .staj-test]
   rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # tüm e2e'yi yeniden koşmak için STAJ_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $STAJ_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "linux" || $STAJ_FIX_ONLY == "true"'
       when: never
     - when: on_success
@@ -116,6 +123,13 @@ staj-test-windows:
   variables:
     STAJ_XVFB: "off"
   rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # tüm e2e'yi yeniden koşmak için STAJ_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $STAJ_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "windows" || $STAJ_FIX_ONLY == "true"'
       when: never
     - when: on_success
@@ -123,6 +137,13 @@ staj-test-windows:
 staj-report-linux:
   extends: [.staj-linux, .staj-report]
   rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # tüm e2e'yi yeniden koşmak için STAJ_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $STAJ_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "linux" || $STAJ_FIX_ONLY == "true"'
       when: never
     - when: always
@@ -130,6 +151,13 @@ staj-report-linux:
 staj-report-windows:
   extends: [.staj-windows, .staj-report]
   rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # tüm e2e'yi yeniden koşmak için STAJ_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $STAJ_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "windows" || $STAJ_FIX_ONLY == "true"'
       when: never
     - when: always
@@ -137,6 +165,11 @@ staj-report-windows:
 staj-fix-linux:
   extends: [.staj-linux, .staj-fix]
   rules:
+    # auto-fix branch'inde fix işi asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "linux" || $STAJ_FIX == "off"'
       when: never
     - when: always
@@ -146,6 +179,11 @@ staj-fix-windows:
   variables:
     STAJ_XVFB: "off"
   rules:
+    # auto-fix branch'inde fix işi asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
     - if: '$STAJ_OS != "windows" || $STAJ_FIX == "off"'
       when: never
     - when: always

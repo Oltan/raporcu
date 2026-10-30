@@ -307,6 +307,8 @@ pub struct RunScenario {
 struct RunPage {
     l: Layout,
     doors_dxl: bool,
+    drafts: Vec<crate::jira::Draft>,
+    taslak_geri: String,
     run: RunRow,
     groups: Vec<FeatureGroup>,
     donut: String,
@@ -430,6 +432,8 @@ impl RunPage {
     fn new(l: Layout, run: RunRow, rows: Vec<RunScenario>, fixes: Vec<FixRow>, notice: Option<String>) -> RunPage {
         RunPage {
             doors_dxl: false,
+            drafts: vec![],
+            taslak_geri: format!("/runs/{}", run.id),
             donut: run_donut(&run),
             legend: legend(&run_slices(&run)),
             groups: group_by_feature(rows),
@@ -517,6 +521,7 @@ pub async fn run_page(
     };
     let mut page = RunPage::new(l, run, rows, fixes, notice);
     page.doors_dxl = st.cfg.doors_dxl;
+    page.drafts = st.db.read(move |c| crate::jira::drafts_for_run(c, id)).await?;
     Ok(render(&page))
 }
 
@@ -545,6 +550,8 @@ struct ScenarioPage {
     jira_url: Option<String>,
     fixes: Vec<FixRow>,
     fix_notice: bool,
+    drafts: Vec<crate::jira::Draft>,
+    taslak_geri: String,
 }
 
 #[allow(clippy::type_complexity)]
@@ -588,6 +595,8 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
         jira,
         jira_url: None,
         fix_notice: false,
+        drafts: crate::jira::drafts_for_scenario(c, id)?,
+        taslak_geri: format!("/scenarios/{id}"),
         fixes: queries::fixes_for_scenario(c, id)?,
         s,
     }))
@@ -1043,6 +1052,8 @@ struct AdminPage {
     version: &'static str,
     public_url: String,
     notice: Option<String>,
+    drafts: Vec<crate::jira::Draft>,
+    taslak_geri: String,
 }
 
 pub async fn admin_page(
@@ -1052,13 +1063,14 @@ pub async fn admin_page(
     Query(nq): Query<NoticeQuery>,
 ) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
-    let (shares, jira_actions) = st
+    let (shares, jira_actions, drafts) = st
         .db
         .read(|c| {
             let shares = queries::share_links(c, 200)?;
+            let drafts = crate::jira::pending_drafts(c)?;
             let mut s = c.prepare("SELECT run_id, action, COALESCE(jira_key, ''), COALESCE(detail, ''), created_at FROM jira_actions ORDER BY id DESC LIMIT 100")?;
             let ja = s.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?.collect::<rusqlite::Result<_>>()?;
-            Ok((shares, ja))
+            Ok((shares, ja, drafts))
         })
         .await?;
     let logs = st
@@ -1089,6 +1101,8 @@ pub async fn admin_page(
         version: common::VERSION,
         public_url: st.cfg.public_url.clone(),
         notice: nq.notice,
+        drafts,
+        taslak_geri: "/admin".into(),
     }))
 }
 

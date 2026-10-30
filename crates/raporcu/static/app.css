@@ -241,3 +241,9 @@ textarea.mono, input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Co
 select[multiple] { min-height: 80px; }
 label.alan { min-width: 180px; }
 label.alan .mono { font-size: 11px; color: var(--muted); }
+/* Jira bug taslakları */
+.taslak { border: 1px solid var(--line); border-left: 3px solid var(--broken); border-radius: 6px; padding: 8px 10px; margin-top: 8px; }
+.taslak.kapali { border-left-color: var(--line); opacity: .8; }
+.taslak-ust { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.taslak pre { white-space: pre-wrap; max-height: 260px; overflow: auto; }
+.taslak form { display: inline; }

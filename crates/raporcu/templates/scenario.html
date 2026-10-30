@@ -90,6 +90,7 @@
     {% if bugs.is_empty() %}<p class="kucuk">Bağlı bug yok.</p>{% else %}
     <ul class="adimlar">{% for b in bugs %}<li><span class="ad">{% if let Some(u) = jira_url %}<a href="{{ u }}/browse/{{ b.jira_key }}">{{ b.jira_key }}</a>{% else %}{{ b.jira_key }}{% endif %}</span><span class="kucuk">{{ b.source }}</span></li>{% endfor %}</ul>
     {% endif %}
+    {% include "_taslaklar.html" %}
     {% if l.admin && s.is_failure() %}
     <p style="margin-top:8px"><a class="btn" href="/admin/scenarios/{{ s.id }}/jira">Jira'ya bug aç…</a></p>
     {% endif %}

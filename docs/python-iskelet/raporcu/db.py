@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
-MIGRATIONS = ["0001_ilk.sql", "0002_triage_kolonu.sql", "0003_ayarlar.sql"]  # yeni dosya buraya eklenir
+MIGRATIONS = ["0001_ilk.sql", "0002_triage_kolonu.sql", "0003_ayarlar.sql", "0004_bug_taslaklari.sql"]  # yeni dosya buraya eklenir
 
 
 def now() -> str:

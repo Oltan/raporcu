@@ -11,7 +11,9 @@ Test projesi `include: project/ref/file` + `STAJ_OS: linux|windows` ekler. Aşam
 | `.staj-report` | `stajci upload`, `stajci finish` | `when: always` (test düşse de); artifact `.stajci/queue/` 30 gün (SW-2.6); `environment: rapor/$CI_COMMIT_REF_SLUG`, `url: $STAJ_REPORT_URL` (SW-5.4) |
 | `.staj-fix` | `stajci fix` | `allow_failure: true`; `STAJ_FIX=off` ise yok |
 
-Somut işler: `staj-{test,report,fix}-{linux,windows}`, `STAJ_OS`'a göre `rules` ile seçilir;
+Somut işler: `staj-{test,report,fix}-{linux,windows}`, `STAJ_OS`'a göre `rules` ile seçilir. Hiçbiri
+`merge_request_event` pipeline'ında koşmaz; `auto-fix/…` branch'inde test/report yalnızca
+`STAJ_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
 Windows işlerinde `STAJ_XVFB=off`. Değişkenler: `STAJ_SERVER=http://127.0.0.1:8080` (aynı makine),
 `STAJ_RESULTS_DIR`, `STAJ_MAVEN_XMX=512m`, `STAJ_TEST_XMX=768m`, `STAJ_VIDEO_FPS=5`,
 `STAJ_XVFB=on`, `STAJ_SCREEN=1920x1080`, isteğe bağlı `STAJ_TAGS`, `STAJ_FIX`; `CI_API_TOKEN`

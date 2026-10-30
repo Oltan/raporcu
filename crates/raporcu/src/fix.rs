@@ -24,6 +24,20 @@ pub fn target(status: &str, tags: &[String], category: Option<&str>) -> &'static
     }
 }
 
+/// Senaryonun açık auto-fix MR'ı (URL ya da branch).
+pub fn open_fix_mr(c: &Connection, project_id: i64, scenario_key: &str) -> Result<Option<String>> {
+    let cutoff = (chrono::Utc::now() - chrono::Duration::days(14)).to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    Ok(c.query_row(
+        "SELECT COALESCE(mr_url, branch, '') FROM fix_attempts
+         WHERE project_id = ?1 AND scenario_key = ?2 AND outcome IN ('mr_opened', 'draft_mr')
+           AND COALESCE(mr_state, 'opened') = 'opened' AND created_at >= ?3
+         ORDER BY id DESC LIMIT 1",
+        params![project_id, scenario_key, cutoff],
+        |r| r.get(0),
+    )
+    .optional()?)
+}
+
 fn words(s: &str) -> HashSet<String> {
     s.split(|c: char| !c.is_alphanumeric())
         .filter(|w| w.chars().count() >= 3 && !w.chars().all(|c| c.is_ascii_digit()))
@@ -103,7 +117,12 @@ pub fn candidates(c: &Connection, paths: &crate::Paths, run_id: i64, public_url:
     let mut out = Vec::new();
     for (id, key, name, feature, ffile, status, msg, trace, tags, cat) in rows {
         let tags: Vec<String> = tags.split_whitespace().map(String::from).collect();
-        let t = target(&status, &tags, cat.as_deref());
+        let mut t = target(&status, &tags, cat.as_deref());
+        // Aynı senaryo için açık bir auto-fix MR'ı varsa yenisi açılmaz (MR birleşene kadar her gece
+        // yeni MR birikmesin). Webhook gelmezse mr_state boş kalır: 14 günden eski MR açık sayılmaz.
+        if t == "opencode" && open_fix_mr(c, project_id, &key)?.is_some() {
+            t = "acik-mr";
+        }
         let steps = crate::queries::steps(c, id)?
             .into_iter()
             .map(|s| format!("{} [{}]", s.name, s.status))

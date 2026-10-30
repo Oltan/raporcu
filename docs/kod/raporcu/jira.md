@@ -42,14 +42,23 @@ SHA-256'sının ilk 12 baytı (hex). "Aynı hata" bununla tanınır.
 Her `failed` son deneme için:
 1. `@JIRA-X-1` tag'leri → `bug_links` (kaynak `tag`). Tag'i ya da bağlantısı olan senaryo geçilir.
 2. Aynı projede aynı parmak izli bağlantı varsa → onu bağla (`eslesme`), `jira_actions: eslesti`.
-3. Jira ayarlıysa açık bug ara; bulunursa bağla, ekran görüntüsünü ekle.
+3. Jira ayarlıysa açık bug ara (Jira bağlı değilse bu adım atlanır, taslak yine hazırlanabilir); bulunursa bağla, ekran görüntüsünü ekle.
 4. Otomatik bug (SW-6.3), hepsi sağlanmalı: mod `off` değil; triage yoksa ya da `urun`;
    `JIRA_REQUIRE_RETRY` ise deneme ≥ 2; bu koşumda aynı parmak izi için açılmamış; koşum başına
    `JIRA_MAX_BUGS_PER_RUN` aşılmamış (aşılırsa sayılır, atlanır).
-   - **observe** (varsayılan): Jira'ya yazmaz; `jira_actions: acilacakti` + log "açılacaktı".
+   - **observe** (varsayılan): Jira'ya yazmaz; **taslak** hazırlar (`create_draft`, kaynak `kural`) + `jira_actions: acilacakti`.
    - **on**: bug açar, bağlar (`otomatik`), ekran görüntüsünü ekler; hata olursa `jira_actions: hata`.
 
 `create_for_scenario(c, paths, jira, sid, bug)`: formdan gelen bug'ı moddan bağımsız açar, bağlar (`admin`), ekran görüntüsünü ekler.
 
 ## Testler
 `test_sw_6_1_*` (şablon, alan türleri, hata metni); `tests/entegrasyon.rs` (sahte Jira sunucusuyla 6.1, 6.2, 6.3).
+
+## Bug taslakları
+- `create_draft(c, koşum, senaryo, parmak izi, kaynak, gerekçe, bug)`: senaryonun bağlı bug'ı varsa ya da
+  aynı projede aynı `scenario_key` veya aynı parmak izi için **bekleyen** taslak varsa oluşturmaz (None).
+- `draft_from_opencode(c, cfg, şablon, senaryo, gerekçe)`: fix-result'ta OpenCode `urun` (güven ≥ eşik)
+  dediğinde `web/ci.rs` çağırır; mod `off` ise yok.
+- `drafts_for_run`, `drafts_for_scenario` (aynı proje + scenario_key), `pending_drafts`, `draft`.
+- `open_draft(c, paths, jira, id, bug?)`: yalnızca `bekliyor`; `create_for_scenario` ile açar, `mark_draft(acildi, key)`.
+- `mark_draft(id, durum, key?)`: `acildi` / `yok_sayildi`.

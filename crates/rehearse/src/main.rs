@@ -196,6 +196,25 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         stages == ["test", "report", "fix"],
         format!("{stages:?}"),
     );
+    // auto-fix push'u yeni bir tam koşum ve fix döngüsü başlatmaz; MR pipeline'ında tekrar koşulmaz
+    let first_rule_ifs = |job: &str| -> Vec<String> {
+        y[job]["rules"]
+            .as_sequence()
+            .map(|r| r.iter().filter_map(|x| x["if"].as_str().map(String::from)).collect())
+            .unwrap_or_default()
+    };
+    for os in ["linux", "windows"] {
+        let fix = first_rule_ifs(&format!("staj-fix-{os}"));
+        let test = first_rule_ifs(&format!("staj-test-{os}"));
+        ck.check(
+            "SW-7.2",
+            &format!("{os}: auto-fix branch'inde fix işi yok, test işi yalnızca STAJ_FIX_PIPELINE=on ile; MR pipeline'ında yok"),
+            fix.iter().any(|r| r.contains("auto-fix") && !r.contains("STAJ_FIX_PIPELINE"))
+                && test.iter().any(|r| r.contains("auto-fix") && r.contains("STAJ_FIX_PIPELINE"))
+                && fix.iter().chain(&test).filter(|r| r.contains("merge_request_event")).count() == 2,
+            format!("{fix:?} {test:?}"),
+        );
+    }
     for os in ["linux", "windows"] {
         let tag_ok = ["test", "report", "fix"].iter().all(|k| {
             let job = &y[format!("staj-{k}-{os}").as_str()];
@@ -646,6 +665,20 @@ fn fake_gitlab() -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
     (port, got)
 }
 
+/// GitLab MR webhook'u: MR kapandı/birleşti (raporcu açık MR sayımını günceller).
+fn mr_closed(server: &Server, iid: usize) -> Result<()> {
+    let body = format!(
+        r#"{{"object_kind":"merge_request","object_attributes":{{"iid":{iid},"state":"closed"}},"project":{{"id":4242,"path_with_namespace":"prova/ornek-test-projesi"}}}}"#
+    );
+    let (st, _, b) = post(
+        &format!("{}/api/gitlab/webhook", server.url()),
+        &[("x-gitlab-token", "prova-webhook"), ("content-type", "application/json")],
+        body.as_bytes(),
+    )?;
+    anyhow::ensure!((200..300).contains(&st), "webhook {st}: {b}");
+    Ok(())
+}
+
 fn sh(dir: &Path, args: &[&str]) -> Result<String> {
     let o = std::process::Command::new("git").args(args).current_dir(dir).output()?;
     anyhow::ensure!(o.status.success(), "git {:?}: {}", args, String::from_utf8_lossy(&o.stderr));
@@ -731,6 +764,17 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         "",
     );
 
+    // MR birleşmeden ertesi gece: aynı senaryo için yeni MR açılmaz
+    let before = mrs.lock().unwrap().len();
+    let o = s.run(&["fix"])?;
+    ck.check(
+        "SW-7.2",
+        "açık auto-fix MR'ı olan senaryo için tekrar MR açılmaz",
+        o.text.contains("hedef: acik-mr") && mrs.lock().unwrap().len() == before,
+        &o.text,
+    );
+    mr_closed(server, 1)?;
+
     s.set("STAJ_FAKE_VALIDATE", "fail");
     let o = s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().get(1).cloned().unwrap_or_default();
@@ -742,6 +786,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         format!("{}\n{mr}", o.text),
     );
 
+    mr_closed(server, 2)?;
     s.set("STAJ_FAKE_VALIDATE", "ok").set("STAJ_FAKE_MODE", "outside");
     let before = mrs.lock().unwrap().len();
     let o = s.run(&["fix"])?;

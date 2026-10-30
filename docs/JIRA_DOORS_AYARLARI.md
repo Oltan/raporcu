@@ -98,12 +98,36 @@ Jira bug'ı reddederse hata **alan adıyla** gösterilir, ör.
 `Jira 400: customfield_10200: Faz is required. — Eksik/yanlış alanları Admin > Ayarlar > Jira'da …`.
 Otomatik açmada aynı hata Admin panelindeki "Jira gözlem kayıtları"nda `hata` satırı olarak görünür.
 
-## 5. Otomatik bug açma
+## 5. Ürün hatası: taslak → tek tıkla aç
 
-`JIRA_AUTO_CREATE=observe` (varsayılan) ile raporcu bug açmaz, yalnızca "açılacaktı" kaydı tutar.
-Önce şablonu ve ek alanları bir elle bug açarak deneyin, sonra `on` yapın. Kurallar: yalnızca ürün
-hatası (triage), retry sonrasında, koşum başına üst sınır, aynı hata için tek bug
-(`docs/kod/raporcu/jira.md`).
+Varsayılan (`JIRA_AUTO_CREATE=observe`): raporcu Jira'ya **yazmaz**, bug'ı **taslak** olarak
+hazırlar; siz göz atıp açarsınız.
+
+**Taslak ne zaman hazırlanır:**
+- Koşum bitince, kalan (`failed`) ve ürün hatası sayılan senaryo için: triage kararı yoksa ya da
+  `urun` ise, rerun'da da kaldıysa (`JIRA_REQUIRE_RETRY`), koşum başına en fazla
+  `JIRA_MAX_BUGS_PER_RUN`.
+- Fix işinde OpenCode bir senaryoya **"ürün hatası"** derse (güven ≥ `TRIAGE_AUTO_CONFIDENCE`, 0,70):
+  OpenCode kodu değiştirmez, raporcu o senaryo için taslak hazırlar (gerekçesiyle).
+- Aynı senaryo ya da aynı hata (parmak izi) için bekleyen taslak varsa, ya da senaryonun bağlı bir
+  bug'ı varsa yenisi hazırlanmaz: her gece taslak birikmez. Jira'da aynı hatanın açık bug'ı bulunursa
+  senaryo ona bağlanır, taslak gerekmez.
+
+Taslak, şablonla doldurulmuş özet, açıklama, label ve ek alanları taşır.
+
+**Nerede görünür:** koşum sayfası ("Jira bug taslakları"), senaryo sayfasının Jira kutusu,
+Admin paneli ("Onay bekleyen Jira bug taslakları").
+
+**Admin için düğmeler:**
+
+| Düğme | Ne yapar |
+|-------|----------|
+| **Jira'da aç** | taslağı olduğu gibi açar, ekran görüntüsünü ekler, senaryoyu bağlar; taslak "açıldı" (issue anahtarıyla) |
+| **Düzenleyip aç…** | bug formunu taslağın içeriğiyle açar (zorunlu alanlar sorulur); gönderince taslak "açıldı" |
+| **Yok say** | taslak kapanır, Jira'ya bir şey gitmez |
+
+Jira bir alanı reddederse hata alan adıyla gösterilir; "Düzenleyip aç…" ile eksik alanı girip açın.
+`JIRA_AUTO_CREATE=on` taslak beklemeden doğrudan açar; `off` hiçbir şey hazırlamaz.
 
 ## 6. DOORS
 

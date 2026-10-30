@@ -335,7 +335,7 @@ async fn test_sw_6_3_observe_mode_records_without_writing_to_jira() {
     assert_eq!(n, 1, "kayıt tutulur");
     let (_, admin) = app.get_admin("/admin").await;
     assert!(admin.contains("acilacakti"));
-    assert!(!log_lines("açılacaktı").is_empty());
+    assert!(!log_lines("Jira bug taslağı hazırlandı").is_empty());
 }
 
 #[tokio::test]
@@ -816,4 +816,218 @@ async fn test_sw_6_4_doors_csv_settings_kept_when_dxl_off() {
     let (_, csv) = app.get(&format!("/runs/{id}/doors.csv")).await;
     assert!(csv.contains("DOORS-1003,Yanlış şifrede özel mesaj,Giriş ekranı,Failed"), "{csv}");
     assert_eq!(app.state.ayarlar.get().doors.id_oznitelik, "Absolute Number");
+}
+
+// --- Jira bug taslakları: gözlem modunda hazırlanır, admin tek tıkla açar ------------------------
+
+async fn drafts(app: &TestApp) -> Vec<(i64, String, String, Option<String>)> {
+    app.state
+        .db
+        .read(|c| {
+            let mut st = c.prepare("SELECT id, status, summary, jira_key FROM bug_taslaklari ORDER BY id")?;
+            let r = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
+            Ok(r.collect::<rusqlite::Result<Vec<_>>>()?)
+        })
+        .await
+        .unwrap()
+}
+
+async fn wait_drafts(app: &TestApp, n: usize) -> Vec<(i64, String, String, Option<String>)> {
+    for _ in 0..50 {
+        let d = drafts(app).await;
+        if d.len() >= n {
+            return d;
+        }
+        settle().await;
+    }
+    drafts(app).await
+}
+
+#[tokio::test]
+async fn test_sw_6_3_draft_prepared_then_opened_with_one_click() {
+    let log: JL = Default::default();
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, raporcu::config::JiraMode::Observe));
+    let cookie = app.admin_cookie();
+    let form = format!(
+        "ozet={}&aciklama=x&doors_label=on&alanlar={}",
+        urlencoding::encode("[E2E] {{senaryo}}"),
+        urlencoding::encode(r#"{"priority": {"name": "Major"}}"#)
+    );
+    post_form(&app, "/admin/ayarlar/jira", &cookie, &form).await;
+    let id = upload_zip(&app, zip_without_jira_tag()).await;
+    let d = wait_drafts(&app, 1).await;
+    assert_eq!(d.len(), 1, "ürün hatası için tek taslak");
+    assert_eq!(d[0].1, "bekliyor");
+    assert_eq!(d[0].2, "[E2E] Yanlış şifrede özel mesaj");
+    assert!(log.lock().unwrap().created.is_empty(), "taslak Jira'ya yazılmaz");
+
+    // koşum, senaryo ve admin sayfalarında görünür; giriş yoksa düğme yok
+    let (_, run) = app.get(&format!("/runs/{id}")).await;
+    assert!(run.contains("Jira bug taslakları") && run.contains("[E2E] Yanlış şifrede özel mesaj"));
+    assert!(!run.contains("/admin/taslaklar/"), "giriş yapmamış kullanıcıya düğme yok");
+    let (_, admin) = app.get_admin("/admin").await;
+    assert!(admin.contains("Onay bekleyen Jira bug taslakları (1)") && admin.contains(&format!("/admin/taslaklar/{}/ac", d[0].0)));
+
+    // ertesi koşumda aynı hata: yeni taslak birikmez
+    upload_zip(&app, zip_without_jira_tag()).await;
+    settle().await;
+    settle().await;
+    assert_eq!(drafts(&app).await.len(), 1);
+
+    // tek tıkla aç: taslağın içeriğiyle bug, ekran görüntüsü, senaryo bağlanır
+    let r = post_form(&app, &format!("/admin/taslaklar/{}/ac", d[0].0), &cookie, "geri=%2Fadmin").await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert_eq!(r.headers()["location"], "/admin");
+    {
+        let g = log.lock().unwrap();
+        assert_eq!(g.created.len(), 1);
+        let f = &g.created[0]["fields"];
+        assert_eq!(f["summary"], "[E2E] Yanlış şifrede özel mesaj");
+        assert_eq!(f["priority"]["name"], "Major");
+        assert_eq!(g.attachments, vec!["BUG-1"]);
+    }
+    let d = drafts(&app).await;
+    assert_eq!((d[0].1.as_str(), d[0].3.as_deref()), ("acildi", Some("BUG-1")));
+    // ikinci tık bir şey açmaz
+    let r = post_form(&app, &format!("/admin/taslaklar/{}/ac", d[0].0), &cookie, "").await;
+    assert_eq!(r.status(), StatusCode::BAD_GATEWAY);
+    assert_eq!(log.lock().unwrap().created.len(), 1);
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get(&format!("/scenarios/{sid}")).await;
+    assert!(page.contains("BUG-1"));
+}
+
+#[tokio::test]
+async fn test_sw_6_3_draft_edit_and_dismiss_and_opencode_urun_creates_draft() {
+    let log: JL = Default::default();
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, raporcu::config::JiraMode::Observe));
+    let cookie = app.admin_cookie();
+    let id = upload_zip(&app, zip_without_jira_tag()).await;
+    let d = wait_drafts(&app, 1).await;
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+
+    // düzenleyip aç: form taslaktan dolu, gönderince taslak "açıldı"
+    let (st, f) = app.get_admin(&format!("/admin/scenarios/{sid}/jira?taslak={}", d[0].0)).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(f.contains(&format!(r#"name="taslak" value="{}""#, d[0].0)));
+    assert!(
+        f.contains("[Otomasyon] Yanlış şifrede özel mesaj: expected: &#60;Şifre hatalı&#62;")
+            || f.contains("expected: &lt;Şifre hatalı&gt;"),
+        "taslağın özeti formda"
+    );
+    let r = post_form(
+        &app,
+        &format!("/admin/scenarios/{sid}/jira"),
+        &cookie,
+        &format!("ozet=Elle+duzenlendi&aciklama=a&ek=&taslak={}", d[0].0),
+    )
+    .await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert_eq!(log.lock().unwrap().created[0]["fields"]["summary"], "Elle duzenlendi");
+    assert_eq!(drafts(&app).await[0].1, "acildi");
+
+    // OpenCode "ürün hatası" dedi (broken senaryo, kural taslak açmazdı): taslak hazırlanır
+    let run = run_json(&app, id).await;
+    let key = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    app.ci_json(
+        &format!("/api/ci/runs/{id}/fix-result"),
+        json!({ "scenario_key": key, "outcome": "no_change", "summary": "Uygulamada bağlantı yok",
+                "triage": { "category": "urun", "reason": "Şifremi unuttum bağlantısı ekranda hiç yok", "confidence": 0.9 } }),
+    )
+    .await;
+    let d = drafts(&app).await;
+    assert_eq!(d.len(), 2, "{d:?}");
+    assert_eq!(d[1].1, "bekliyor");
+    let (_, html) = app.get_admin(&format!("/runs/{id}")).await;
+    assert!(html.contains("OpenCode: ürün hatası") && html.contains("Şifremi unuttum bağlantısı ekranda hiç yok"));
+    // düşük güvenli öneri taslak açmaz
+    app.ci_json(
+        &format!("/api/ci/runs/{id}/fix-result"),
+        json!({ "scenario_key": key, "outcome": "no_change", "triage": { "category": "urun", "reason": "emin değil", "confidence": 0.3 } }),
+    )
+    .await;
+    assert_eq!(drafts(&app).await.len(), 2);
+
+    // yok say
+    let r = post_form(&app, &format!("/admin/taslaklar/{}/yoksay", d[1].0), &cookie, "").await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert_eq!(drafts(&app).await[1].1, "yok_sayildi");
+    assert_eq!(log.lock().unwrap().created.len(), 1, "yok sayılan açılmaz");
+}
+
+async fn cands(app: &TestApp, id: i64) -> Value {
+    let r = app
+        .send(
+            axum::http::Request::get(format!("/api/ci/runs/{id}/fix-candidates"))
+                .header("authorization", format!("Bearer {CI_TOKEN}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await;
+    serde_json::from_str::<Value>(&body_string(r).await).unwrap()
+}
+
+#[tokio::test]
+async fn test_sw_7_2_open_fix_mr_blocks_new_candidate_until_closed() {
+    let app = app();
+    let id = upload_sample(&app, Q).await;
+    let list = cands(&app, id).await;
+    let c = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()
+        .clone();
+    assert_eq!(c["target"], "opencode");
+    app.ci_json(
+        &format!("/api/ci/runs/{id}/fix-result"),
+        json!({ "scenario_key": c["scenario_key"], "outcome": "draft_mr", "mr_iid": 9, "branch": "auto-fix/x" }),
+    )
+    .await;
+    let id2 = upload_sample(&app, Q).await;
+    let list = cands(&app, id2).await;
+    let c2 = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()
+        .clone();
+    assert_eq!(c2["target"], "acik-mr", "açık MR varken yeni deneme yok");
+    hook(
+        &app,
+        "test-webhook-token",
+        json!({ "object_kind": "merge_request", "object_attributes": { "iid": 9, "state": "closed" }, "project": { "id": 55, "path_with_namespace": "ekip/javafx" } }),
+    )
+    .await;
+    let list = cands(&app, id2).await;
+    let c3 = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "Şifremi unuttum bağlantısı")
+        .unwrap()
+        .clone();
+    assert_eq!(c3["target"], "opencode", "MR kapanınca yeniden aday");
+}
+
+#[tokio::test]
+async fn test_sw_6_3_draft_prepared_even_if_jira_unreachable() {
+    // Jira kapalı (bağlantı reddedilir): gözlem modunda taslak yine hazırlanır
+    let app = app_with(jira_cfg("http://127.0.0.1:9".into(), raporcu::config::JiraMode::Observe));
+    upload_zip(&app, zip_without_jira_tag()).await;
+    let d = wait_drafts(&app, 1).await;
+    assert_eq!(d.len(), 1);
+    assert_eq!(d[0].1, "bekliyor");
 }

@@ -329,6 +329,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Kabul: Gözlem modunda Jira'ya yazılmaz, kayıt tutulur; üst sınır aşılmaz.
 - Test: B
 - Doğrulama: `test_sw_6_3_*`
+- Ek: gözlem modunda Jira bug **taslağı** hazırlanır (şablonla), admin koşum/senaryo/admin sayfasından tek tıkla açar, düzenleyip açar ya da yok sayar; OpenCode "ürün hatası" derse de taslak; aynı senaryo/hata için taslak birikmez. Doğrulama: `test_sw_6_3_draft_*`.
 
 ### SW-6.4 [MEVCUT] DOORS dışa aktarma: CSV ve DXL
 - Kabul: Koşum sonuçları DOORS'a aktarılabilecek CSV ve DXL dosyası olarak indirilir.
@@ -356,6 +357,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Test: P, U
 - Doğrulama: rehearse SW-7.2 adımları, `test_sw_7_2_command_template`
 - Not: Sahte OpenCode + sahte GitLab + yerel git ile prova geçer; gerçek OpenCode, vLLM, TestFX MCP, GitLab MR ile U bekliyor.
+- Ek: açık auto-fix MR'ı olan senaryo yeniden aday olmaz (`acik-mr`); CI şablonunda auto-fix branch'inde fix işi koşmaz, test/report yalnızca `STAJ_FIX_PIPELINE=on` ile; MR pipeline'ında şablon işleri koşmaz. Doğrulama: `test_sw_7_2_open_fix_mr_blocks_new_candidate_until_closed`, rehearse SW-7.2.
 
 ### SW-7.3 [MEVCUT] Sonuç raporcu'ye bildirilir (fix-result) ve raporda görünür
 - Test: B, P

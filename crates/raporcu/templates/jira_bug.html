@@ -6,6 +6,7 @@
 {% if let Some(h) = hata %}<div class="kart hata-kutu">{{ h }}</div>{% endif %}
 <section class="kart">
   <form method="post" action="/admin/scenarios/{{ sid }}/jira" class="dikey">
+    {% if let Some(t) = taslak %}<input type="hidden" name="taslak" value="{{ t }}"><p class="kucuk">Taslak #{{ t }} düzenleniyor; bug açılınca taslak "açıldı" olur.</p>{% endif %}
     <label>Özet<input name="ozet" value="{{ bug.summary }}" required maxlength="250"></label>
     <label>Açıklama<textarea name="aciklama" rows="14" class="mono">{{ bug.description }}</textarea></label>
     {% if !bug.labels.is_empty() %}<label class="yatay"><input type="checkbox" name="doors_label" checked> Label: {{ bug.labels.join(", ") }}</label>{% endif %}

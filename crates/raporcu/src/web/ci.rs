@@ -234,13 +234,30 @@ pub async fn fix_result(
     Json(r): Json<common::api::FixResult>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let conf = st.cfg.triage_auto_confidence;
+    let (cfg, sablon) = (st.cfg.clone(), st.ayarlar.get().jira);
     let fid = st
         .db
         .write(move |c| {
             if ingest::run_ctx(c, id)?.is_none() {
                 return Ok(None);
             }
-            Ok(Some(crate::fix::record(c, id, &r, conf)?))
+            let fid = crate::fix::record(c, id, &r, conf)?;
+            // OpenCode ürün hatası dediyse (güven eşiğin üstünde) Jira bug taslağı hazırlanır
+            if let Some(t) = r.triage.as_ref().filter(|t| t.category == "urun" && t.confidence >= conf) {
+                let sid: Option<i64> = c
+                    .query_row(
+                        "SELECT id FROM scenarios WHERE run_id = ?1 AND scenario_key = ?2 AND is_latest = 1",
+                        rusqlite::params![id, r.scenario_key],
+                        |x| x.get(0),
+                    )
+                    .ok();
+                if let Some(sid) = sid {
+                    if let Err(e) = crate::jira::draft_from_opencode(c, &cfg, &sablon, sid, &t.reason) {
+                        tracing::warn!(run_id = id, hata = %e, "Jira bug taslağı hazırlanamadı");
+                    }
+                }
+            }
+            Ok(Some(fid))
         })
         .await?
         .ok_or_else(AppError::not_found)?;
