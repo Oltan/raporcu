@@ -45,8 +45,9 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 2. `.gitlab-ci.yml`'e tek `include` satırı: [`docs/YENI_PROJE_EKLEME.md`](docs/YENI_PROJE_EKLEME.md).
 3. Test projesinde neler olmalı (adımlar, ekler, tag'ler, triage için hata türleri):
    [`docs/TEST_PROJESI_GEREKSINIMLERI.md`](docs/TEST_PROJESI_GEREKSINIMLERI.md).
-4. Self-healing için OpenCode ya da Claude Code + vLLM: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
-5. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
+4. Canlı ekran (şu an koşan senaryo/adım) için Cucumber eklentisi: [`docs/ANLIK_AKTARIM.md`](docs/ANLIK_AKTARIM.md).
+5. Self-healing için OpenCode ya da Claude Code + vLLM: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
+6. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
    [`docs/GITLAB_CI_KURULUMU.md`](docs/GITLAB_CI_KURULUMU.md).
 
 ## Depo yapısı
@@ -65,14 +66,15 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 | `ornek-test-projesi/` | örnek Java test projesi |
 | `testdata/allure/` | gerçek `allure-results` örnekleri (testler bunları kullanır) |
 | `deploy/` | systemd servisi, Windows kurulum betikleri |
-| `docs/` | plan, kurulum, kararlar, pilot kontrol listesi |
+| `docs/` | plan, kurulum, kararlar, pilot kontrol listesi, [anlık aktarım](docs/ANLIK_AKTARIM.md) |
+| `docs/kod/` | [her kaynak dosyanın açıklaması](docs/kod/README.md) (dilden bağımsız, Python'a taşıma haritası) |
 
 ## Doğrulama
 
 ```bash
 cargo clippy --all-targets -- -D warnings
-cargo test                 # 101 test (Wine varsa: --target x86_64-pc-windows-gnu)
-cargo run -p rehearse      # 43 prova adımı (sunucu + stajci gerçek süreç olarak)
+cargo test                 # 105 test (Wine varsa: --target x86_64-pc-windows-gnu)
+cargo run -p rehearse      # 44 prova adımı (sunucu + stajci gerçek süreç olarak)
 cargo run -p e2esmoke      # 18 uçtan uca kontrol
 cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci
 ```

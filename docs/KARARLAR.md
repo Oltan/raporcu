@@ -62,3 +62,8 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   seçicileri gerçek `#fxId`'lerden seçer.
 - `rust-embed` debug derlemede de statik dosyaları gömer (`debug-embed`); Wine altında Windows
   testinde bulunan bir sorun buydu.
+- **HTTP yeterli (kullanıcı kararı):** raporcu iç ağda düz HTTP ile çalışır, TLS/sertifika
+  kurulmaz. CI işleri `http://127.0.0.1:8080`, tarayıcılar `http://<makine>:8080` kullanır; canlı
+  ekran `ws://` ile bağlanır. Tokenlar yine `.env`'de durur ve loglanmaz. stajci'nin `fix`
+  komutundaki GitLab push/MR istekleri GitLab'ın kendi adresine (`CI_SERVER_URL`, https olabilir)
+  gider; bu raporcu'dan bağımsızdır.
