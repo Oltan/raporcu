@@ -56,6 +56,10 @@ sudo apt-get install -y xvfb xauth ffmpeg openjdk-21-jdk maven git curl \
 - `xvfb`, `xauth`: sanal X11 ekranı (SW-1.2). Wayland kullanılmaz.
 - `ffmpeg`: başarısız senaryoların videosu (`x11grab`).
 - GTK/GL kütüphaneleri: JavaFX'in X11'de açılması için.
+- Ubuntu 24.04'ün `maven` paketi 3.8.7'dir ve `maven-compiler-plugin` sürümü verilmeyen projede
+  3.1 kullanır; `maven.compiler.release` ayarı tanınmaz, derleme "Source option 5" hatasıyla düşer.
+  Test projesinin `pom.xml` dosyasında bu eklentinin sürümü sabitlenmelidir (örnek:
+  `ornek-test-projesi/pom.xml`).
 
 ### 2.2 divan sunucusu (hizmet)
 
