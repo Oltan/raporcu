@@ -201,3 +201,19 @@ textarea { min-height: 70px; width: 100%; }
 .feature-grup .tablo { padding: 0 6px 6px; }
 .degisim { font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; }
 .degisim.iyi { color: var(--passed); } .degisim.kotu { color: var(--failed); }
+
+/* Feature geçmişi */
+.izgara-esit { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.izgara-esit > .kart { margin-bottom: 0; }
+@media (max-width: 900px) { .izgara-esit { grid-template-columns: 1fr; } }
+.izgara-esit .sutun-grafik { aspect-ratio: auto; }
+.matris { width: auto; }
+.matris th.matris-bas { font-size: 10.5px; padding: 6px 1px; text-align: center; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.matris th.matris-bas a { color: var(--muted); }
+.matris td.hucre { padding: 3px 1px; }
+.matris-ad { min-width: 260px; }
+.kare { display: block; width: 18px; height: 18px; border-radius: 4px; margin: 0 auto; font-size: 10px; line-height: 18px; text-align: center; color: #fff; font-weight: 600; text-decoration: none; }
+.kare:hover { text-decoration: none; }
+.kare.m-gecti { background: var(--c-gecti); } .kare.m-kaldi { background: var(--c-kaldi); }
+.kare.m-broken { background: var(--c-broken); color: #1b1f24; } .kare.m-diger { background: var(--c-diger); }
+.kare.m-yok, .sw.m-yok { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }

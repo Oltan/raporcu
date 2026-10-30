@@ -23,6 +23,7 @@ pub fn routes() -> Router<AppState> {
         .route("/ws/runs/{id}", get(crate::live::ws))
         .route("/scenarios/{id}", get(pages::scenario_page))
         .route("/history", get(pages::history_page))
+        .route("/feature", get(pages::feature_page))
         .route("/search", get(pages::search_page))
         .route("/export.csv", get(pages::export_csv))
         .route("/healing", get(pages::healing_page))

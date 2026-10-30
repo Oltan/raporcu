@@ -507,3 +507,33 @@ async fn test_sw_4_1_run_grouped_by_feature_with_charts() {
     assert_eq!(st, StatusCode::OK);
     assert!(js.contains("textContent"));
 }
+
+#[tokio::test]
+async fn test_sw_4_2_feature_history_matrix() {
+    let app = app();
+    let q = "project_path=ekip%2Fmatris&branch=main";
+    upload_sample(&app, q).await;
+    let (st, body) = app
+        .ci_post(
+            &format!("/api/ci/runs?{q}"),
+            "application/zip",
+            mutated_zip("Geçerli bilgilerle giriş", "failed"),
+        )
+        .await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let (st, html) = app.get("/feature?project=1&branch=main&name=Giri%C5%9F%20ekran%C4%B1").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(html.contains("Senaryo × koşum"));
+    assert!(html.contains("class=\"cizgi-grafik\"") && html.contains("class=\"sutun-grafik\""));
+    // her senaryo için iki koşum hücresi; değişken senaryo flaky
+    assert!(html.contains("data-tip=\"Koşum #2: kaldı\""));
+    assert!(html.contains("data-tip=\"Koşum #1: geçti\""));
+    let row = html.split("Geçerli bilgilerle giriş").nth(1).unwrap();
+    assert!(row[..400].contains("flaky"));
+    // rapordan ve dashboard'dan bağlantı
+    let (_, run) = app.get("/runs/2").await;
+    assert!(
+        run.contains("/feature?project=1&amp;branch=main&amp;name=Giri%C5%9F%20ekran%C4%B1")
+            || run.contains("/feature?project=1&branch=main&name=Giri%C5%9F%20ekran%C4%B1")
+    );
+}

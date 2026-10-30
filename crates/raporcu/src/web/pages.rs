@@ -1216,3 +1216,147 @@ pub async fn trigger_fix(State(st): State<AppState>, _a: Admin, headers: HeaderM
         Err(e) => Err(anyhow::Error::from(e).into()),
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Feature geçmişi: gidişat, koşum başına sayılar, senaryo × koşum matrisi
+
+#[derive(Deserialize)]
+pub struct FeatureQuery {
+    project: i64,
+    branch: String,
+    name: String,
+}
+
+pub struct MatrixHead {
+    pub run_id: i64,
+    pub label: String,
+    pub day: String,
+}
+
+#[derive(Template)]
+#[template(path = "feature.html")]
+struct FeaturePage {
+    l: Layout,
+    name: String,
+    project_id: i64,
+    project_path: String,
+    branch: String,
+    file: Option<String>,
+    last: Option<(RunRow, queries::FeatureRow)>,
+    line: String,
+    columns: String,
+    heads: Vec<MatrixHead>,
+    matrix: Vec<queries::MatrixRow>,
+    flaky_count: usize,
+    avg_duration: String,
+}
+
+/// Matris hücresi için renk sınıfı
+pub fn cell_class(status: &str) -> &'static str {
+    match status {
+        "passed" => "gecti",
+        "failed" => "kaldi",
+        "broken" => "broken",
+        "yok" => "yok",
+        _ => "diger",
+    }
+}
+
+pub fn status_tr(status: &str) -> &'static str {
+    match status {
+        "passed" => "geçti",
+        "failed" => "kaldı",
+        "broken" => "broken",
+        "skipped" => "atlandı",
+        "yok" => "koşmadı",
+        _ => "bilinmiyor",
+    }
+}
+
+const FEATURE_HISTORY_RUNS: i64 = 30;
+
+impl FeaturePage {
+    fn anchor(&self) -> String {
+        feature_anchor(&self.name)
+    }
+}
+
+pub async fn feature_page(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<FeatureQuery>) -> Result<Response, AppError> {
+    let l = layout(&st, &headers);
+    let (name, branch, pid) = (q.name.clone(), q.branch.clone(), q.project);
+    let data = st
+        .db
+        .read(move |c| {
+            let path: String = c
+                .query_row("SELECT path FROM projects WHERE id = ?1", [pid], |r| r.get(0))
+                .unwrap_or_default();
+            let runs = queries::feature_runs(c, pid, &branch, &name, FEATURE_HISTORY_RUNS)?;
+            let ids: Vec<i64> = runs.iter().map(|(r, _)| r.id).collect();
+            let matrix = queries::feature_matrix(c, &name, &ids)?;
+            Ok((path, runs, matrix))
+        })
+        .await?;
+    let (project_path, runs, matrix) = data;
+    let fmt_day = |s: &str| {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .map(|t| t.with_timezone(&chrono::Local).format("%d.%m").to_string())
+            .unwrap_or_default()
+    };
+    let points: Vec<crate::charts::Point> = runs
+        .iter()
+        .map(|(r, f)| crate::charts::Point {
+            label: format!("#{}", r.id),
+            href: format!("/runs/{}#{}", r.id, feature_anchor(&q.name)),
+            value: f.pass_pct() as f64,
+            detail: format!(
+                "{} · {} senaryo, {} geçti, {} kaldı",
+                fmt_day(&r.started_at),
+                f.total,
+                f.passed,
+                f.failures()
+            ),
+        })
+        .collect();
+    let cols: Vec<crate::charts::Column> = runs
+        .iter()
+        .map(|(r, f)| crate::charts::Column {
+            label: format!("#{}", r.id),
+            href: Some(format!("/runs/{}#{}", r.id, feature_anchor(&q.name))),
+            title: format!("Koşum #{} ({})", r.id, fmt_day(&r.started_at)),
+            parts: crate::charts::status_slices(f.passed, f.failed, f.broken, f.other),
+        })
+        .collect();
+    let heads = runs
+        .iter()
+        .map(|(r, _)| MatrixHead {
+            run_id: r.id,
+            label: format!("#{}", r.id),
+            day: fmt_day(&r.started_at),
+        })
+        .collect();
+    let avg = if runs.is_empty() {
+        0
+    } else {
+        runs.iter().map(|(_, f)| f.duration_ms).sum::<i64>() / runs.len() as i64
+    };
+    let avg_duration = queries::FeatureRow {
+        duration_ms: avg,
+        ..Default::default()
+    }
+    .duration();
+    Ok(render(&FeaturePage {
+        l,
+        file: runs.last().and_then(|(_, f)| f.feature_file.clone()),
+        last: runs.last().cloned(),
+        line: crate::charts::line_pct(&points, &format!("{} geçme oranı", q.name)),
+        columns: crate::charts::stacked_columns_sized(&cols, &format!("{} koşum başına durumlar", q.name), 720.0, 220.0),
+        flaky_count: matrix.iter().filter(|m| m.flaky).count(),
+        heads,
+        matrix,
+        avg_duration,
+        name: q.name,
+        project_id: q.project,
+        project_path,
+        branch: q.branch,
+    }))
+}

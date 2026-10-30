@@ -787,3 +787,128 @@ pub fn feature_trends(c: &Connection, project_id: i64, branch: &str, limit: i64)
     }
     Ok(out)
 }
+
+// ---------------------------------------------------------------------------------------------
+// Feature geçmişi
+
+/// Bir feature'ın son `limit` biten koşumdaki sayıları, eskiden yeniye.
+pub fn feature_runs(c: &Connection, project_id: i64, branch: &str, feature: &str, limit: i64) -> Result<Vec<(RunRow, FeatureRow)>> {
+    let runs: Vec<RunRow> = {
+        let mut st = c.prepare(&format!(
+            "SELECT * FROM (SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id
+              WHERE r.project_id = ?1 AND r.branch = ?2 AND r.status <> 'running'
+                AND EXISTS (SELECT 1 FROM scenarios s WHERE s.run_id = r.id AND s.is_latest = 1 AND COALESCE(s.feature, '(feature yok)') = ?3)
+              ORDER BY r.id DESC LIMIT ?4) ORDER BY 1"
+        ))?;
+        let rows = st.query_map(params![project_id, branch, feature, limit], run_row)?;
+        rows.collect::<rusqlite::Result<_>>()?
+    };
+    let mut out = Vec::new();
+    let mut st = c.prepare(
+        "SELECT COUNT(*), SUM(status = 'passed'), SUM(status = 'failed'), SUM(status = 'broken'),
+                SUM(status NOT IN ('passed', 'failed', 'broken')), COALESCE(SUM(duration_ms), 0), MIN(feature_file)
+         FROM scenarios WHERE run_id = ?1 AND is_latest = 1 AND COALESCE(feature, '(feature yok)') = ?2",
+    )?;
+    for r in runs {
+        let f = st.query_row(params![r.id, feature], |x| {
+            Ok(FeatureRow {
+                feature: feature.to_string(),
+                total: x.get(0)?,
+                passed: x.get(1)?,
+                failed: x.get(2)?,
+                broken: x.get(3)?,
+                other: x.get(4)?,
+                duration_ms: x.get(5)?,
+                feature_file: x.get(6)?,
+            })
+        })?;
+        out.push((r, f));
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MatrixCell {
+    pub run_id: i64,
+    /// passed | failed | broken | unknown | skipped | yok (o koşumda koşmadı)
+    pub status: String,
+    pub scenario_id: Option<i64>,
+    pub attempts: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MatrixRow {
+    pub scenario_key: String,
+    pub name: String,
+    pub location: String,
+    pub cells: Vec<MatrixCell>,
+    pub failures: i64,
+    pub flaky: bool,
+}
+
+/// Senaryo × koşum matrisi: satırlar en çok kalan senaryodan başlar.
+pub fn feature_matrix(c: &Connection, feature: &str, run_ids: &[i64]) -> Result<Vec<MatrixRow>> {
+    if run_ids.is_empty() {
+        return Ok(vec![]);
+    }
+    let ids = run_ids.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(",");
+    let mut st = c.prepare(&format!(
+        "SELECT s.scenario_key, s.name, s.full_name, s.run_id, s.status, s.id,
+                (SELECT COUNT(*) FROM scenarios a WHERE a.run_id = s.run_id AND a.scenario_key = s.scenario_key)
+         FROM scenarios s
+         WHERE s.run_id IN ({ids}) AND s.is_latest = 1 AND COALESCE(s.feature, '(feature yok)') = ?1
+         ORDER BY s.run_id"
+    ))?;
+    let mut rows: Vec<MatrixRow> = Vec::new();
+    let mut idx: std::collections::HashMap<String, usize> = Default::default();
+    let mut q = st.query([feature])?;
+    while let Some(r) = q.next()? {
+        let key: String = r.get(0)?;
+        let i = *idx.entry(key.clone()).or_insert_with(|| {
+            rows.push(MatrixRow {
+                scenario_key: key.clone(),
+                name: String::new(),
+                location: String::new(),
+                cells: vec![],
+                failures: 0,
+                flaky: false,
+            });
+            rows.len() - 1
+        });
+        let row = &mut rows[i];
+        row.name = r.get(1)?; // en yeni koşumdaki ad
+        let full: Option<String> = r.get(2)?;
+        row.location = full.map(|f| f.rsplit('/').next().unwrap_or(&f).to_string()).unwrap_or_default();
+        row.cells.push(MatrixCell {
+            run_id: r.get(3)?,
+            status: r.get(4)?,
+            scenario_id: Some(r.get(5)?),
+            attempts: r.get(6)?,
+        });
+    }
+    for row in rows.iter_mut() {
+        let mut full = Vec::with_capacity(run_ids.len());
+        for rid in run_ids {
+            match row.cells.iter().find(|c| c.run_id == *rid) {
+                Some(c) => full.push(c.clone()),
+                None => full.push(MatrixCell {
+                    run_id: *rid,
+                    status: "yok".into(),
+                    scenario_id: None,
+                    attempts: 0,
+                }),
+            }
+        }
+        row.cells = full;
+        row.failures = row.cells.iter().filter(|c| c.status == "failed" || c.status == "broken").count() as i64;
+        let passed = row.cells.iter().any(|c| c.status == "passed");
+        row.flaky = (passed && row.failures > 0) || row.cells.iter().any(|c| c.status == "passed" && c.attempts > 1);
+    }
+    rows.sort_by(|a, b| {
+        b.failures
+            .cmp(&a.failures)
+            .then(b.flaky.cmp(&a.flaky))
+            .then(a.location.cmp(&b.location))
+    });
+    Ok(rows)
+}

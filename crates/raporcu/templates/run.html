@@ -92,6 +92,7 @@
       <span class="fg-sag">
         <span class="fg-cubuk">{{ g.bar|safe }}</span>
         <span class="kucuk">{{ g.f.passed }}/{{ g.f.total }} geçti · {{ g.f.duration() }}</span>
+        {% if l.share.is_none() %}<a class="kucuk" href="/feature?project={{ run.project_id }}&branch={{ run.branch|enc }}&name={{ g.f.feature|enc }}">Geçmiş</a>{% endif %}
       </span>
     </summary>
     <div class="tablo"><table>

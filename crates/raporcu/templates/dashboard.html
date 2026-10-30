@@ -61,7 +61,7 @@
   <h2>Feature bazında</h2>
   <p class="alt">Son biten koşumda her feature'ın durumu ve son 10 koşumdaki geçme oranı gidişatı. Feature'a tıklayınca o koşumdaki senaryoları açılır.</p>
   <div class="tablo"><table class="feature-ozet">
-    <tr><th>Feature</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Geçme</th><th>Gidişat</th><th class="num">Değişim</th></tr>
+    <tr><th>Feature</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Geçme</th><th>Gidişat</th><th class="num">Değişim</th><th></th></tr>
     {% for df in ch.features %}
     <tr>
       <td><a class="feature-adi" href="/runs/{{ ch.last.id }}#{{ df.anchor }}"><span class="durum-nokta {{ df.f.state() }}" aria-hidden="true"></span>{{ df.f.feature }}</a></td>
@@ -70,8 +70,9 @@
       <td class="num">{% if df.f.failed > 0 %}<b>{{ df.f.failed }}</b>{% else %}0{% endif %}</td>
       <td class="num">{% if df.f.broken > 0 %}<b>{{ df.f.broken }}</b>{% else %}0{% endif %}</td>
       <td class="num">%{{ df.f.pass_pct() }}</td>
-      <td>{{ df.spark|safe }}</td>
+      <td><a href="/feature?project={{ ch.last.project_id }}&branch={{ ch.last.branch|enc }}&name={{ df.f.feature|enc }}" title="Feature geçmişi">{{ df.spark|safe }}</a></td>
       <td class="num">{% if df.change() > 0 %}<span class="degisim iyi">▲ {{ df.change() }}</span>{% elif df.change() < 0 %}<span class="degisim kotu">▼ {{ -df.change() }}</span>{% else %}<span class="kucuk">—</span>{% endif %}</td>
+      <td><a href="/feature?project={{ ch.last.project_id }}&branch={{ ch.last.branch|enc }}&name={{ df.f.feature|enc }}">Geçmiş</a></td>
     </tr>
     {% endfor %}
   </table></div>

@@ -247,9 +247,13 @@ fn nice_max(v: i64) -> i64 {
     (40.0 * mag) as i64
 }
 
+/// Tam genişlik kart için.
 pub fn stacked_columns(cols: &[Column], aria: &str) -> String {
-    // geniş kart için geniş viewBox: yazılar ekranda ~11px kalır
-    let (w, h) = (1200.0_f64, 260.0_f64);
+    stacked_columns_sized(cols, aria, 1200.0, 260.0)
+}
+
+/// `w`, kartın ekrandaki genişliğine yakın seçilir; yazılar ekranda ~11px kalsın.
+pub fn stacked_columns_sized(cols: &[Column], aria: &str, w: f64, h: f64) -> String {
     let (l, r, t, b) = (40.0, 12.0, 12.0, 28.0);
     let (pw, ph) = (w - l - r, h - t - b);
     let max = nice_max(cols.iter().map(|c| c.parts.iter().map(|p| p.value).sum::<i64>()).max().unwrap_or(0));
