@@ -29,6 +29,9 @@ variables:
   STAJ_OS: linux      # ya da windows
 ```
 
+Tam örnek: `ornek-test-projesi/.gitlab-ci.yml`. raporcu deposu şirket GitLab'ında değilse
+`ci/gitlab/template/.gitlab-ci.yml` dosyasını include etmek yerine olduğu gibi kopyalayın.
+
 **6. GitLab ayarları** — CI değişkenleri `CI_API_TOKEN` (masked), self-healing için
 `STAJ_FIX_TOKEN`; webhook (Pipeline + Merge request events); gece schedule'ı 02:00.
 Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.

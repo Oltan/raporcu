@@ -1,0 +1,28 @@
+# Test projesinin .gitlab-ci.yml dosyası (raporcu ile).
+#
+# İki yol var:
+#   A) raporcu deposu şirket GitLab'ında ise: aşağıdaki include (şablon güncellenince
+#      tüm test projeleri kendiliğinden yeni şablonu kullanır).
+#   B) Değilse: raporcu'daki ci/gitlab/template/.gitlab-ci.yml dosyasını olduğu gibi bu
+#      dosyanın yerine kopyalayın (tek başına çalışır) ve aşağıdaki variables'ı onun
+#      variables bölümüne ekleyin.
+#
+# Aşamalar: test → report → fix. Fix, testler bitince otomatik çalışır (STAJ_FIX=off ile kapanır).
+
+include:
+  - project: 'ekip/raporcu'          # raporcu deposunun GitLab yolu
+    ref: main
+    file: '/ci/gitlab/template/.gitlab-ci.yml'
+
+variables:
+  STAJ_OS: linux                      # bu projenin runner'ı: linux ya da windows
+  # STAJ_SERVER: "http://127.0.0.1:8080"   # raporcu runner'la aynı makinede (varsayılan)
+  # STAJ_TAGS: "@smoke"                     # boşsa features.txt kullanılır
+  # STAJ_FIX: "off"                         # self-healing yalnızca gece koşsun istiyorsanız:
+  #                                         #   burada "off", gece schedule'ında STAJ_FIX=on
+  # STAJ_FIX_AGENT: "opencode"              # ya da "claude"
+  # STAJ_FIX_MAX: "3"                       # koşum başına en fazla düzeltilecek senaryo
+  #
+  # Proje > Settings > CI/CD > Variables (masked):
+  #   CI_API_TOKEN    raporcu .env'deki ile aynı
+  #   STAJ_FIX_TOKEN  proje erişim tokenı (api + write_repository): auto-fix branch + MR

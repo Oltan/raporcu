@@ -9,7 +9,12 @@
 #   variables:
 #     STAJ_OS: linux        # ya da windows
 #
-# Aşamalar: test → report → fix. Test işi düşse de report ve fix çalışır.
+# raporcu deposu GitLab'da değilse bu dosya include edilmeden, olduğu gibi test projesinin
+# .gitlab-ci.yml'ı olarak kopyalanabilir; tek başına çalışır (STAJ_OS'u aşağıda ayarlayın).
+# Örnek: ornek-test-projesi/.gitlab-ci.yml
+#
+# Aşamalar: test → report → fix. Test işi düşse de report ve fix çalışır; fix testler
+# bitince otomatik başlar (STAJ_FIX=off ile kapanır).
 # İşler STAJ_OS'a göre `linux` ya da `windows` etiketli runner'a gider.
 # Script satırları yalnızca `stajci` alt komutlarını çağırır; işletim sistemine özgü tek kısım
 # stajci'yi sunucudan indiren before_script satırlarıdır (SW-10.9).
