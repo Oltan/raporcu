@@ -12,7 +12,7 @@
 | 4.1 | koşum sayfası, senaryo sayfası (adımlar, ekran görüntüsü) |
 | 2.2 | ek dosyası indirilebilir |
 | 10.6 | sunucu RSS hedefin altında (Linux) |
-| 4.8 / 6.4 | CSV, DOORS CSV ve DXL (`Module m = current`) |
+| 4.8 / 6.4 | CSV, DOORS CSV ve DXL (ayarlardan öznitelik değişkenleri) |
 | 4.7 | DOORS numarasıyla arama |
 | 9.5 | yanlış şifre reddedilir, doğru şifreyle admin girişi (yalnızca kendi sunucusunda) |
 | 5.1 / 5.2 | paylaşım linki açılır; iptal edilince 404 |

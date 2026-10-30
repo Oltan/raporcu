@@ -51,8 +51,9 @@ JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılı
 3. Test projesinde neler olmalı (adımlar, ekler, tag'ler, triage için hata türleri):
    [`docs/TEST_PROJESI_GEREKSINIMLERI.md`](docs/TEST_PROJESI_GEREKSINIMLERI.md).
 4. Canlı ekran (şu an koşan senaryo/adım) için Cucumber eklentisi: [`docs/ANLIK_AKTARIM.md`](docs/ANLIK_AKTARIM.md).
-5. Self-healing için OpenCode ya da Claude Code + vLLM: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
-6. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
+5. Jira bug şablonu, zorunlu Jira alanları ve DOORS eşleşmesi (Admin > Ayarlar): [`docs/JIRA_DOORS_AYARLARI.md`](docs/JIRA_DOORS_AYARLARI.md).
+6. Self-healing için OpenCode ya da Claude Code + vLLM, ajan ve skill tanımı, nasıl çağrıldığı: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
+7. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
    [`docs/GITLAB_CI_KURULUMU.md`](docs/GITLAB_CI_KURULUMU.md).
 
 ## Depo yapısı
@@ -68,6 +69,7 @@ JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılı
 | `ci/gitlab/template/.gitlab-ci.yml` | merkezi CI şablonu |
 | `ci/opencode/template/` | `opencode.json`, `fix` ajanı, `AGENTS.md` şablonu |
 | `ci/claude/template/` | Claude Code: `CLAUDE.md`, `.claude/settings.json`, `.mcp.json` |
+| `ci/skills/` | self-healing skill'leri (test projesinde `.claude/skills/`; OpenCode ve Claude Code ortak) |
 | `ornek-test-projesi/` | örnek Java test projesi |
 | `testdata/allure/` | gerçek `allure-results` örnekleri (testler bunları kullanır) |
 | `deploy/` | systemd servisi, Windows kurulum betikleri |

@@ -35,6 +35,8 @@ pub struct Layout {
     pub banner: Option<String>,
     /// Paylaşım görünümünde token; linkler buna göre kurulur.
     pub share: Option<String>,
+    /// DOORS rozet linki şablonu (Admin > Ayarlar > DOORS); boşsa rozet link olmaz.
+    pub doors_link: String,
 }
 
 impl Layout {
@@ -52,6 +54,17 @@ impl Layout {
             None => format!("/scenarios/{id}"),
         }
     }
+    /// DOORS rozetinin linki (paylaşım görünümünde iç adres gösterilmez).
+    pub fn doors_url(&self, doors_id: &str) -> Option<String> {
+        if self.share.is_some() {
+            return None;
+        }
+        crate::ayarlar::DoorsAyar {
+            link_sablonu: self.doors_link.clone(),
+            ..Default::default()
+        }
+        .link(doors_id)
+    }
     pub fn run_url(&self, id: impl std::borrow::Borrow<i64>) -> String {
         let id = *id.borrow();
         match &self.share {
@@ -67,7 +80,12 @@ pub fn layout(st: &AppState, headers: &HeaderMap) -> Layout {
         admin,
         banner: if admin { st.disk.warning_text() } else { None },
         share: None,
+        doors_link: st.ayarlar.get().doors.link_sablonu,
     }
+}
+
+pub fn message_page(l: Layout, status: StatusCode, title: &str, text: &str) -> Response {
+    message(l, status, title, text)
 }
 
 fn message(l: Layout, status: StatusCode, title: &str, text: &str) -> Response {
@@ -522,6 +540,7 @@ struct ScenarioPage {
     jira: Vec<String>,
     jira_url: Option<String>,
     fixes: Vec<FixRow>,
+    fix_notice: bool,
 }
 
 #[allow(clippy::type_complexity)]
@@ -540,6 +559,7 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
             admin: false,
             banner: None,
             share: None,
+            doors_link: String::new(),
         },
         message: s.message.clone(),
         trace,
@@ -563,12 +583,18 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
         bugs,
         jira,
         jira_url: None,
+        fix_notice: false,
         fixes: queries::fixes_for_scenario(c, id)?,
         s,
     }))
 }
 
-pub async fn scenario_page(State(st): State<AppState>, headers: HeaderMap, Path(id): Path<i64>) -> Result<Response, AppError> {
+pub async fn scenario_page(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Query(nq): Query<NoticeQuery>,
+) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
     let conf = st.cfg.triage_auto_confidence;
     let paths = st.paths.clone();
@@ -576,6 +602,7 @@ pub async fn scenario_page(State(st): State<AppState>, headers: HeaderMap, Path(
         Some(mut p) => {
             p.l = l;
             p.jira_url = st.cfg.jira_url.clone();
+            p.fix_notice = nq.notice.as_deref() == Some("fix");
             Ok(render(&p))
         }
         None => Ok(message(
@@ -804,7 +831,8 @@ pub async fn export_csv(State(st): State<AppState>, RawQuery(raw): RawQuery) -> 
 // DOORS (SW-6.4)
 
 pub async fn doors_csv(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Response, AppError> {
-    let rows = st.db.read(move |c| crate::export::doors_rows(c, id)).await?;
+    let ayar = st.ayarlar.get().doors;
+    let rows = st.db.read(move |c| crate::export::doors_rows(c, id, &ayar)).await?;
     Ok((
         [
             (axum::http::header::CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
@@ -819,7 +847,9 @@ pub async fn doors_csv(State(st): State<AppState>, Path(id): Path<i64>) -> Resul
 }
 
 pub async fn doors_dxl(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Response, AppError> {
-    let rows = st.db.read(move |c| crate::export::doors_rows(c, id)).await?;
+    let ayar = st.ayarlar.get().doors;
+    let a2 = ayar.clone();
+    let rows = st.db.read(move |c| crate::export::doors_rows(c, id, &a2)).await?;
     let url = format!("{}/runs/{id}", st.cfg.public_url);
     Ok((
         [
@@ -829,7 +859,7 @@ pub async fn doors_dxl(State(st): State<AppState>, Path(id): Path<i64>) -> Resul
                 format!("attachment; filename=\"doors-kosum-{id}.dxl\""),
             ),
         ],
-        crate::export::doors_dxl(&rows, id, &url),
+        crate::export::doors_dxl(&rows, id, &url, &ayar),
     )
         .into_response())
 }
@@ -864,6 +894,7 @@ fn share_layout(token: &str) -> Layout {
         admin: false,
         banner: None,
         share: Some(token.to_string()),
+        doors_link: String::new(),
     }
 }
 
@@ -1161,31 +1192,31 @@ pub async fn healing_page(State(st): State<AppState>, headers: HeaderMap) -> Res
 }
 
 // ---------------------------------------------------------------------------------------------
-// Admin işlemleri: Jira'ya bug aç (SW-6.1), OpenCode ile düzelt (SW-7.4)
-
-pub async fn create_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Path(id): Path<i64>) -> Result<Response, AppError> {
-    let l = layout(&st, &headers);
-    let Some(j) = crate::jira::Jira::from_config(&st.cfg) else {
-        return Ok(message(
-            l,
-            StatusCode::BAD_REQUEST,
-            "Jira ayarlı değil",
-            "JIRA_URL, JIRA_TOKEN ve JIRA_PROJECT ayarlanmalı.",
-        ));
-    };
-    let (paths, cfg) = (st.paths.clone(), st.cfg.clone());
-    match st
-        .db
-        .write(move |c| crate::jira::create_for_scenario(c, &paths, &cfg, &j, id))
-        .await
-    {
-        Ok(_) => Ok(Redirect::to(&format!("/scenarios/{id}")).into_response()),
-        Err(e) => Ok(message(l, StatusCode::BAD_GATEWAY, "Jira bug açılamadı", &e.to_string())),
-    }
-}
+// Admin işlemleri: OpenCode ile düzelt (SW-7.4). Jira bug formu: web/ayarlar.rs
 
 pub async fn trigger_fix(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Path(id): Path<i64>) -> Result<Response, AppError> {
-    let l = layout(&st, &headers);
+    start_fix(&st, &headers, id, None).await
+}
+
+/// Senaryo sayfasındaki düğme: yalnızca bu senaryo için fix işi.
+pub async fn trigger_fix_scenario(
+    State(st): State<AppState>,
+    _a: Admin,
+    headers: HeaderMap,
+    Path(sid): Path<i64>,
+) -> Result<Response, AppError> {
+    let run: Option<i64> = st
+        .db
+        .read(move |c| Ok(c.query_row("SELECT run_id FROM scenarios WHERE id = ?1", [sid], |r| r.get(0)).ok()))
+        .await?;
+    let Some(run_id) = run else {
+        return Err(AppError::not_found());
+    };
+    start_fix(&st, &headers, run_id, Some(sid)).await
+}
+
+async fn start_fix(st: &AppState, headers: &HeaderMap, id: i64, sid: Option<i64>) -> Result<Response, AppError> {
+    let l = layout(st, headers);
     let info: Option<(Option<String>, String, String)> = st
         .db
         .read(move |c| {
@@ -1202,15 +1233,20 @@ pub async fn trigger_fix(State(st): State<AppState>, _a: Admin, headers: HeaderM
     };
     let project = gid.unwrap_or(path);
     let st2 = st.clone();
-    let res = tokio::task::spawn_blocking(move || crate::gitlab::trigger_fix_pipeline(&st2, &project, &branch, id)).await;
+    let res = tokio::task::spawn_blocking(move || crate::gitlab::trigger_fix_pipeline(&st2, &project, &branch, id, sid)).await;
     match res {
         Ok(Ok(v)) => {
             tracing::info!(
                 run_id = id,
+                senaryo_id = sid.unwrap_or(0),
                 pipeline_id = v["id"].as_i64().unwrap_or(0),
                 "OpenCode fix işi tetiklendi"
             );
-            Ok(Redirect::to(&format!("/runs/{id}?notice=fix")).into_response())
+            Ok(Redirect::to(&match sid {
+                Some(s) => format!("/scenarios/{s}?notice=fix"),
+                None => format!("/runs/{id}?notice=fix"),
+            })
+            .into_response())
         }
         Ok(Err(e)) => Ok(message(l, StatusCode::BAD_GATEWAY, "Fix işi tetiklenemedi", &e.to_string())),
         Err(e) => Err(anyhow::Error::from(e).into()),

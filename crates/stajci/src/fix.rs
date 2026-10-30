@@ -264,10 +264,14 @@ pub fn agent_command() -> String {
     match env_or("STAJ_FIX_AGENT", "opencode").as_str() {
         // Claude Code: ekran görüntüsü istemde yol olarak verilir, Read aracıyla açılır.
         // İzinler .claude/settings.json ile src/test/** düzenlemeye sınırlanır; Bash kapalı.
-        "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep \
+        "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill \
                      --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text"
             .into(),
-        _ => "opencode run --agent fix --file {ekran} {istem}".into(),
+        // ajan adı: test projesindeki .opencode/agents/<ad>.md
+        _ => format!(
+            "opencode run --agent {} --file {{ekran}} {{istem}}",
+            env_or("STAJ_OPENCODE_AGENT", "fix")
+        ),
     }
 }
 
@@ -315,8 +319,22 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     let r = crate::client::ensure_ok(r, "fix-candidates")?;
     let all: Vec<FixCandidate> = serde_json::from_str(&r.body)?;
     let max: usize = env("STAJ_FIX_MAX").and_then(|v| v.parse().ok()).unwrap_or(3);
-    let todo: Vec<&FixCandidate> = all.iter().filter(|c| c.target == "opencode").take(max).collect();
-    for c2 in all.iter().filter(|c| c.target != "opencode") {
+    // raporcu'daki senaryo düğmesi: yalnızca o senaryo, triage hedefinden bağımsız
+    let only: Option<i64> = env("STAJ_FIX_SCENARIO_ID").and_then(|v| v.parse().ok());
+    let chosen = |c: &FixCandidate| match only {
+        Some(id) => c.scenario_id == id,
+        None => c.target == "opencode",
+    };
+    if let Some(id) = only {
+        say(format!("yalnızca seçilen senaryo düzeltilecek (senaryo {id})"));
+        if !all.iter().any(|c| c.scenario_id == id) {
+            say(format!(
+                "senaryo {id} bu koşumun düzeltme adayları arasında yok (geçmiş ya da kalan değil)"
+            ));
+        }
+    }
+    let todo: Vec<&FixCandidate> = all.iter().filter(|c| chosen(c)).take(max).collect();
+    for c2 in all.iter().filter(|c| !chosen(c)) {
         say(format!("atlandı: {} (hedef: {})", c2.name, c2.target));
     }
     if todo.is_empty() {

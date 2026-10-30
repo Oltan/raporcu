@@ -24,7 +24,7 @@ testleri koşar (SW-1.2, 1.6, 1.7).
    - Ortam: `MAVEN_OPTS` içinde `-Xmx` yoksa `-Xmx<STAJ_MAVEN_XMX, 512m> -XX:+ExitOnOutOfMemoryError`;
      `stdout/stderr.encoding=UTF-8`; `STAJ_VIDEO_FPS` (5).
    - `wrap_display`: Linux'ta `STAJ_XVFB=on` ya da (`auto` ve `DISPLAY` yok) ise
-     `xvfb-run -a -s "-screen 0 <STAJ_SCREEN, 1920x1080>x24 -nolisten tcp" <komut>`, `GDK_BACKEND=x11`.
+     `xvfb-run -a -n <99+pid%400> -s "-screen 0 <STAJ_SCREEN, 1920x1080>x24 -nolisten tcp" <komut>` (`-n`: boş ekran aramasının başlangıcı; aynı anda başlayan iki iş çakışmaz), `GDK_BACKEND=x11`.
 8. `run_streaming`: stdout+stderr satır satır basılır; `java.lang.OutOfMemoryError`,
    "Terminating due to java.lang.OutOfMemoryError" ya da "Cannot allocate memory" görülürse işaretlenir.
 9. Bitince `stop` dosyası yazılır, izleyici `STAJ_WATCH_DRAIN_SECS` (30) sn beklenir, sonra öldürülür.

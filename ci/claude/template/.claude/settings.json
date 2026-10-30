@@ -4,6 +4,7 @@
       "Read",
       "Glob",
       "Grep",
+      "Skill",
       "Edit(src/test/**)",
       "Write(src/test/**)"
     ],

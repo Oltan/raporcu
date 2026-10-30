@@ -6,7 +6,8 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
 ## Akış
 1. `STAJ_FIX=off` → çık. run_id: `STAJ_RUN_ID` ya da `run.json`; yoksa çık.
 2. `GET /api/ci/runs/<id>/fix-candidates`; hedefi `opencode` olanlardan ilk `STAJ_FIX_MAX` (3);
-   diğerleri "atlandı (hedef: …)". Hiç yoksa çıkış 0.
+   diğerleri "atlandı (hedef: …)". `STAJ_FIX_SCENARIO_ID` verilmişse (raporcu senaryo düğmesi)
+   yalnızca o senaryo, hedefinden bağımsız. Hiç yoksa çıkış 0.
 3. Temel branch: `CI_COMMIT_REF_NAME` ya da mevcut branch. Çalışma klasörü temiz değilse hata.
 4. Her aday için:
    1. `fix-started` bildirimi; `git checkout -B auto-fix/run-<id>-<slug(ad)>`.
@@ -19,8 +20,8 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       dizesi ve ```` ``` ```` etkisizleştirilir (SW-9.4).
    4. **Ajan komutu** (`agent_command`): `STAJ_FIX_CMD` / `STAJ_OPENCODE_CMD`, yoksa
       `STAJ_FIX_AGENT`'a göre:
-      - `opencode`: `opencode run --agent fix --file {ekran} {istem}`
-      - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
+      - `opencode`: `opencode run --agent <STAJ_OPENCODE_AGENT, fix> --file {ekran} {istem}`
+      - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
       ortamda `STAJ_FIX_PROMPT_FILE`. Zaman aşımı `STAJ_OPENCODE_TIMEOUT` (900 sn).
    5. Çıktının son satırlarından `STAJ_OZET:` ve `STAJ_TRIAGE: {json}`.

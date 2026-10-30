@@ -230,3 +230,14 @@ textarea { min-height: 70px; width: 100%; }
 .canli-adimlar li.a-kosuyor::before { background: var(--running); animation: nabiz 1.2s infinite; }
 .canli-adimlar li.a-kosuyor .a-metin { font-weight: 600; }
 .canli-adimlar li .hata-ozet { grid-column: 2 / 4; }
+/* ayarlar ve Jira formu */
+form.dikey { display: flex; flex-direction: column; gap: 10px; }
+form.dikey .satir { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+label.yatay { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 13px; }
+label.yatay input { min-width: 0; }
+.hata-kutu { border-left: 3px solid var(--failed); padding: 8px 12px; white-space: pre-wrap; }
+.kart.bilgi { border-left: 3px solid var(--accent); }
+textarea.mono, input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+select[multiple] { min-height: 80px; }
+label.alan { min-width: 180px; }
+label.alan .mono { font-size: 11px; color: var(--muted); }

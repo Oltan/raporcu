@@ -79,18 +79,20 @@ pub fn agent() -> ureq::Agent {
 }
 
 /// SW-7.4: yalnızca fix işini çalıştıran pipeline tetikler.
-pub fn trigger_fix_pipeline(st: &AppState, project_gitlab_id: &str, git_ref: &str, run_id: i64) -> Result<Value> {
+/// `scenario_id` verilirse fix işi yalnızca o senaryoyu düzeltir (`STAJ_FIX_SCENARIO_ID`).
+pub fn trigger_fix_pipeline(st: &AppState, project_gitlab_id: &str, git_ref: &str, run_id: i64, scenario_id: Option<i64>) -> Result<Value> {
     let (Some(base), Some(token)) = (&st.cfg.gitlab_url, &st.cfg.gitlab_token) else {
         bail!("GitLab bağlantısı ayarlı değil (GITLAB_URL, GITLAB_TOKEN)");
     };
     let url = format!("{base}/api/v4/projects/{}/pipeline", urlencoding::encode(project_gitlab_id));
-    let body = serde_json::json!({
-        "ref": git_ref,
-        "variables": [
-            { "key": "STAJ_FIX_ONLY", "value": "true" },
-            { "key": "STAJ_RUN_ID", "value": run_id.to_string() },
-        ]
-    });
+    let mut vars = vec![
+        serde_json::json!({ "key": "STAJ_FIX_ONLY", "value": "true" }),
+        serde_json::json!({ "key": "STAJ_RUN_ID", "value": run_id.to_string() }),
+    ];
+    if let Some(sid) = scenario_id {
+        vars.push(serde_json::json!({ "key": "STAJ_FIX_SCENARIO_ID", "value": sid.to_string() }));
+    }
+    let body = serde_json::json!({ "ref": git_ref, "variables": vars });
     let secrets = st.cfg.secrets();
     let mut resp = agent()
         .post(&url)

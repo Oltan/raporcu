@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Jira bug{% endblock %}
+{% block content %}
+<div class="baslik"><div><h1>Jira'ya bug aç</h1><div class="alt"><a href="/scenarios/{{ sid }}">{{ scenario }}</a></div></div>
+  <div class="araclar"><a class="btn" href="/admin/ayarlar">Şablonu düzenle</a></div></div>
+{% if let Some(h) = hata %}<div class="kart hata-kutu">{{ h }}</div>{% endif %}
+<section class="kart">
+  <form method="post" action="/admin/scenarios/{{ sid }}/jira" class="dikey">
+    <label>Özet<input name="ozet" value="{{ bug.summary }}" required maxlength="250"></label>
+    <label>Açıklama<textarea name="aciklama" rows="14" class="mono">{{ bug.description }}</textarea></label>
+    {% if !bug.labels.is_empty() %}<label class="yatay"><input type="checkbox" name="doors_label" checked> Label: {{ bug.labels.join(", ") }}</label>{% endif %}
+
+    {% if !fields.is_empty() %}
+    <h3>Jira alanları</h3>
+    <div class="satir">
+    {% for f in fields %}
+      <label class="alan"><span>{{ f.meta.name }}{% if f.meta.required %} *{% endif %} <span class="mono">{{ f.meta.id }}</span></span>
+        <input type="hidden" name="tur.{{ f.meta.id }}" value="{{ f.hint }}">
+        {% if f.meta.allowed.is_empty() %}
+          <input name="alan.{{ f.meta.id }}" value="{{ f.value }}" {% if f.meta.required %}required{% endif %} placeholder="{% if f.multi() %}virgülle ayırın{% else %}{{ f.meta.kind }}{% endif %}">
+        {% else %}
+          <select name="alan.{{ f.meta.id }}" {% if f.multi() %}multiple size="4"{% endif %} {% if f.meta.required %}required{% endif %}>
+            {% if !f.multi() %}<option value="">—</option>{% endif %}
+            {% for a in f.meta.allowed %}<option value="{{ a.0 }}" {% if f.selected(a.0) %}selected{% endif %}>{{ a.1 }}</option>{% endfor %}
+          </select>
+        {% endif %}
+      </label>
+    {% endfor %}
+    </div>
+    {% endif %}
+    {% if let Some(e) = meta_hata %}<p class="hata-kutu kucuk">Jira alan listesi alınamadı: {{ e }}. Ek alanları aşağıya JSON olarak yazabilirsiniz.</p>{% endif %}
+
+    <label>Diğer alanlar (JSON) <textarea name="ek" rows="5" class="mono" placeholder='{"components": [{"name": "UI"}]}'>{{ ek }}</textarea></label>
+    <div class="satir"><button class="ana">Bug aç</button><span class="kucuk">Ekran görüntüsü issue'ya eklenir, senaryo bug'a bağlanır.</span></div>
+  </form>
+</section>
+{% endblock %}

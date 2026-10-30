@@ -1,6 +1,7 @@
 //! HTTP uçları ve sayfalar.
 
 pub mod admin;
+pub mod ayarlar;
 pub mod ci;
 pub mod files;
 pub mod gitlab_hook;
@@ -34,8 +35,12 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/runs/{id}/share", post(pages::create_share))
         .route("/admin/shares/{id}/revoke", post(pages::revoke_share))
         .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
-        .route("/admin/scenarios/{id}/jira", post(pages::create_jira))
+        .route("/admin/scenarios/{id}/jira", get(ayarlar::bug_form).post(ayarlar::bug_create))
+        .route("/admin/ayarlar", get(ayarlar::page))
+        .route("/admin/ayarlar/jira", post(ayarlar::save_jira))
+        .route("/admin/ayarlar/doors", post(ayarlar::save_doors))
         .route("/admin/runs/{id}/fix", post(pages::trigger_fix))
+        .route("/admin/scenarios/{id}/fix", post(pages::trigger_fix_scenario))
         .route("/login", get(admin::login_page).post(admin::login))
         .route("/logout", post(admin::logout))
         .route("/api/admin/me", get(admin::me))

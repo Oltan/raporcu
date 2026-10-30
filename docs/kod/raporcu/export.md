@@ -12,14 +12,15 @@
 - **Akış:** satırlar okuma bağlantısında okunur, ~64 KB parçalar halinde kanala ve HTTP gövdesine
   yazılır (Content-Length yok); büyük listeler belleğe alınmaz (SW-10.6). İstemci koparsa durur.
 
-## DOORS
-- `doors_rows(koşum)`: DOORS numarası olan her son deneme, **her DOORS numarası için bir satır**.
-- `doors_status`: passed → Geçti, failed/broken → Kaldı, skipped → Atlandı, diğer → Koşulmadı.
+## DOORS (ayarlar: `ayarlar.md` → DoorsAyar)
+- `doors_rows(koşum, ayar)`: DOORS numarası olan her son deneme, **her DOORS numarası için bir satır**;
+  sonuç ayardaki değerlerle (`ayar.status`).
 - `doors_csv`: BOM + `DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih`.
-- `doors_dxl`: DOORS'ta çalıştırılacak DXL betiği: dizilerde numara (DOORS- öneki atılmış), sonuç,
-  tarih, Jira; açık modülde `idAttr` ("Absolute Number") değeri eşleşen nesnelerin
-  "Test Sonucu", "Test Tarihi", "Jira", "Test Raporu" özniteliklerini (`canWrite` ise) yazar;
-  sonunda güncellenen nesne sayısı. Öznitelik adları betiğin başında değiştirilebilir.
+- `doors_dxl(satırlar, koşum, rapor, ayar)`: başta ayarlar DXL değişkeni olarak (`modulYolu`,
+  `idAttr`, `resultAttr`, `dateAttr`, `jiraAttr`, `linkAttr`), dizilerde numara (DOORS- öneki
+  atılmış), sonuç, tarih, Jira. Modül yolu boşsa `current`, doluysa `edit(yol, false)` (açılamazsa
+  açık mesaj). Kimlik özniteliği eşleşen nesnelerde boş olmayan ve `canWrite` olan öznitelikleri yazar;
+  modülü betik açtıysa `save`. Sonunda güncellenen nesne ve bulunamayan numara sayısı.
 
 ## Testler
 `test_sw_4_8_*`, `test_sw_6_4_doors_csv_and_dxl`.

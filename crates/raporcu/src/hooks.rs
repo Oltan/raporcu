@@ -18,12 +18,12 @@ pub async fn after_finish(st: &AppState, run_id: i64) {
     // SW-6.2, 6.3: Jira eşleşmesi (ağ çağrıları içerdiği için arka planda)
     let st2 = st.clone();
     tokio::spawn(async move {
-        let (paths, cfg) = (st2.paths.clone(), st2.cfg.clone());
+        let (paths, cfg, sablon) = (st2.paths.clone(), st2.cfg.clone(), st2.ayarlar.get().jira);
         let res = st2
             .db
             .write(move |c| {
                 let j = crate::jira::Jira::from_config(&cfg);
-                crate::jira::process_run(c, &paths, &cfg, j.as_ref(), run_id)
+                crate::jira::process_run(c, &paths, &cfg, &sablon, j.as_ref(), run_id)
             })
             .await;
         if let Err(e) = res {

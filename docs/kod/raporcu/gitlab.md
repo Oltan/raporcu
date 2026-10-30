@@ -16,3 +16,6 @@
 
 ## Testler
 `tests/entegrasyon.rs`: 3.6, 7.4, 7.5, 9.2.
+
+
+Not: `trigger_fix_pipeline(st, proje, ref, koşum, senaryo?)` — senaryo verilirse değişkenlere `STAJ_FIX_SCENARIO_ID` eklenir (senaryo sayfasındaki düğme).

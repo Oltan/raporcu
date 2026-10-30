@@ -98,7 +98,7 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     })
 }
 
-/// SW-1.2: Linux'ta komutu Xvfb ekranında çalıştırır (`xvfb-run -a`: her işe boş ekran numarası).
+/// SW-1.2: Linux'ta komutu Xvfb ekranında çalıştırır (`xvfb-run -a -n`: her işe boş ekran numarası).
 pub fn wrap_display(mut cmd: TestCommand) -> TestCommand {
     let xvfb = env_or("STAJ_XVFB", "auto");
     let use_xvfb = cfg!(target_os = "linux") && (xvfb == "on" || (xvfb == "auto" && env("DISPLAY").is_none()));
@@ -106,8 +106,13 @@ pub fn wrap_display(mut cmd: TestCommand) -> TestCommand {
         return cmd;
     }
     let screen = env_or("STAJ_SCREEN", "1920x1080");
+    // `xvfb-run -a` boş ekranı 99'dan başlayarak arar; aynı anda başlayan iki iş ikisi de :99'u
+    // boş görüp çakışabiliyor. Aramayı süreç numarasına göre farklı yerden başlatınca çakışmaz.
+    let start = 99 + std::process::id() % 400;
     let mut args = vec![
         "-a".to_string(),
+        "-n".to_string(),
+        start.to_string(),
         "-s".to_string(),
         format!("-screen 0 {screen}x24 -nolisten tcp"),
         cmd.program,

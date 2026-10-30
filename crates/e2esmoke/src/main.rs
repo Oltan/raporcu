@@ -125,7 +125,7 @@ fn main() -> Result<()> {
         &csv,
     );
     let (st, dx) = get(&format!("{url}/runs/{run_id}/doors.dxl"))?;
-    ck.check("SW-6.4", "DOORS DXL", st == 200 && dx.contains("Module m = current"), "");
+    ck.check("SW-6.4", "DOORS DXL", st == 200 && dx.contains("m = current") && dx.contains("string idAttr"), "");
     let (st, srch) = get(&format!("{url}/search?doors=DOORS-1003"))?;
     ck.check("SW-4.7", "DOORS numarasıyla arama", st == 200 && srch.contains("1 sonuç"), "");
 

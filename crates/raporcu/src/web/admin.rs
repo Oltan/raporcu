@@ -23,6 +23,7 @@ fn lay() -> crate::web::pages::Layout {
         admin: false,
         banner: None,
         share: None,
+        doors_link: String::new(),
     }
 }
 

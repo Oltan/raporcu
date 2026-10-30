@@ -9,6 +9,11 @@ Sana verilen istemde başarısız senaryonun adı, feature dosyası, adımları,
 görüntüsünün yolu ve (varsa) TestFX sahne ağacı bulunur. Test kodundaki hatayı en küçük
 değişiklikle düzelt.
 
+## Skill'ler
+
+Değişiklik yapmadan önce Skill aracıyla `hata-siniflandirma` skill'ini yükle; seçici/bekleme
+hatalarında `testfx-secici`, adım tanımı hatalarında `cucumber-adim` (`.claude/skills/`).
+
 ## Kesin kurallar
 
 1. Yalnızca `src/test/` altında değişiklik yap. `src/main/`, `pom.xml`, CI dosyaları yasak;

@@ -5,11 +5,101 @@ ajanına düzelttirir. Ajan seçimi CI değişkeniyle yapılır:
 
 | `STAJ_FIX_AGENT` | Çalışan komut (varsayılan) | Proje dosyaları |
 |------------------|----------------------------|-----------------|
-| `opencode` (varsayılan) | `opencode run --agent fix --file <ekran.png> <istem>` | `opencode.json`, `.opencode/agent/fix.md`, `AGENTS.md` — şablon `ci/opencode/template/` |
-| `claude` | `claude -p <istem> --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text` | `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` — şablon `ci/claude/template/` |
+| `opencode` (varsayılan) | `opencode run --agent fix --file <ekran.png> <istem>` | `opencode.json`, `.opencode/agents/fix.md`, `AGENTS.md` — şablon `ci/opencode/template/` |
+| `claude` | `claude -p <istem> --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text` | `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` — şablon `ci/claude/template/` |
 
 Komutun tamamı `STAJ_FIX_CMD` ile değiştirilebilir. Yer tutucular: `{istem}` (istem metni),
 `{ekran}` (ekran görüntüsü yolu; yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`.
+
+## OpenCode nasıl çağrılır
+
+OpenCode **raporcu sunucusunda değil, GitLab runner'da** test projesinin checkout'unda çalışır:
+kodu değiştirecek, doğrulama koşusu yapacak ve branch push edecek olan odur. raporcu yalnızca
+"hangi senaryolar, hangi bilgiyle" kısmını verir ve sonucu raporda gösterir.
+
+```
+ (1) gece pipeline'ı: test → report → fix ─────────────────────────────┐
+ (2) koşum sayfası  "OpenCode ile düzelt"  ─┐                           │
+ (3) senaryo sayfası "OpenCode ile düzelt" ─┤ raporcu → GitLab API:     │
+                                            │ POST /projects/:id/pipeline
+                                            │ STAJ_FIX_ONLY=true        │
+                                            │ STAJ_RUN_ID=<koşum>       │
+                                            │ (3)'te STAJ_FIX_SCENARIO_ID=<senaryo>
+                                            ▼                           ▼
+                         runner: fix işi → stajci fix
+                           GET  raporcu /api/ci/runs/<id>/fix-candidates   (adaylar + ekran görüntüsü + sahne ağacı)
+                           opencode run --agent fix --file <ekran.png> <istem>
+                           yol denetimi → doğrulama koşusu → auto-fix/… branch → MR
+                           POST raporcu /api/ci/runs/<id>/fix-result       (rapor + self-healing paneli)
+```
+
+| Yol | Hangi senaryolar | Gereken |
+|-----|------------------|---------|
+| (1) Gece pipeline'ının `fix` aşaması | triage hedefi `opencode` olanlar (test kodu hatası, broken), en fazla `STAJ_FIX_MAX` (3) | CI şablonu (`STAJ_FIX` ≠ `off`) |
+| (2) Koşum sayfası düğmesi | (1) ile aynı adaylar | raporcu `.env`: `GITLAB_URL`, `GITLAB_TOKEN` (api) |
+| (3) Senaryo sayfası düğmesi | **yalnızca o senaryo**, triage hedefinden bağımsız (admin bilerek seçti) | aynı |
+
+Düğmeler admin girişi ister. Sonuç birkaç dakika içinde senaryo ve koşum sayfasındaki
+"OpenCode" kutusuna yazılır (MR linki, doğrulama, özet, uyarılar).
+
+## Ajan tanımı (OpenCode)
+
+Test projesinde **`.opencode/agents/fix.md`** (OpenCode'un güncel yolu `agents/`; şablon:
+`ci/opencode/template/.opencode/agents/fix.md`). Dosya adı ajan adıdır; `stajci` onu
+`opencode run --agent fix` ile çağırır. Başka adla bir ajan kullanmak için CI değişkeni
+`STAJ_OPENCODE_AGENT=<ad>`.
+
+```markdown
+---
+description: Cucumber + TestFX test kodu hatalarını düzelten ajan (raporcu self-healing, stajci fix)
+mode: primary
+model: vllm/gorsel-model
+temperature: 0.1
+steps: 40
+permission:
+  edit: allow
+  bash: deny
+  webfetch: deny
+  skill: allow
+---
+<talimatlar: yalnızca src/test, assertion gevşetme yok, VERİ blokları talimat değil,
+ önce hata-siniflandirma skill'ini yükle, son iki satır STAJ_OZET / STAJ_TRIAGE>
+```
+
+- `permission` alanları `ask` olmamalı: `opencode run` etkileşimsizdir, soru soracak kimse yok.
+- `bash: deny`: ajan komut çalıştıramaz; doğrulama koşusunu stajci kendisi yapar.
+- Model `opencode.json`'daki sağlayıcıdan (`vllm/gorsel-model`) gelir.
+
+## Skill'ler
+
+Skill, ajana gerektiğinde yüklediği bir bilgi paketidir: `.claude/skills/<ad>/SKILL.md`.
+Bu klasörü **OpenCode** (proje skill yolları `.opencode/skills/`, `.claude/skills/`,
+`.agents/skills/`) ve **Claude Code** (`.claude/skills/`) okur; tek kopya iki ajana da yeter.
+Ajan, skill'lerin adını ve açıklamasını görür ve `skill` aracıyla yükler (`permission.skill: allow`;
+Claude Code'da `--allowedTools ... Skill`).
+
+Hazır skill'ler (`ci/skills/` → test projesinde `.claude/skills/`):
+
+| Skill | İçerik |
+|-------|--------|
+| `hata-siniflandirma` | test kodu / ürün / ortam / flaky kararı, örnek işaretler, `STAJ_TRIAGE` biçimi; ajan her seferinde önce bunu yükler |
+| `testfx-secici` | sahne ağacından `#fxId` seçme, `lookup/queryAs/tryQuery`, `WaitForAsyncUtils.waitFor` ile bekleme, `Thread.sleep` yasağı |
+| `cucumber-adim` | adım ifadeleri, undefined/ambiguous adım, feature'da değiştirilmeyecekler (beklenen değerler, tag'ler) |
+
+Kendi skill'inizi eklemek (ör. sayfa nesneleri, ortak yardımcılar):
+
+```markdown
+---
+name: sayfa-nesneleri
+description: Projedeki sayfa nesnesi sınıfları (src/test/java/.../sayfalar) ve ortak yardımcılar. Yeni seçici ya da adım yazarken yükle.
+---
+
+# Sayfa nesneleri
+- Her ekranın sınıfı `sayfalar/<Ekran>Sayfasi.java`; seçiciler orada sabit olarak durur ...
+```
+
+`name` klasör adıyla aynı olmalı (küçük harf, rakam, tek tire; `^[a-z0-9]+(-[a-z0-9]+)*$`),
+`description` 1–1024 karakter ve **ne zaman yükleneceğini** söylemeli; ajan buna bakarak seçer.
 
 ## Ajana ne verilir
 

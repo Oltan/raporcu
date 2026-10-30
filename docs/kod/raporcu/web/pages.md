@@ -33,3 +33,10 @@ gerektirmez; admin işlemleri `Admin` çıkarıcısıyla korunur.
 - Jira'ya bug aç: Jira ayarlı değilse 400 sayfa; hata 502 sayfa.
 - OpenCode ile düzelt: projenin GitLab id'si (yoksa yolu) ve branch ile `gitlab::trigger_fix_pipeline`;
   başarı → `?notice=fix`, hata → 502 sayfa (token içermez).
+
+## Ek (Jira/DOORS ayarları, senaryo düğmesi)
+- `Layout.doors_link` + `doors_url(id)`: DOORS rozeti linki (Ayarlar > DOORS); paylaşım görünümünde yok.
+- Jira bug formu ve ayarlar sayfası `web/ayarlar.rs`'e taşındı (`ayarlar.md`); `message_page` dışarı açık.
+- `POST /admin/runs/{id}/fix` (koşumun tüm adayları) ve `POST /admin/scenarios/{id}/fix` (yalnızca o
+  senaryo) → `start_fix` → `gitlab::trigger_fix_pipeline`; senaryo düğmesi `?notice=fix` ile senaryo sayfasına döner.
+- DOORS CSV/DXL ayarlarla üretilir.

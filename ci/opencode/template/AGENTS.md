@@ -1,7 +1,9 @@
 # AGENTS.md — <PROJE ADI> test projesi
 
 Bu dosya OpenCode (ve diğer kod ajanları) için projeyi tanıtır. raporcu self-healing akışı
-(`stajci fix`) bu dosyayı ve `.opencode/agent/fix.md` ajanını kullanır.
+(`stajci fix`) bu dosyayı ve `.opencode/agents/fix.md` ajanını kullanır.
+Ajanın yükleyebileceği skill'ler `.claude/skills/` altındadır (`hata-siniflandirma`,
+`testfx-secici`, `cucumber-adim`); projeye özel bilgi için oraya yeni skill ekleyin.
 
 ## Proje
 

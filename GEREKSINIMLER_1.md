@@ -316,6 +316,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Test: B
 - Doğrulama: `test_sw_6_1_*`
 - Not: Sahte Jira sunucusuyla test edildi.
+- Ek: bug içeriği arayüzden ayarlanır (Admin > Ayarlar: özet/açıklama şablonu, zorunlu ve özel alanlar JSON); "Jira alanlarını getir" zorunlu alanları ve izinli değerleri Jira createmeta ile listeler; elle bug açma formu zorunlu alanları sorar; Jira alan hataları alan adıyla gösterilir. Doğrulama: `test_sw_6_1_required_fields_listed_and_bug_form_sends_them`, `test_sw_6_3_auto_bug_uses_template_fields`, `docs/JIRA_DOORS_AYARLARI.md`.
 
 ### SW-6.2 [KISMEN] CI koşumundan sonra FAILED senaryolar için otomatik eşleşme kendiliğinden çalışır
 - Kabul: Yükleme sonrasında açık bug'ı olan senaryolar bağlanmış görünür.
@@ -334,6 +335,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Test: B
 - Doğrulama: `test_sw_6_4_doors_csv_and_dxl`, e2esmoke
 - Not: DXL betiği gerçek DOORS modülünde denenmedi (pilot listesi).
+- Ek: modül yolu, kimlik/sonuç/tarih/Jira/rapor öznitelik adları, sonuç enum değerleri ve DOORS linki şablonu Admin > Ayarlar > DOORS'tan; DXL bunlarla üretilir. Doğrulama: `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
 
 ---
 
@@ -364,6 +366,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Test: B, U
 - Doğrulama: `test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api`
 - Not: Sahte GitLab API ile test geçer; açık soru 1 (token) ve gerçek GitLab U testi bekliyor.
+- Ek: senaryo sayfasında tek senaryo için düğme (`STAJ_FIX_SCENARIO_ID`, triage hedefinden bağımsız). Doğrulama: `test_sw_7_4_*`, rehearse SW-7.4.
 
 ### SW-7.5 [MEVCUT] Self-healing ölçüm paneli: deneme, MR, birleştirilen, reddedilen
 - Kabul: Panel son 30 gecenin sayılarını gösterir.
@@ -374,6 +377,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Önce raporcu reposunda şablonlar hazırlanır, sonra test projesine özel AGENTS.md yazılır.
 - Test: U
 - Not: Şablonlar ci/opencode/template, ci/claude/template (Claude Code seçeneği, `STAJ_FIX_AGENT=claude`) ve ornek-test-projesi altında; opencode.ai belgelerine bu ortamdan erişilemedi, kurulu OpenCode / Claude Code ve vLLM ağ geçidiyle doğrulanmalı (docs/KOD_AJANI_VLLM.md).
+- Ek: ajan `.opencode/agents/fix.md` (OpenCode'un güncel yolu), skill'ler `ci/skills/` → test projesinde `.claude/skills/` (OpenCode ve Claude Code ortak): `hata-siniflandirma`, `testfx-secici`, `cucumber-adim`. Ajan adı `STAJ_OPENCODE_AGENT`.
 
 ### SW-7.7 [MEVCUT] Geçmişteki başarılı düzeltmeler OpenCode'a örnek olarak verilir
 - Kabul: İstek metninde benzer bir senaryonun önceki düzeltmesi yer alır.

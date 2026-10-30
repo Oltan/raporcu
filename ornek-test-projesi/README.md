@@ -48,4 +48,4 @@ CI'da bunu `stajci start` yapar (Xvfb, bellek sınırları, features.txt tag'ler
 5. **`VideoKaydi.java`** — senaryo boyunca ffmpeg (Linux `x11grab`, Windows `gdigrab`), 5 fps
    H.264; yalnızca senaryo kalırsa `video/mp4` olarak eklenir. `STAJ_VIDEO=false` ile kapanır.
 6. **`features.txt`** — koşulacak tag ifadeleri; `stajci preflight` kontrol eder.
-7. **`AGENTS.md`, `opencode.json`, `.opencode/agent/fix.md`** — self-healing için.
+7. **`AGENTS.md`, `opencode.json`, `.opencode/agents/fix.md`** — self-healing için.

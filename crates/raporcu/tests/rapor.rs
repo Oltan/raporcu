@@ -221,7 +221,8 @@ async fn test_sw_6_4_doors_csv_and_dxl() {
     assert_eq!(csv.matches("DOORS-1002").count(), 2, "taslak satırları ayrı");
     let (st, dxl) = app.get(&format!("/runs/{id}/doors.dxl")).await;
     assert_eq!(st, StatusCode::OK);
-    assert!(dxl.contains("Module m = current"));
+    assert!(dxl.contains("m = current"), "modül yolu yoksa açık modül");
+    assert!(dxl.contains("string idAttr = \"Absolute Number\""));
     assert!(dxl.contains("\"1003\""));
     assert!(dxl.contains("\"Kaldı\""));
 }

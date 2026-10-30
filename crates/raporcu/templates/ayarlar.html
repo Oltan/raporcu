@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Ayarlar{% endblock %}
+{% block content %}
+<div class="baslik"><div><h1>Ayarlar</h1><div class="alt">Jira bug şablonu ve DOORS bağlantısı. Bağlantı bilgileri (adres, token) <code>.env</code>'de kalır.</div></div>
+  <div class="araclar"><a class="btn" href="/admin">Admin paneli</a></div></div>
+{% if let Some(n) = notice %}<div class="kart bilgi">{% if n == "jira" %}Jira şablonu kaydedildi.{% else if n == "doors" %}DOORS ayarları kaydedildi.{% else %}{{ n }}{% endif %}</div>{% endif %}
+{% if let Some(h) = hata %}<div class="kart hata-kutu">{{ h }}</div>{% endif %}
+
+<section class="kart">
+  <h2>Jira bug şablonu</h2>
+  <p class="kucuk">{{ jira_bilgi }}</p>
+  <p class="kucuk">Hem otomatik açılan bug'larda hem "Jira'ya bug aç" formunun ilk halinde kullanılır.
+    Metinlerde <code>{{ "{{" }}ad{{ "}}" }}</code> yer tutucuları doldurulur; tek süslü parantezli Jira biçimi (<code>{noformat}</code>, <code>*kalın*</code>) olduğu gibi kalır.</p>
+  <form method="post" action="/admin/ayarlar/jira" class="dikey">
+    <label>Özet<input name="ozet" value="{{ jira.ozet }}" required></label>
+    <label>Açıklama<textarea name="aciklama" rows="12" class="mono">{{ jira.aciklama }}</textarea></label>
+    <label><span>Ek alanlar (JSON) — zorunlu alanlar, öncelik, bileşen, sürüm...</span>
+      <textarea name="alanlar" rows="8" class="mono" placeholder='{"priority": {"name": "Major"}, "components": [{"name": "Test Otomasyonu"}], "customfield_10200": {"value": "Yazılım"}}'>{{ jira.alanlar }}</textarea></label>
+    <label class="yatay"><input type="checkbox" name="doors_label" {% if jira.doors_label %}checked{% endif %}> DOORS numaralarını label olarak ekle</label>
+    <div><button class="ana">Jira şablonunu kaydet</button></div>
+  </form>
+  <details style="margin-top:10px"><summary class="kucuk">Yer tutucular</summary>
+    <div class="tablo"><table>{% for y in yer_tutucular %}<tr><td class="mono">{{ "{{" }}{{ y.0 }}{{ "}}" }}</td><td class="kucuk">{{ y.1 }}</td></tr>{% endfor %}</table></div>
+  </details>
+  <details style="margin-top:6px"><summary class="kucuk">Ek alan değer biçimleri (Jira REST v2)</summary>
+    <div class="tablo"><table>
+      <tr><th>Alan türü</th><th>Örnek</th></tr>
+      <tr><td>Seçim listesi (select)</td><td class="mono">"customfield_10200": {"value": "Yazılım"}  ya da  {"id": "10301"}</td></tr>
+      <tr><td>Çoklu seçim / bileşen / sürüm</td><td class="mono">"components": [{"name": "UI"}], "fixVersions": [{"name": "2.4"}]</td></tr>
+      <tr><td>Öncelik</td><td class="mono">"priority": {"name": "Major"}</td></tr>
+      <tr><td>Kullanıcı (Server/DC)</td><td class="mono">"assignee": {"name": "kullanici.adi"}</td></tr>
+      <tr><td>Metin / sayı / tarih</td><td class="mono">"customfield_10300": "{{ "{{" }}branch{{ "}}" }}", "customfield_10301": 3, "duedate": "2026-12-31"</td></tr>
+      <tr><td>Label (DOORS'a eklenir)</td><td class="mono">"labels": ["otomasyon"]</td></tr>
+    </table></div>
+  </details>
+</section>
+
+<section class="kart">
+  <h2>Jira alanları</h2>
+  {% if jira_ayarli %}
+  <p class="kucuk">Projenizdeki bug ekranının alanlarını Jira'dan okur: hangisi zorunlu, kimliği (<code>customfield_…</code>) ve izinli değerleri. Zorunlu olup varsayılanı olmayanlar bug formunda ayrıca sorulur; her seferinde aynı olanları yukarıdaki "Ek alanlar"a yazın.</p>
+  <p><a class="btn" href="/admin/ayarlar?alanlar=1">Jira alanlarını getir</a></p>
+  {% if let Some(r) = alanlar %}
+    {% match r %}
+    {% when Ok with (list) %}
+    <div class="tablo"><table>
+      <tr><th>Kimlik</th><th>Ad</th><th>Zorunlu</th><th>Tür</th><th>İzinli değerler (id: ad)</th></tr>
+      {% for f in list %}
+      <tr>
+        <td class="mono">{{ f.id }}</td><td>{{ f.name }}</td>
+        <td>{% if f.required %}<span class="durum failed">zorunlu{% if f.has_default %} (varsayılanı var){% endif %}</span>{% endif %}</td>
+        <td class="kucuk">{{ f.kind }}{% if !f.items.is_empty() %} / {{ f.items }}{% endif %}</td>
+        <td class="kucuk">{% for a in f.allowed.iter().take(25) %}<span class="mono">{{ a.0 }}</span>: {{ a.1 }}{% if !loop.last %} · {% endif %}{% endfor %}{% if f.allowed.len() > 25 %} … ({{ f.allowed.len() }} değer){% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    {% when Err with (e) %}
+    <div class="hata-kutu">{{ e }}</div>
+    {% endmatch %}
+  {% endif %}
+  {% else %}<p class="kucuk">Jira bağlantısı ayarlı değil.</p>{% endif %}
+</section>
+
+<section class="kart">
+  <h2>DOORS</h2>
+  <p class="kucuk">Senaryolar DOORS gereksinimine <code>@DOORS-&lt;no&gt;</code> tag'iyle bağlanır; <code>&lt;no&gt;</code> DOORS nesnesinin aşağıdaki kimlik özniteliğinin değeridir.
+    Koşum sayfasındaki "DOORS DXL" betiği bu ayarlarla üretilir: modülü açar, eşleşen nesnelerin sonuç özniteliklerini yazar.</p>
+  <form method="post" action="/admin/ayarlar/doors" class="dikey">
+    <label>Modül yolu (boşsa DXL o an açık modülde çalışır)<input name="modul" value="{{ doors.modul }}" placeholder="/Proje/Gereksinimler/SRS"></label>
+    <div class="satir">
+      <label>Kimlik özniteliği<input name="id_oznitelik" value="{{ doors.id_oznitelik }}" required></label>
+      <label>Sonuç özniteliği<input name="sonuc_oznitelik" value="{{ doors.sonuc_oznitelik }}"></label>
+      <label>Tarih özniteliği<input name="tarih_oznitelik" value="{{ doors.tarih_oznitelik }}"></label>
+      <label>Jira özniteliği<input name="jira_oznitelik" value="{{ doors.jira_oznitelik }}"></label>
+      <label>Rapor linki özniteliği<input name="rapor_oznitelik" value="{{ doors.rapor_oznitelik }}"></label>
+    </div>
+    <p class="kucuk">Sonuç değerleri DOORS'taki sonuç özniteliğinin enum değerleriyle birebir aynı olmalı. Öznitelik adını boş bırakırsanız o öznitelik yazılmaz.</p>
+    <div class="satir">
+      <label>Geçti<input name="gecti" value="{{ doors.gecti }}"></label>
+      <label>Kaldı (failed/broken)<input name="kaldi" value="{{ doors.kaldi }}"></label>
+      <label>Atlandı<input name="atlandi" value="{{ doors.atlandi }}"></label>
+      <label>Koşulmadı<input name="kosulmadi" value="{{ doors.kosulmadi }}"></label>
+    </div>
+    <label><span>DOORS linki şablonu (rapordaki DOORS rozetleri tıklanabilir olur; <code>{{ "{{" }}no{{ "}}" }}</code> numara, <code>{{ "{{" }}id{{ "}}" }}</code> DOORS-1003)</span>
+      <input name="link_sablonu" value="{{ doors.link_sablonu }}" placeholder="doors://doors.sirket.local:36677/?version=2&prodID=0&urn=urn:telelogic::1-...-O-{{ "{{" }}no{{ "}}" }}-..."></label>
+    <div><button class="ana">DOORS ayarlarını kaydet</button></div>
+  </form>
+</section>
+{% endblock %}

@@ -47,7 +47,7 @@
     <tr>
       <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
       <td><a href="/scenarios/{{ r.s.id }}">{{ r.s.name }}</a>
-        <div>{% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for j in r.s.jira_keys %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}</div>
+        <div>{% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for j in r.s.jira_keys %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}</div>
         {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
       </td>
       <td>{{ r.project_path }}<div class="kucuk">{{ r.s.branch }}</div></td>

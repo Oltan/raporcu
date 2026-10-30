@@ -5,12 +5,14 @@
 //! - Otomatik bug açma: koşum başına üst sınır, aynı hata için tek bug, retry sonrasında,
 //!   varsayılan gözlem modu (Jira'ya yazılmaz, kayıt tutulur).
 
+use crate::ayarlar::{self, JiraSablon};
 use crate::config::{redact, Config, JiraMode};
 use crate::db::now;
 use crate::paths::Paths;
 use anyhow::{bail, Result};
 use rusqlite::{params, Connection};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
+use std::collections::BTreeMap;
 use std::io::Read;
 
 pub struct Jira {
@@ -23,12 +25,40 @@ pub struct Jira {
     agent: ureq::Agent,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NewBug {
     pub summary: String,
     pub description: String,
     pub labels: Vec<String>,
+    /// Şablondaki ve formdaki ek Jira alanları (zorunlu özel alanlar, öncelik, bileşen ...)
+    pub extra: Map<String, Value>,
 }
+
+/// Jira'nın bug oluşturma ekranındaki bir alan (createmeta).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FieldMeta {
+    pub id: String,
+    pub name: String,
+    pub required: bool,
+    /// schema.type: string, number, option, array, priority, user, date, version, ...
+    pub kind: String,
+    /// array ise öğe türü
+    pub items: String,
+    pub has_default: bool,
+    /// (id, görünen ad)
+    pub allowed: Vec<(String, String)>,
+}
+
+/// Raporcu'nun kendisi doldurduğu alanlar; formda ayrıca sorulmaz.
+pub const SYSTEM_FIELDS: &[&str] = &[
+    "project",
+    "issuetype",
+    "summary",
+    "description",
+    "reporter",
+    "attachment",
+    "issuelinks",
+];
 
 impl Jira {
     pub fn from_config(cfg: &Config) -> Option<Jira> {
@@ -86,8 +116,22 @@ impl Jira {
             "issuetype": { "name": self.issue_type },
             "summary": crate::logging::truncate(&bug.summary, 250),
             "description": bug.description,
-            "labels": bug.labels,
         });
+        let mut labels: Vec<Value> = bug.labels.iter().map(|l| Value::String(l.clone())).collect();
+        for (k, v) in &bug.extra {
+            if k == "project" {
+                continue;
+            }
+            if k == "labels" {
+                // şablondaki label'lar DOORS label'larına eklenir
+                labels.extend(v.as_array().cloned().unwrap_or_default());
+                continue;
+            }
+            fields[k.as_str()] = v.clone();
+        }
+        if !labels.is_empty() {
+            fields["labels"] = Value::Array(labels);
+        }
         let (mut st, mut v) = self.call("POST", "/rest/api/2/issue", Some(&json!({ "fields": fields })))?;
         if st == 400 && v["errors"].get("labels").is_some() {
             tracing::warn!(servis = "jira", durum = st, deneme = 1, "Jira label'ı reddetti, label'sız açılıyor");
@@ -96,10 +140,7 @@ impl Jira {
         }
         if !(200..300).contains(&st) {
             tracing::warn!(servis = "jira", durum = st, deneme = 2, "Jira bug açılamadı");
-            bail!(
-                "Jira {st}: {}",
-                redact(&crate::logging::truncate(&v.to_string(), 300), &self.secrets)
-            );
+            bail!("{}", redact(&jira_error(st, &v), &self.secrets));
         }
         v["key"]
             .as_str()
@@ -130,6 +171,59 @@ impl Jira {
             bail!("Jira ek {st}");
         }
         Ok(())
+    }
+
+    /// Bug oluşturma ekranının alanları (zorunlu olanlar dahil). Jira 8.4+ / 9 / Cloud'daki
+    /// `createmeta/{proje}/issuetypes` uçlarını, yoksa eski `createmeta?expand=` ucunu kullanır.
+    pub fn field_meta(&self) -> Result<Vec<FieldMeta>> {
+        let p = urlencoding::encode(&self.project).into_owned();
+        let (st, v) = self.call("GET", &format!("/rest/api/2/issue/createmeta/{p}/issuetypes?maxResults=200"), None)?;
+        if (200..300).contains(&st) {
+            let types = v["values"].as_array().or(v["issueTypes"].as_array()).cloned().unwrap_or_default();
+            let Some(t) = types
+                .iter()
+                .find(|t| t["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case(&self.issue_type)))
+            else {
+                let names: Vec<&str> = types.iter().filter_map(|t| t["name"].as_str()).collect();
+                bail!(
+                    "Jira projesinde '{}' iş türü yok. Var olanlar: {}",
+                    self.issue_type,
+                    names.join(", ")
+                );
+            };
+            let tid = t["id"].as_str().map(String::from).unwrap_or_else(|| t["id"].to_string());
+            let (st, v) = self.call(
+                "GET",
+                &format!("/rest/api/2/issue/createmeta/{p}/issuetypes/{tid}?maxResults=500"),
+                None,
+            )?;
+            if !(200..300).contains(&st) {
+                bail!("{}", redact(&jira_error(st, &v), &self.secrets));
+            }
+            let list = v["values"].as_array().or(v["fields"].as_array()).cloned().unwrap_or_default();
+            return Ok(list.iter().map(|f| parse_meta(f["fieldId"].as_str().unwrap_or(""), f)).collect());
+        }
+        // eski Jira: tek uç, alanlar nesne olarak
+        let (st, v) = self.call(
+            "GET",
+            &format!(
+                "/rest/api/2/issue/createmeta?projectKeys={p}&issuetypeNames={}&expand=projects.issuetypes.fields",
+                urlencoding::encode(&self.issue_type)
+            ),
+            None,
+        )?;
+        if !(200..300).contains(&st) {
+            bail!("{}", redact(&jira_error(st, &v), &self.secrets));
+        }
+        let fields = v["projects"][0]["issuetypes"][0]["fields"].as_object().cloned().unwrap_or_default();
+        if fields.is_empty() {
+            bail!(
+                "Jira '{}' projesi ya da '{}' iş türü için alan bilgisi vermedi (yetki?)",
+                self.project,
+                self.issue_type
+            );
+        }
+        Ok(fields.iter().map(|(k, f)| parse_meta(k, f)).collect())
     }
 
     /// Açık bug arama: DOORS label'ı ya da senaryo adı ile.
@@ -178,6 +272,80 @@ fn base64(s: &str) -> String {
     out
 }
 
+fn parse_meta(id: &str, f: &Value) -> FieldMeta {
+    let allowed = f["allowedValues"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .map(|o| {
+                    let id = o["id"].as_str().map(String::from).unwrap_or_else(|| o["id"].to_string());
+                    let name = o["name"]
+                        .as_str()
+                        .or(o["value"].as_str())
+                        .or(o["key"].as_str())
+                        .unwrap_or(&id)
+                        .to_string();
+                    (id, name)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    FieldMeta {
+        id: id.to_string(),
+        name: f["name"].as_str().unwrap_or(id).to_string(),
+        required: f["required"].as_bool().unwrap_or(false),
+        kind: f["schema"]["type"].as_str().unwrap_or("string").to_string(),
+        items: f["schema"]["items"].as_str().unwrap_or("").to_string(),
+        has_default: f["hasDefaultValue"].as_bool().unwrap_or(false),
+        allowed,
+    }
+}
+
+/// Jira'nın hata yanıtını okunur metne çevirir: alan bazında hatalar ve ne yapılacağı.
+pub fn jira_error(st: u16, v: &Value) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(m) = v["errors"].as_object() {
+        for (k, e) in m {
+            parts.push(format!("{k}: {}", e.as_str().unwrap_or(&e.to_string())));
+        }
+    }
+    if let Some(a) = v["errorMessages"].as_array() {
+        parts.extend(a.iter().filter_map(|x| x.as_str().map(String::from)));
+    }
+    if parts.is_empty() {
+        return format!("Jira {st}: {}", crate::logging::truncate(&v.to_string(), 300));
+    }
+    let hint = if v["errors"].as_object().is_some_and(|m| !m.is_empty()) {
+        " — Eksik/yanlış alanları Admin > Ayarlar > Jira'da \"Ek alanlar\" kısmına ya da bug formuna ekleyin; alan kimlikleri ve izinli değerler aynı sayfadaki \"Jira alanlarını getir\" ile görülür."
+    } else {
+        ""
+    };
+    format!("Jira {st}: {}{hint}", parts.join("; "))
+}
+
+/// Form değerini alanın türüne göre Jira'nın beklediği JSON'a çevirir. Boş değer → None.
+pub fn field_value(m: &FieldMeta, raw: &str) -> Option<Value> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    let many = || raw.split(',').map(str::trim).filter(|x| !x.is_empty());
+    let has_allowed = !m.allowed.is_empty();
+    Some(match (m.kind.as_str(), m.items.as_str()) {
+        ("array", "string") => Value::Array(many().map(|x| json!(x)).collect()),
+        ("array", _) if has_allowed => Value::Array(many().map(|x| json!({ "id": x })).collect()),
+        ("array", "user") => Value::Array(many().map(|x| json!({ "name": x })).collect()),
+        ("array", "option") => Value::Array(many().map(|x| json!({ "value": x })).collect()),
+        ("array", _) => Value::Array(many().map(|x| json!({ "name": x })).collect()),
+        ("number", _) => json!(raw.replace(',', ".").parse::<f64>().ok()?),
+        _ if has_allowed => json!({ "id": raw }),
+        ("user", _) => json!({ "name": raw }),
+        ("option", _) => json!({ "value": raw }),
+        ("priority" | "version" | "component" | "resolution", _) => json!({ "name": raw }),
+        _ => json!(raw),
+    })
+}
+
 /// Aynı hatanın parmak izi: proje + hata mesajının ilk satırı (sayılar ve adresler atılır).
 pub fn fingerprint(project_id: i64, message: &str) -> String {
     use sha2::{Digest, Sha256};
@@ -187,30 +355,63 @@ pub fn fingerprint(project_id: i64, message: &str) -> String {
     hex::encode(&Sha256::digest(format!("{project_id}|{norm}"))[..12])
 }
 
-pub fn bug_text(run_url: &str, scenario: &str, feature: &str, doors: &[String], message: &str, steps: &[String]) -> NewBug {
-    let mut d = String::new();
-    d.push_str(&format!("Otomatik test senaryosu kaldı: *{scenario}*\n\nFeature: {feature}\n"));
-    if !doors.is_empty() {
-        d.push_str(&format!("DOORS: {}\n", doors.join(", ")));
-    }
-    d.push_str(&format!(
-        "Rapor: {run_url}\n\n*Hata*\n{{noformat}}\n{}\n{{noformat}}\n",
-        crate::logging::truncate(message, 2000)
-    ));
-    if !steps.is_empty() {
-        d.push_str("\n*Adımlar*\n");
-        for s in steps {
-            d.push_str(&format!("# {s}\n"));
-        }
-    }
-    NewBug {
-        summary: format!(
-            "[Otomasyon] {scenario}: {}",
-            crate::logging::truncate(message.lines().next().unwrap_or(""), 120)
-        ),
-        description: d,
-        labels: doors.to_vec(),
-    }
+/// Bug metni için değerler (şablondaki `{{ad}}` yer tutucuları).
+pub struct BugInput<'a> {
+    pub scenario_id: i64,
+    pub run_id: i64,
+    pub scenario: &'a str,
+    pub feature: &'a str,
+    pub doors: &'a [String],
+    pub message: &'a str,
+    pub steps: &'a [String],
+}
+
+pub fn vars(c: &Connection, public_url: &str, b: &BugInput) -> Result<BTreeMap<&'static str, String>> {
+    let (proje, branch, commit, tarih): (String, String, Option<String>, String) = c.query_row(
+        "SELECT p.path, r.branch, r.commit_sha, r.started_at FROM runs r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1",
+        [b.run_id],
+        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+    )?;
+    let mut v = BTreeMap::new();
+    v.insert("senaryo", b.scenario.to_string());
+    v.insert("feature", b.feature.to_string());
+    v.insert("doors", b.doors.join(", "));
+    v.insert("hata", crate::logging::truncate(b.message, 2000));
+    v.insert(
+        "hata_ilk_satir",
+        crate::logging::truncate(b.message.lines().next().unwrap_or(""), 120),
+    );
+    v.insert("adimlar", b.steps.iter().map(|s| format!("# {s}")).collect::<Vec<_>>().join("\n"));
+    v.insert("rapor", format!("{public_url}/scenarios/{}", b.scenario_id));
+    v.insert("kosum_rapor", format!("{public_url}/runs/{}", b.run_id));
+    v.insert("proje", proje);
+    v.insert("branch", branch);
+    v.insert("commit", commit.map(|c| c.chars().take(8).collect()).unwrap_or_default());
+    v.insert("kosum", b.run_id.to_string());
+    v.insert("tarih", tarih.chars().take(16).collect::<String>().replace('T', " "));
+    Ok(v)
+}
+
+/// Şablondan bug: özet, açıklama, DOORS label'ları ve ek alanlar.
+pub fn build_bug(t: &JiraSablon, vars: &BTreeMap<&str, String>, doors: &[String]) -> Result<NewBug> {
+    let extra = match ayarlar::fill_json(&Value::Object(ayarlar::extra_fields(&t.alanlar)?), vars) {
+        Value::Object(m) => m,
+        _ => Map::new(),
+    };
+    Ok(NewBug {
+        summary: ayarlar::fill(&t.ozet, vars).lines().next().unwrap_or("").trim().to_string(),
+        description: ayarlar::fill(&t.aciklama, vars),
+        labels: if t.doors_label { doors.to_vec() } else { vec![] },
+        extra,
+    })
+}
+
+fn top_steps(c: &Connection, sid: i64) -> Result<Vec<String>> {
+    Ok(crate::queries::steps(c, sid)?
+        .into_iter()
+        .filter(|s| s.depth == 0)
+        .map(|s| s.name)
+        .collect())
 }
 
 struct Failed {
@@ -279,9 +480,15 @@ pub struct MatchReport {
 }
 
 /// SW-6.2 + SW-6.3: koşum bittikten sonra çalışır. `jira` None ise yalnızca tag eşleşmesi yapılır.
-pub fn process_run(c: &Connection, paths: &Paths, cfg: &Config, jira: Option<&Jira>, run_id: i64) -> Result<MatchReport> {
+pub fn process_run(
+    c: &Connection,
+    paths: &Paths,
+    cfg: &Config,
+    sablon: &JiraSablon,
+    jira: Option<&Jira>,
+    run_id: i64,
+) -> Result<MatchReport> {
     let mut rep = MatchReport::default();
-    let run_url = format!("{}/runs/{run_id}", cfg.public_url);
     let failed = failed_scenarios(c, run_id)?;
     let mut created_this_run = 0usize;
     for f in &failed {
@@ -357,12 +564,23 @@ pub fn process_run(c: &Connection, paths: &Paths, cfg: &Config, jira: Option<&Ji
             continue;
         }
         created_this_run += 1;
-        let steps: Vec<String> = crate::queries::steps(c, f.id)?
-            .into_iter()
-            .filter(|s| s.depth == 0)
-            .map(|s| s.name)
-            .collect();
-        let bug = bug_text(&run_url, &f.name, &f.feature, &f.doors, &f.message, &steps);
+        let steps = top_steps(c, f.id)?;
+        let input = BugInput {
+            scenario_id: f.id,
+            run_id,
+            scenario: &f.name,
+            feature: &f.feature,
+            doors: &f.doors,
+            message: &f.message,
+            steps: &steps,
+        };
+        let bug = match build_bug(sablon, &vars(c, &cfg.public_url, &input)?, &f.doors) {
+            Ok(b) => b,
+            Err(e) => {
+                record(c, run_id, Some(f.id), "hata", Some(&fp), None, &e.to_string())?;
+                continue;
+            }
+        };
         if cfg.jira_mode == JiraMode::Observe {
             record(c, run_id, Some(f.id), "acilacakti", Some(&fp), None, &bug.summary)?;
             tracing::info!(run_id, senaryo_id = f.id, ozet = %bug.summary, "Jira bug'ı açılacaktı (gözlem modu)");
@@ -389,23 +607,26 @@ pub fn process_run(c: &Connection, paths: &Paths, cfg: &Config, jira: Option<&Ji
     Ok(rep)
 }
 
-/// Admin düğmesi: tek senaryo için bug aç (gözlem modundan bağımsız).
-pub fn create_for_scenario(c: &Connection, paths: &Paths, cfg: &Config, j: &Jira, sid: i64) -> Result<String> {
+/// Bug formunun ilk hali: şablondan doldurulmuş özet, açıklama ve ek alanlar.
+pub fn draft_for_scenario(c: &Connection, cfg: &Config, sablon: &JiraSablon, sid: i64) -> Result<NewBug> {
     let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
-    let steps: Vec<String> = crate::queries::steps(c, sid)?
-        .into_iter()
-        .filter(|s| s.depth == 0)
-        .map(|s| s.name)
-        .collect();
-    let bug = bug_text(
-        &format!("{}/runs/{}", cfg.public_url, s.run_id),
-        &s.name,
-        s.feature.as_deref().unwrap_or(""),
-        &s.doors_ids,
-        s.message.as_deref().unwrap_or(""),
-        &steps,
-    );
-    let k = j.create_bug(&bug)?;
+    let steps = top_steps(c, sid)?;
+    let input = BugInput {
+        scenario_id: sid,
+        run_id: s.run_id,
+        scenario: &s.name,
+        feature: s.feature.as_deref().unwrap_or(""),
+        doors: &s.doors_ids,
+        message: s.message.as_deref().unwrap_or(""),
+        steps: &steps,
+    };
+    build_bug(sablon, &vars(c, &cfg.public_url, &input)?, &s.doors_ids)
+}
+
+/// Admin: tek senaryo için bug aç (gözlem modundan bağımsız). `bug` formdan gelir.
+pub fn create_for_scenario(c: &Connection, paths: &Paths, j: &Jira, sid: i64, bug: &NewBug) -> Result<String> {
+    let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
+    let k = j.create_bug(bug)?;
     let fp = fingerprint(s.project_id, s.message.as_deref().unwrap_or(""));
     c.execute(
         "INSERT OR IGNORE INTO bug_links (scenario_id, project_id, scenario_key, jira_key, source, fingerprint, created_at) VALUES (?1, ?2, ?3, ?4, 'admin', ?5, ?6)",
@@ -433,15 +654,51 @@ mod tests {
 
     #[test]
     fn test_sw_6_1_doors_in_labels_and_description() {
-        let b = bug_text(
-            "http://r/runs/1",
-            "Giriş",
-            "F",
-            &["DOORS-1003".into()],
-            "expected x",
-            &["adım 1".into()],
-        );
+        let mut v = BTreeMap::new();
+        v.insert("senaryo", "Giriş".to_string());
+        v.insert("doors", "DOORS-1003".to_string());
+        v.insert("hata_ilk_satir", "expected x".to_string());
+        let mut t = JiraSablon::default();
+        let b = build_bug(&t, &v, &["DOORS-1003".into()]).unwrap();
         assert_eq!(b.labels, vec!["DOORS-1003"]);
-        assert!(b.description.contains("DOORS-1003"));
+        assert!(b.description.contains("DOORS: DOORS-1003"));
+        assert_eq!(b.summary, "[Otomasyon] Giriş: expected x");
+        t.doors_label = false;
+        t.alanlar = r#"{"priority": {"name": "Major"}, "customfield_10200": "{{senaryo}}"}"#.into();
+        let b = build_bug(&t, &v, &["DOORS-1003".into()]).unwrap();
+        assert!(b.labels.is_empty());
+        assert_eq!(b.extra["customfield_10200"], "Giriş");
+    }
+
+    #[test]
+    fn test_sw_6_1_field_values_by_schema() {
+        let m = |kind: &str, items: &str, allowed: &[(&str, &str)]| FieldMeta {
+            id: "f".into(),
+            name: "F".into(),
+            required: true,
+            kind: kind.into(),
+            items: items.into(),
+            has_default: false,
+            allowed: allowed.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect(),
+        };
+        assert_eq!(
+            field_value(&m("option", "", &[("10", "Yazılım")]), "10").unwrap(),
+            json!({"id": "10"})
+        );
+        assert_eq!(field_value(&m("option", "", &[]), "Yazılım").unwrap(), json!({"value": "Yazılım"}));
+        assert_eq!(
+            field_value(&m("array", "component", &[("1", "A"), ("2", "B")]), "1, 2").unwrap(),
+            json!([{"id": "1"}, {"id": "2"}])
+        );
+        assert_eq!(field_value(&m("array", "string", &[]), "a, b").unwrap(), json!(["a", "b"]));
+        assert_eq!(field_value(&m("number", "", &[]), "2,5").unwrap(), json!(2.5));
+        assert_eq!(field_value(&m("user", "", &[]), "ali").unwrap(), json!({"name": "ali"}));
+        assert_eq!(field_value(&m("priority", "", &[]), "Major").unwrap(), json!({"name": "Major"}));
+        assert_eq!(field_value(&m("string", "", &[]), "  "), None);
+        let e = jira_error(
+            400,
+            &json!({"errorMessages": [], "errors": {"customfield_10200": "Faz is required."}}),
+        );
+        assert!(e.contains("customfield_10200: Faz is required.") && e.contains("Ek alanlar"), "{e}");
     }
 }

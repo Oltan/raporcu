@@ -106,7 +106,7 @@
           {% if r.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
           {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
           <div>
-            {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+            {% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}
             {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
             {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
           </div>

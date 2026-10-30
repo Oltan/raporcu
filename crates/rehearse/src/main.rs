@@ -769,5 +769,25 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         html.contains("Reddedildi (koruma)"),
         "",
     );
+
+    // raporcu'daki senaryo düğmesi: STAJ_FIX_SCENARIO_ID ile yalnızca o senaryo (hedefi jira olsa da)
+    let run = get_json(&format!("{}/api/runs/{run_id}", server.url()))?;
+    let sid = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["senaryo"]["name"] == "Yanlış şifrede özel mesaj")
+        .and_then(|x| x["senaryo"]["id"].as_i64())
+        .unwrap_or(0);
+    s.set("STAJ_FAKE_MODE", "normal").set("STAJ_FIX_SCENARIO_ID", sid.to_string());
+    let o = s.run(&["fix"])?;
+    ck.check(
+        "SW-7.4",
+        "senaryo düğmesi: yalnızca seçilen senaryo düzeltilir",
+        o.text.contains("yalnızca seçilen senaryo")
+            && o.text.contains("OpenCode denemesi: Yanlış şifrede özel mesaj")
+            && !o.text.contains("OpenCode denemesi: Şifremi unuttum"),
+        &o.text,
+    );
     Ok(())
 }

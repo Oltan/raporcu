@@ -67,3 +67,15 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   ekran `ws://` ile bağlanır. Tokenlar yine `.env`'de durur ve loglanmaz. stajci'nin `fix`
   komutundaki GitLab push/MR istekleri GitLab'ın kendi adresine (`CI_SERVER_URL`, https olabilir)
   gider; bu raporcu'dan bağımsızdır.
+- **Jira bug içeriği ve DOORS eşleşmesi arayüzden:** bağlantı bilgileri `.env`'de kalır; bug
+  şablonu (yer tutuculu özet/açıklama, ek alanlar JSON) ve DOORS öznitelikleri `settings`
+  tablosunda, Admin > Ayarlar'dan değişir (`docs/JIRA_DOORS_AYARLARI.md`). Zorunlu alanlar Jira'nın
+  createmeta ucundan okunur; şirketten şirkete değişen alanlar için kod değişikliği gerekmez.
+- **DOORS bağı tag ile:** `@DOORS-<no>`, `<no>` = DOORS kimlik özniteliğinin değeri. Önek sabit
+  (`DOORS-`); kimlik özniteliği ayarlanabilir.
+- **Self-healing ajanı ve skill'ler:** OpenCode ajanı `.opencode/agents/fix.md`; skill'ler
+  `.claude/skills/` (OpenCode ve Claude Code ikisi de okur, tek kopya). OpenCode runner'da çalışır,
+  raporcu sunucusunda değil; raporcu'daki düğmeler GitLab API ile fix işini başlatır. Senaryo
+  düğmesi yalnızca o senaryoyu, triage hedefinden bağımsız düzeltir.
+- **Xvfb ekran numarası:** `xvfb-run -a` aramayı süreç numarasına göre farklı yerden başlatır
+  (`-n 99+pid%400`); aynı anda başlayan iki işin aynı ekranı alması (provada görüldü) önlenir.

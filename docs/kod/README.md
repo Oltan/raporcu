@@ -10,11 +10,11 @@ gerektiren belgelerde ayrıca "Python karşılığı" notu var; genel eşleme a�
 | Bölüm | Belgeler |
 |-------|----------|
 | Ortak (`crates/common`) | [lib](common/lib.md) · [allure](common/allure.md) — Allure dosya ayrıştırma · [api](common/api.md) — CI API tipleri, sürüm uyumu |
-| Sunucu çekirdek (`crates/raporcu/src`) | [main](raporcu/main.md) · [lib](raporcu/lib.md) (AppState, router) · [config](raporcu/config.md) · [paths](raporcu/paths.md) · [db](raporcu/db.md) · [logging](raporcu/logging.md) · [auth](raporcu/auth.md) |
+| Sunucu çekirdek (`crates/raporcu/src`) | [main](raporcu/main.md) · [lib](raporcu/lib.md) (AppState, router) · [config](raporcu/config.md) · [ayarlar](raporcu/ayarlar.md) (Jira şablonu, DOORS) · [paths](raporcu/paths.md) · [db](raporcu/db.md) · [logging](raporcu/logging.md) · [auth](raporcu/auth.md) |
 | Sonuç alma | [upload](raporcu/upload.md) (zip) · [ingest](raporcu/ingest.md) (Allure → veritabanı, is_latest) · [hooks](raporcu/hooks.md) (yükleme/bitiş sonrası işler) · [stall](raporcu/stall.md) (durgun koşum) · [live](raporcu/live.md) (canlı durum) |
 | Rapor | [queries](raporcu/queries.md) · [history](raporcu/history.md) · [charts](raporcu/charts.md) (SVG) · [export](raporcu/export.md) (CSV, DOORS) · [share](raporcu/share.md) · [disk](raporcu/disk.md) |
 | Entegrasyon | [triage](raporcu/triage.md) · [fix](raporcu/fix.md) (self-healing kayıtları) · [jira](raporcu/jira.md) · [gitlab](raporcu/gitlab.md) · [email](raporcu/email.md) |
-| Web katmanı (`src/web`) | [mod](raporcu/web/mod.md) (yönlendirme, statik, WebSocket) · [ci](raporcu/web/ci.md) (CI uçları) · [files](raporcu/web/files.md) · [gitlab_hook](raporcu/web/gitlab_hook.md) · [tools](raporcu/web/tools.md) · [admin](raporcu/web/admin.md) · [pages](raporcu/web/pages.md) |
+| Web katmanı (`src/web`) | [mod](raporcu/web/mod.md) (yönlendirme, statik, WebSocket) · [ci](raporcu/web/ci.md) (CI uçları) · [files](raporcu/web/files.md) · [gitlab_hook](raporcu/web/gitlab_hook.md) · [tools](raporcu/web/tools.md) · [admin](raporcu/web/admin.md) · [ayarlar](raporcu/web/ayarlar.md) · [pages](raporcu/web/pages.md) |
 | Şablonlar ve statik | [templates](raporcu/templates/README.md) · [static](diger/static.md) |
 | Veritabanı şeması | [migrations](diger/migrations.md) |
 | CI aracı (`crates/stajci`) | [main](stajci/main.md) · [ctx](stajci/ctx.md) · [client](stajci/client.md) · [gherkin](stajci/gherkin.md) · [preflight](stajci/preflight.md) · [runner](stajci/runner.md) (`start`) · [watch](stajci/watch.md) · [upload](stajci/upload.md) (`upload`, `finish`) · [fix](stajci/fix.md) |

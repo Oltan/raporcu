@@ -13,7 +13,7 @@
       {% if l.share.is_none() %}<span><a href="/history?project={{ s.project_id }}&branch={{ s.branch|enc }}&key={{ s.scenario_key|enc }}">Geçmiş</a></span>{% endif %}
     </div>
     <div style="margin-top:6px">
-      {% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+      {% for d in s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}
       {% if l.share.is_none() %}{% for j in jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
       {% for t in s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
     </div>
@@ -91,14 +91,21 @@
     <ul class="adimlar">{% for b in bugs %}<li><span class="ad">{% if let Some(u) = jira_url %}<a href="{{ u }}/browse/{{ b.jira_key }}">{{ b.jira_key }}</a>{% else %}{{ b.jira_key }}{% endif %}</span><span class="kucuk">{{ b.source }}</span></li>{% endfor %}</ul>
     {% endif %}
     {% if l.admin && s.is_failure() %}
-    <form method="post" action="/admin/scenarios/{{ s.id }}/jira" class="satir" style="margin-top:8px"><button>Jira'ya bug aç</button></form>
+    <p style="margin-top:8px"><a class="btn" href="/admin/scenarios/{{ s.id }}/jira">Jira'ya bug aç…</a></p>
     {% endif %}
   </section>
 
   {% endif %}
-  {% if l.share.is_none() && !fixes.is_empty() %}
+  {% if l.share.is_none() && (!fixes.is_empty() || (l.admin && s.is_failure())) %}
   <section class="kart">
     <h2>OpenCode</h2>
+    {% if fix_notice %}<p class="kucuk">Fix işi GitLab'da başlatıldı; sonuç bu sayfaya yazılacak.</p>{% endif %}
+    {% if l.admin && s.is_failure() %}
+    <form method="post" action="/admin/scenarios/{{ s.id }}/fix" class="satir" style="margin-bottom:8px">
+      <button class="ana" title="GitLab'da yalnızca fix işini bu senaryo için başlatır (STAJ_FIX_SCENARIO_ID)">OpenCode ile düzelt</button>
+      <span class="kucuk">Triage hedefinden bağımsız; yalnızca bu senaryo.</span>
+    </form>
+    {% endif %}
     {% for f in fixes %}
     <div class="duzeltme {% if f.outcome == "draft_mr" %}draft{% endif %}">
       {{ f.outcome_label() }}{% if let Some(u) = f.mr_url %} · <a href="{{ u }}">{{ f.badge() }}</a>{% endif %}

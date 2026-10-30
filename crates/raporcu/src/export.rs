@@ -3,6 +3,7 @@
 //! CSV akış halinde yazılır: satırlar veritabanından okundukça parça parça gönderilir (SW-10.6).
 //! UTF-8 BOM ile başlar; Excel Türkçe karakterleri doğru açar.
 
+use crate::ayarlar::DoorsAyar;
 use crate::queries::{search_where, SearchFilter};
 use crate::AppState;
 use axum::body::Body;
@@ -182,7 +183,7 @@ pub struct DoorsRow {
     pub date: String,
 }
 
-pub fn doors_rows(c: &Connection, run_id: i64) -> anyhow::Result<Vec<DoorsRow>> {
+pub fn doors_rows(c: &Connection, run_id: i64, ayar: &DoorsAyar) -> anyhow::Result<Vec<DoorsRow>> {
     let mut st = c.prepare(
         "SELECT s.doors_ids, s.name, COALESCE(s.feature, ''), s.status,
                 TRIM(s.jira_keys || ' ' || COALESCE((SELECT GROUP_CONCAT(b.jira_key, ' ') FROM bug_links b WHERE b.scenario_id = s.id), '')),
@@ -198,23 +199,13 @@ pub fn doors_rows(c: &Connection, run_id: i64) -> anyhow::Result<Vec<DoorsRow>> 
                 doors_id: id.to_string(),
                 scenario: r.get(1)?,
                 feature: r.get(2)?,
-                status: doors_status(&r.get::<_, String>(3)?).to_string(),
+                status: ayar.status(&r.get::<_, String>(3)?).to_string(),
                 jira: r.get::<_, String>(4)?.split_whitespace().collect::<Vec<_>>().join(" "),
                 date: r.get(5)?,
             });
         }
     }
     Ok(out)
-}
-
-/// DOORS tarafında kullanılan sonuç değerleri.
-pub fn doors_status(s: &str) -> &'static str {
-    match s {
-        "passed" => "Geçti",
-        "failed" | "broken" => "Kaldı",
-        "skipped" => "Atlandı",
-        _ => "Koşulmadı",
-    }
 }
 
 pub fn doors_csv(rows: &[DoorsRow], run_id: i64) -> String {
@@ -252,15 +243,25 @@ fn dxl_str(s: &str) -> String {
     o
 }
 
-/// DXL betiği: açık modülde "Object Identifier" (ya da DOORS_ID_ATTR) değeri eşleşen nesnelerin
-/// "Test Sonucu", "Test Tarihi" ve "Jira" özniteliklerini günceller.
-pub fn doors_dxl(rows: &[DoorsRow], run_id: i64, report_url: &str) -> String {
+/// DXL betiği: modülü açar (ayarlarda yol yoksa açık modülü kullanır), kimlik özniteliği
+/// eşleşen nesnelerin sonuç, tarih, Jira ve rapor özniteliklerini yazar (Admin > Ayarlar > DOORS).
+pub fn doors_dxl(rows: &[DoorsRow], run_id: i64, report_url: &str, a: &DoorsAyar) -> String {
     let mut s = String::new();
     s.push_str("// raporcu DOORS aktarımı — koşum ");
     s.push_str(&run_id.to_string());
-    s.push_str("\n// Kullanım: hedef modülü açın, Tools > Edit DXL ile bu dosyayı çalıştırın.\n");
-    s.push_str("// Öznitelik adları modülünüze göre aşağıdan değiştirilebilir.\n\n");
-    s.push_str("string idAttr = \"Absolute Number\"\nstring resultAttr = \"Test Sonucu\"\nstring dateAttr = \"Test Tarihi\"\nstring jiraAttr = \"Jira\"\nstring linkAttr = \"Test Raporu\"\n\n");
+    s.push_str("\n// Kullanım: DOORS'ta Tools > Edit DXL ile bu dosyayı çalıştırın.\n");
+    s.push_str("// Öznitelik adları ve sonuç değerleri raporcu'da Admin > Ayarlar > DOORS'tan gelir.\n");
+    s.push_str("// Boş öznitelik adı: o öznitelik yazılmaz.\n\n");
+    for (name, v) in [
+        ("modulYolu", &a.modul),
+        ("idAttr", &a.id_oznitelik),
+        ("resultAttr", &a.sonuc_oznitelik),
+        ("dateAttr", &a.tarih_oznitelik),
+        ("jiraAttr", &a.jira_oznitelik),
+        ("linkAttr", &a.rapor_oznitelik),
+    ] {
+        s.push_str(&format!("string {name} = {}\n", dxl_str(v)));
+    }
     s.push_str(&format!("string reportUrl = {}\n", dxl_str(report_url)));
     s.push_str(&format!("int n = {}\n", rows.len()));
     s.push_str("string ids[] = {");
@@ -279,24 +280,37 @@ pub fn doors_dxl(rows: &[DoorsRow], run_id: i64, report_url: &str) -> String {
     s.push_str(&rows.iter().map(|r| dxl_str(&r.jira)).collect::<Vec<_>>().join(", "));
     s.push_str("}\n\n");
     s.push_str(
-        r#"Module m = current
-if (null m) { ack "Önce hedef modülü açın"; halt }
+        r#"Module m = null
+bool opened = false
+if (modulYolu == "") {
+    m = current
+    if (null m) { ack "Önce hedef modülü açın (ya da raporcu ayarlarında modül yolunu verin)"; halt }
+} else {
+    m = edit(modulYolu, false)
+    if (null m) { ack "Modül açılamadı (yol ya da yazma yetkisi): " modulYolu; halt }
+    opened = true
+}
 int updated = 0
+int notFound = 0
 int i
 for (i = 0; i < n; i++) {
     Object o
+    bool found = false
     for o in entire m do {
         string v = o.idAttr ""
         if (v == ids[i]) {
-            if (canWrite(o.resultAttr)) o.resultAttr = results[i]
-            if (canWrite(o.dateAttr)) o.dateAttr = dates[i]
-            if (canWrite(o.jiraAttr)) o.jiraAttr = jiras[i]
-            if (canWrite(o.linkAttr)) o.linkAttr = reportUrl
+            found = true
+            if (resultAttr != "" && canWrite(o.resultAttr)) o.resultAttr = results[i]
+            if (dateAttr != "" && canWrite(o.dateAttr)) o.dateAttr = dates[i]
+            if (jiraAttr != "" && canWrite(o.jiraAttr)) o.jiraAttr = jiras[i]
+            if (linkAttr != "" && canWrite(o.linkAttr)) o.linkAttr = reportUrl
             updated++
         }
     }
+    if (!found) notFound++
 }
-infoBox "raporcu: " updated " nesne güncellendi"
+if (opened && updated > 0) save m
+infoBox "raporcu: " updated " nesne güncellendi, " notFound " DOORS numarası modülde bulunamadı"
 "#,
     );
     s

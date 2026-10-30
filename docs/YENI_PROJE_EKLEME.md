@@ -33,8 +33,10 @@ variables:
 `STAJ_FIX_TOKEN`; webhook (Pipeline + Merge request events); gece schedule'ı 02:00.
 Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.
 
-**7. OpenCode** — `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agent/fix.md` ve
-`AGENTS.md`'yi projeye kopyalayın; `AGENTS.md`'yi projenize göre doldurun.
+**7. OpenCode** — `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agents/fix.md` ve
+`AGENTS.md`'yi projeye kopyalayın; `AGENTS.md`'yi projenize göre doldurun. Skill'ler:
+`ci/skills/*` → projede `.claude/skills/` (OpenCode ve Claude Code ikisi de okur). Ayrıntı:
+`docs/KOD_AJANI_VLLM.md`.
 
 **8. Deneyin** — branch'e push edin; pipeline'da `stajci preflight` eksikleri açık mesajla söyler.
 İlk yükleme bittiğinde proje dashboard'da kendiliğinden görünür; rapor linki report işinin

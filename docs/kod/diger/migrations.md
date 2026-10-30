@@ -1,6 +1,6 @@
 # migrations/ — SQLite şeması
 
-`0001_ilk.sql`, `0002_triage_kolonu.sql`. Dosyalar ikiliye gömülüdür; sunucu açılışta
+`0001_ilk.sql`, `0002_triage_kolonu.sql`, `0003_ayarlar.sql`. Dosyalar ikiliye gömülüdür; sunucu açılışta
 `schema_migrations` tablosunda adı olmayanları sırayla uygular (`db.md`); veritabanı `DATA_DIR/raporcu.db`, WAL kipinde. Koşum,
 senaryo, adım ve triage kayıtları **hiç silinmez** (SW-10.8); yalnızca ek dosyaları silinip
 `deleted_at` işaretlenir. Python'a geçişte aynı SQL dosyaları `sqlite3` ile aynen kullanılır
@@ -24,6 +24,7 @@ Zamanlar ISO-8601 metin (`TEXT`), süreler milisaniye tamsayı.
 | `fix_attempts` | self-healing denemesi | `outcome` (`mr_opened`/`draft_mr`/`no_change`/`rejected`/`error`), MR bilgisi, `mr_state` (webhook ile `merged/closed`), `validation_passed`, `diff`, `warnings` |
 | `pipelines` | pipeline durumu (webhook) | `(project_id, pipeline_id)` tekil |
 | `emails` | gönderilen özet e-posta | `pipeline_key` tekil → pipeline başına bir e-posta |
+| `settings` | arayüz ayarı (0003) | `key` (`jira`, `doors`), `value` JSON (`ayarlar.md`) |
 | `users` | kullanıcı | şimdilik tek `admin` satırı; şifre hash'i `.env`'de |
 
 ## Kritik kural: is_latest

@@ -1,6 +1,7 @@
 //! raporcu: test sonuç merkezi.
 
 pub mod auth;
+pub mod ayarlar;
 pub mod charts;
 pub mod config;
 pub mod db;
@@ -45,12 +46,19 @@ pub struct AppState {
     pub disk: disk::DiskState,
     /// Şu an koşan senaryo/adım (Cucumber canlı olay eklentisi)
     pub canli: live::LiveStates,
+    /// Arayüzden düzenlenen ayarlar (Jira şablonu, DOORS)
+    pub ayarlar: ayarlar::Store,
 }
 
 impl AppState {
     pub fn new(cfg: Config, recent_logs: logging::RecentLogs) -> anyhow::Result<AppState> {
         let paths = Paths::new(&cfg.data_dir);
         let db = Db::open(&paths, cfg.sqlite_cache_kib, cfg.read_pool_size)?;
+        let ayarlar = ayarlar::Store::default();
+        match db.read_blocking(ayarlar::load) {
+            Ok(a) => ayarlar.set(a),
+            Err(e) => tracing::warn!(hata = %e, "ayarlar okunamadı, varsayılanlar kullanılıyor"),
+        }
         let auth = Arc::new(auth::LocalAdmin::new(
             cfg.admin_password_hash.as_ref().map(|s| s.expose().to_string()),
         ));
@@ -65,6 +73,7 @@ impl AppState {
             live: tokio::sync::broadcast::channel(256).0,
             disk: Default::default(),
             canli: Default::default(),
+            ayarlar,
         })
     }
 }

@@ -96,7 +96,7 @@ senaryoda geçtiğini doğrular; CI değişkeni `STAJ_TAGS` bunu ezer.
 | 7.1 | Uygulamadaki her etkileşimli düğümün `fx:id`'si olsun; testler `#fxId` seçicisi kullansın | Z — model metne göre değil kimliğe göre düzeltir |
 | 7.2 | Kod düzeni: `src/test/resources/features/`, adım tanımları `src/test/java/...`, uygulama `src/main/` | Z — ajan yalnızca `src/test/` altını değiştirebilir |
 | 7.3 | `AGENTS.md` (OpenCode) ya da `CLAUDE.md` (Claude Code): uygulamanın ekranları, önemli `fx:id`'ler, kurallar | Ö — şablonlar `ci/opencode/template/`, `ci/claude/template/` |
-| 7.4 | `opencode.json` + `.opencode/agent/fix.md` ya da `.claude/settings.json` + `.mcp.json` | Z (seçilen ajana göre) |
+| 7.4 | `opencode.json` + `.opencode/agents/fix.md` ya da `.claude/settings.json` + `.mcp.json` | Z (seçilen ajana göre) |
 | 7.5 | Tek senaryonun koşabilmesi: `mvn test -Dcucumber.filter.name="^Ad$"` | Z — düzeltme doğrulama koşusu bununla yapılır |
 | 7.6 | Ekran görüntüsü (4.1) ve sahne ağacı (4.2) | Z / Ö — görsel destekli vLLM modeli bunlarla bağlam kurar |
 

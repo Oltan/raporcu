@@ -141,6 +141,8 @@ struct JiraLog {
     reject_labels: bool,
     search_hit: Option<String>,
     auth: Vec<String>,
+    /// bu alan yoksa Jira 400 döner (zorunlu özel alan benzetimi)
+    require_field: Option<String>,
 }
 
 type JL = Arc<Mutex<JiraLog>>;
@@ -160,6 +162,14 @@ async fn fake_jira(log: JL) -> String {
                 Json(json!({ "errors": { "labels": "Field 'labels' cannot be set." } })),
             );
         }
+        if let Some(f) = g.require_field.clone() {
+            if v["fields"].get(&f).is_none() {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "errorMessages": [], "errors": { f: "Faz is required." } })),
+                );
+            }
+        }
         g.created.push(v);
         let key = format!("BUG-{}", g.created.len());
         (StatusCode::CREATED, Json(json!({ "key": key })))
@@ -176,8 +186,26 @@ async fn fake_jira(log: JL) -> String {
             None => Json(json!({ "issues": [] })),
         }
     }
+    async fn issuetypes() -> Json<Value> {
+        Json(json!({ "values": [{ "id": "10004", "name": "Bug" }, { "id": "10001", "name": "Task" }] }))
+    }
+    async fn fields(Path((_p, t)): Path<(String, String)>) -> Json<Value> {
+        assert_eq!(t, "10004");
+        Json(json!({ "values": [
+            { "fieldId": "summary", "name": "Summary", "required": true, "schema": { "type": "string" } },
+            { "fieldId": "customfield_10200", "name": "Faz", "required": true, "hasDefaultValue": false,
+              "schema": { "type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:select" },
+              "allowedValues": [{ "id": "10300", "value": "Yazılım" }, { "id": "10301", "value": "Sistem" }] },
+            { "fieldId": "priority", "name": "Priority", "required": true, "hasDefaultValue": true,
+              "schema": { "type": "priority" }, "allowedValues": [{ "id": "2", "name": "Critical" }, { "id": "3", "name": "Major" }] },
+            { "fieldId": "components", "name": "Component/s", "required": false,
+              "schema": { "type": "array", "items": "component" }, "allowedValues": [{ "id": "500", "name": "UI" }, { "id": "501", "name": "Giriş" }] }
+        ] }))
+    }
     spawn_fake(
         Router::new()
+            .route("/rest/api/2/issue/createmeta/{p}/issuetypes", get(issuetypes))
+            .route("/rest/api/2/issue/createmeta/{p}/issuetypes/{t}", get(fields))
             .route("/rest/api/2/issue", post(create))
             .route("/rest/api/2/issue/{key}/attachments", post(attach))
             .route("/rest/api/2/search", get(search))
@@ -581,8 +609,7 @@ async fn test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api() {
     assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
     let r = post_form(&app, &format!("/admin/runs/{id}/fix"), &app.admin_cookie(), "").await;
     assert_eq!(r.status(), StatusCode::SEE_OTHER);
-    let g = got.lock().unwrap();
-    let (proj, tok, body) = &g[0];
+    let (proj, tok, body) = got.lock().unwrap()[0].clone();
     assert_eq!(proj, "55");
     assert_eq!(tok, "glpat-gizli-token");
     assert_eq!(body["ref"], "main");
@@ -591,6 +618,22 @@ async fn test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api() {
     assert!(vars
         .iter()
         .any(|v| v["key"] == "STAJ_RUN_ID" && v["value"] == id.to_string().as_str()));
+    assert!(
+        !vars.iter().any(|v| v["key"] == "STAJ_FIX_SCENARIO_ID"),
+        "koşum düğmesi: tüm adaylar"
+    );
+    // senaryo düğmesi: yalnızca o senaryo
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get_admin(&format!("/scenarios/{sid}")).await;
+    assert!(page.contains(&format!("/admin/scenarios/{sid}/fix")));
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/fix"), &app.admin_cookie(), "").await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert_eq!(r.headers()["location"], format!("/scenarios/{sid}?notice=fix").as_str());
+    let g = got.lock().unwrap();
+    let vars = g[1].2["variables"].as_array().unwrap();
+    assert!(vars
+        .iter()
+        .any(|v| v["key"] == "STAJ_FIX_SCENARIO_ID" && v["value"] == sid.to_string().as_str()));
 }
 
 #[tokio::test]
@@ -617,4 +660,144 @@ async fn test_sw_9_2_gitlab_token_not_in_error_messages_or_logs() {
     assert!(!all.contains("glpat-COK-GIZLI-9"), "logda token görünmez");
     assert!(!all.contains("jira-gizli-pat"));
     assert!(!all.contains("test-ci-token"));
+}
+
+// --- Jira şablonu, zorunlu alanlar ve bug formu; DOORS ayarları -----------------------------
+
+#[tokio::test]
+async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {
+    let log: JL = Default::default();
+    log.lock().unwrap().require_field = Some("customfield_10200".into());
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, raporcu::config::JiraMode::Off));
+    let cookie = app.admin_cookie();
+    let id = upload_sample(&app, Q).await;
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+
+    // zorunlu alan şablonda yokken: Jira'nın hatası alan adıyla ve ne yapılacağıyla gösterilir
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira"), &cookie, "").await;
+    let body = body_string(r).await;
+    assert!(body.contains("customfield_10200: Faz is required."), "{body}");
+    assert!(body.contains("Ek alanlar"));
+    // formdan gönderilip Jira reddederse: form, girilen değerlerle ve hatayla yeniden gelir
+    let r = post_form(
+        &app,
+        &format!("/admin/scenarios/{sid}/jira"),
+        &cookie,
+        "ozet=Benim+ozetim&aciklama=x&ek=",
+    )
+    .await;
+    assert_eq!(r.status(), StatusCode::BAD_GATEWAY);
+    let body = body_string(r).await;
+    assert!(
+        body.contains(r#"value="Benim ozetim""#) && body.contains("Faz is required."),
+        "{body}"
+    );
+
+    // Ayarlar: Jira alanları zorunlu/izinli değerleriyle listelenir
+    let (st, page) = app.get_admin("/admin/ayarlar?alanlar=1").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(page.contains("customfield_10200") && page.contains("zorunlu") && page.contains("10300"));
+    assert!(page.contains("Yazılım"));
+
+    // şablon: özet biçimi + ek alanlar (öncelik, yer tutuculu metin)
+    let form = format!(
+        "ozet={}&aciklama={}&alanlar={}&doors_label=on",
+        urlencoding::encode("[E2E] {{senaryo}} ({{branch}})"),
+        urlencoding::encode("Rapor: {{rapor}}\n{noformat}{{hata}}{noformat}"),
+        urlencoding::encode(r#"{"priority": {"name": "Major"}, "components": [{"name": "UI"}]}"#)
+    );
+    let r = post_form(&app, "/admin/ayarlar/jira", &cookie, &form).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    // bozuk JSON kaydedilmez, girilen metin kaybolmaz
+    let r = post_form(&app, "/admin/ayarlar/jira", &cookie, "ozet=x&aciklama=y&alanlar=%7Bbozuk").await;
+    assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+    assert!(body_string(r).await.contains("{bozuk"));
+
+    // form: şablondan dolu; zorunlu "Faz" seçim listesi olarak, öncelik varsayılanlı ama şablonda olduğu için gösterilir
+    let (st, f) = app.get_admin(&format!("/admin/scenarios/{sid}/jira")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(f.contains("[E2E] Yanlış şifrede özel mesaj (main)"), "{f}");
+    assert!(f.contains(r#"name="alan.customfield_10200""#) && f.contains(r#"<option value="10301""#));
+    assert!(f.contains(r#"name="alan.components""#), "şablondaki çoklu alan formda");
+    assert!(f.contains(&format!("/scenarios/{sid}")), "rapor linki açıklamada");
+
+    let send = format!(
+        "ozet={}&aciklama=a&doors_label=on&ek=&alan.customfield_10200=10301&tur.customfield_10200={}&alan.components=500&alan.components=501&tur.components={}&alan.priority=Critical&tur.priority={}",
+        urlencoding::encode("Elle özet"),
+        urlencoding::encode("option||1"),
+        urlencoding::encode("array|component|1"),
+        urlencoding::encode("priority||0"),
+    );
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira"), &cookie, &send).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    let g = log.lock().unwrap();
+    let f = &g.created[0]["fields"];
+    assert_eq!(f["summary"], "Elle özet");
+    assert_eq!(f["customfield_10200"], json!({ "id": "10301" }));
+    assert_eq!(f["components"], json!([{ "id": "500" }, { "id": "501" }]));
+    assert_eq!(f["priority"], json!({ "name": "Critical" }), "formdaki değer şablonu ezer");
+    assert_eq!(f["labels"], json!(["DOORS-1003"]));
+    assert_eq!(f["project"]["key"], "STAJ");
+}
+
+#[tokio::test]
+async fn test_sw_6_3_auto_bug_uses_template_fields() {
+    let log: JL = Default::default();
+    log.lock().unwrap().require_field = Some("customfield_10200".into());
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, raporcu::config::JiraMode::On));
+    let form = format!(
+        "ozet={}&aciklama=x&doors_label=on&alanlar={}",
+        urlencoding::encode("{{proje}}: {{senaryo}}"),
+        urlencoding::encode(r#"{"customfield_10200": {"value": "Yazılım"}, "labels": ["otomasyon"]}"#)
+    );
+    let r = post_form(&app, "/admin/ayarlar/jira", &app.admin_cookie(), &form).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    app.ci_post(&format!("/api/ci/runs?{Q}"), "application/zip", zip_without_jira_tag())
+        .await;
+    let mut created = vec![];
+    for _ in 0..50 {
+        settle().await;
+        created = log.lock().unwrap().created.clone();
+        if !created.is_empty() {
+            break;
+        }
+    }
+    assert!(!created.is_empty(), "otomatik bug açılmadı");
+    let f = &created[0]["fields"];
+    assert_eq!(f["customfield_10200"]["value"], "Yazılım");
+    assert!(f["summary"].as_str().unwrap().starts_with("ekip/javafx: "), "{f}");
+    let labels = f["labels"].as_array().unwrap();
+    assert!(labels.contains(&json!("otomasyon")) && labels.iter().any(|l| l.as_str().unwrap().starts_with("DOORS-")));
+}
+
+#[tokio::test]
+async fn test_sw_6_4_doors_settings_used_in_dxl_csv_and_links() {
+    let app = app();
+    let cookie = app.admin_cookie();
+    let id = upload_sample(&app, Q).await;
+    let form = "modul=%2FProje%2FSRS&id_oznitelik=Object+Identifier&sonuc_oznitelik=Test+Result&tarih_oznitelik=&jira_oznitelik=Jira&rapor_oznitelik=&gecti=Passed&kaldi=Failed&atlandi=Skipped&kosulmadi=Not+Run&link_sablonu=doors%3A%2F%2Fdoors.sirket.local%3A36677%2F%3Furn%3Dx-%7B%7Bno%7D%7D";
+    let r = post_form(&app, "/admin/ayarlar/doors", &cookie, form).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    let (_, dxl) = app.get(&format!("/runs/{id}/doors.dxl")).await;
+    assert!(dxl.contains("string modulYolu = \"/Proje/SRS\""));
+    assert!(dxl.contains("m = edit(modulYolu, false)"));
+    assert!(dxl.contains("string idAttr = \"Object Identifier\""));
+    assert!(dxl.contains("string dateAttr = \"\""), "boş öznitelik yazılmaz");
+    assert!(dxl.contains("\"Failed\"") && !dxl.contains("\"Kaldı\""));
+    let (_, csv) = app.get(&format!("/runs/{id}/doors.csv")).await;
+    assert!(csv.contains("DOORS-1001,Geçerli bilgilerle giriş,Giriş ekranı,Passed"));
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get(&format!("/scenarios/{sid}")).await;
+    assert!(
+        page.contains(r#"href="doors://doors.sirket.local:36677/?urn=x-1003""#),
+        "DOORS rozeti link"
+    );
+    // ayarlar yeniden açılışta veritabanından okunur
+    let c = app.state.db.read_blocking(raporcu::ayarlar::load).unwrap();
+    assert_eq!(c.doors.modul, "/Proje/SRS");
+    // boş kimlik özniteliği kaydedilmez
+    let r = post_form(&app, "/admin/ayarlar/doors", &cookie, "id_oznitelik=").await;
+    assert!(r.status().is_client_error() || r.status().is_server_error());
 }

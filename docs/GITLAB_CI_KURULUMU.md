@@ -151,6 +151,7 @@ açık bir mesajla düşürür.
 | `GITLAB_URL`, `GITLAB_TOKEN` | yalnızca raporcu `.env` | "OpenCode ile düzelt" düğmesi pipeline tetikler (SW-7.4) |
 | `STAJ_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `stajci fix`: auto-fix branch push + MR (SW-7.2) |
 | `STAJ_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
+| `STAJ_OPENCODE_AGENT` | CI değişkeni (isteğe bağlı), varsayılan `fix` | `.opencode/agents/<ad>.md` ajan adı |
 | `VLLM_BASE_URL`, `VLLM_API_KEY`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode + vLLM (SW-7.6) |
 | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` | runner ortamı ya da CI değişkeni | Claude Code + vLLM (ağ geçidi üzerinden), `docs/KOD_AJANI_VLLM.md` |
 
