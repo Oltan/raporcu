@@ -7,3 +7,4 @@
 *.db-shm
 __pycache__/
 .pytest_cache/
+deneme/ev-denemesi-veri/

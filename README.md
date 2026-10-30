@@ -36,6 +36,11 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
   "http://127.0.0.1:8080/api/ci/runs?project_path=ekip/ornek&branch=main"
 ```
 
+## Evde / GitLab olmadan deneme
+
+[`deneme/`](deneme/README.md): `./ev-denemesi.sh` (Linux) ya da `ev-denemesi.cmd` (Windows) sunucuyu açar ve örnek
+JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılır.
+
 ## Kendi test projene ekleme
 
 1. `ornek-test-projesi/` — çalışan bir JavaFX + Cucumber + TestFX + Allure projesi. `pom.xml`,

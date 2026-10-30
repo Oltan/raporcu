@@ -20,18 +20,22 @@ raporcu'ye `http://127.0.0.1:8080` adresinden ulaşır.
 Geliştirme makinesinde (Linux):
 
 ```bash
-rustup target add x86_64-pc-windows-gnu
-sudo apt-get install -y gcc-mingw-w64-x86-64
-cargo build --release -p raporcu -p stajci
+rustup target add x86_64-pc-windows-gnu x86_64-unknown-linux-musl
+sudo apt-get install -y gcc-mingw-w64-x86-64 musl-tools
+# Linux: statik (musl) — glibc'ye bağlı değil, her Ubuntu sürümünde çalışır
+cargo build --release --target x86_64-unknown-linux-musl -p raporcu -p stajci
 cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci
 ```
+
+`cargo build --release` (hedefsiz) de çalışır, ama ikili derlendiği makinenin glibc sürümünü
+ister (ör. Ubuntu 24.04'te derlenen, 22.04'te açılmaz). Dağıtım için musl derlemesini kullanın.
 
 Çıktılar:
 
 | Dosya | Nereye |
 |-------|--------|
-| `target/release/raporcu` | Ubuntu sunucu |
-| `target/release/stajci` | sunucuda `tools/stajci-linux` |
+| `target/x86_64-unknown-linux-musl/release/raporcu` | Ubuntu sunucu |
+| `target/x86_64-unknown-linux-musl/release/stajci` | sunucuda `tools/stajci-linux` |
 | `target/x86_64-pc-windows-gnu/release/raporcu.exe` | Windows sunucu |
 | `target/x86_64-pc-windows-gnu/release/stajci.exe` | sunucuda `tools/stajci-windows.exe` |
 
