@@ -44,6 +44,7 @@ pub fn routes() -> Router<AppState> {
         .route("/api/tools/stajci", get(tools::stajci))
         .route("/api/runs", get(api::runs))
         .route("/api/runs/{id}", get(api::run))
+        .route("/api/runs/{id}/live", get(api::live))
         .route("/api/scenarios/{id}", get(api::scenario))
 }
 
@@ -153,6 +154,17 @@ pub mod api {
             .await?
             .ok_or_else(AppError::not_found)?;
         Ok(Json(v))
+    }
+
+    /// Canlı ekranın gördüğü anlık görüntü (WebSocket'teki ile aynı JSON).
+    pub async fn live(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Json<Value>, AppError> {
+        let cur = st.canli.get(id);
+        let snap = st
+            .db
+            .read(move |c| crate::live::snapshot(c, id, cur))
+            .await?
+            .ok_or_else(AppError::not_found)?;
+        Ok(Json(serde_json::to_value(snap).map_err(anyhow::Error::from)?))
     }
 
     pub async fn scenario(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Json<Value>, AppError> {

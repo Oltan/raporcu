@@ -9,6 +9,7 @@ pub async fn after_results(st: &AppState, run_id: i64) {
 
 /// Koşum bitti: triage kuralları (SW-4.5), Jira eşleşmesi (SW-6.2, 6.3).
 pub async fn after_finish(st: &AppState, run_id: i64) {
+    st.canli.remove(run_id);
     let _ = st.live.send(run_id);
     let (window, conf) = (st.cfg.flaky_window, st.cfg.triage_auto_confidence);
     if let Err(e) = st.db.write(move |c| crate::triage::apply_rules(c, run_id, window, conf)).await {

@@ -43,6 +43,8 @@ pub struct AppState {
     /// Sonucu değişen koşumun id'si (SW-3.4)
     pub live: tokio::sync::broadcast::Sender<i64>,
     pub disk: disk::DiskState,
+    /// Şu an koşan senaryo/adım (Cucumber canlı olay eklentisi)
+    pub canli: live::LiveStates,
 }
 
 impl AppState {
@@ -62,6 +64,7 @@ impl AppState {
             recent_logs,
             live: tokio::sync::broadcast::channel(256).0,
             disk: Default::default(),
+            canli: Default::default(),
         })
     }
 }
@@ -73,6 +76,7 @@ pub fn router(state: AppState) -> Router {
         .route("/runs/start", post(web::ci::start))
         .route("/runs/{id}/upload", post(web::ci::upload_existing))
         .route("/runs/{id}/results", post(web::ci::result_file))
+        .route("/runs/{id}/events", post(web::ci::live_events))
         .route("/runs/{id}/finish", post(web::ci::finish))
         .route("/runs/{id}/fix-candidates", get(web::ci::fix_candidates))
         .route("/runs/{id}/fix-result", post(web::ci::fix_result))

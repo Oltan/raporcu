@@ -79,6 +79,14 @@ impl Ctx {
     pub fn dotenv_file(&self) -> PathBuf {
         self.project_dir.join("stajci.env")
     }
+    /// Cucumber canlı olay eklentisinin yazdığı dosya (JSON lines).
+    pub fn live_events_file(&self) -> PathBuf {
+        match env("STAJ_CANLI_DOSYA") {
+            Some(p) if PathBuf::from(&p).is_absolute() => PathBuf::from(p),
+            Some(p) => self.project_dir.join(p),
+            None => self.project_dir.join("target").join("stajci-canli").join("olaylar.jsonl"),
+        }
+    }
 
     pub fn saved_run(&self) -> Option<SavedRun> {
         let s = std::fs::read_to_string(self.run_file()).ok()?;

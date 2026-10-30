@@ -327,7 +327,13 @@ async fn test_sw_3_4_live_snapshot_waiting_running_and_errors() {
                 .await;
         }
     }
-    let snap = app.state.db.read(move |c| raporcu::live::snapshot(c, id)).await.unwrap().unwrap();
+    let snap = app
+        .state
+        .db
+        .read(move |c| raporcu::live::snapshot(c, id, None))
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(snap.status, "running");
     assert_eq!(snap.progress, "1/4");
     let states: Vec<&str> = snap.scenarios.iter().map(|s| s.state.as_str()).collect();
@@ -536,4 +542,73 @@ async fn test_sw_4_2_feature_history_matrix() {
         run.contains("/feature?project=1&amp;branch=main&amp;name=Giri%C5%9F%20ekran%C4%B1")
             || run.contains("/feature?project=1&branch=main&name=Giri%C5%9F%20ekran%C4%B1")
     );
+}
+
+fn real_events() -> Vec<serde_json::Value> {
+    let p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../testdata/canli/ornek-giris-olaylar.jsonl");
+    std::fs::read_to_string(p)
+        .unwrap()
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn test_sw_3_4_live_current_scenario_and_step_from_cucumber_events() {
+    let app = app();
+    let (_, v) = app
+        .ci_json(
+            "/api/ci/runs/start",
+            serde_json::json!({ "project_path": "ekip/canli-adim", "branch": "main", "expected": [
+                { "name": "Geçerli bilgilerle giriş", "feature": "Giriş ekranı" },
+                { "name": "Hatalı girişlerde mesaj", "feature": "Giriş ekranı" },
+                { "name": "Hatalı girişlerde mesaj", "feature": "Giriş ekranı" }
+            ]}),
+        )
+        .await;
+    let id = v["run_id"].as_i64().unwrap();
+    let ev = real_events();
+    // ilk senaryo bitti, ikinci senaryonun 2. adımı koşuyor
+    let second_start = ev
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| e["tur"] == "senaryo_basladi")
+        .nth(1)
+        .unwrap()
+        .0;
+    let upto = second_start + 3; // basladi, adim1 basladi, adim1 bitti, adim2 basladi
+    let (st, _) = app
+        .ci_json(&format!("/api/ci/runs/{id}/events"), serde_json::Value::Array(ev[..=upto].to_vec()))
+        .await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let (_, live) = app.get(&format!("/api/runs/{id}/live")).await;
+    let live: serde_json::Value = serde_json::from_str(&live).unwrap();
+    let cur = &live["current"];
+    assert_eq!(cur["active"], true);
+    assert_eq!(cur["name"], "Hatalı girişlerde mesaj");
+    assert_eq!(cur["feature"], "Giriş ekranı");
+    assert_eq!(cur["step_no"], 2);
+    assert!(cur["step"].as_str().unwrap().starts_with("Eğer ki kullanıcı adı"), "{cur}");
+    assert_eq!(cur["steps"][0]["status"], "PASSED");
+    // kesin bilgi: ikinci beklenen senaryo "koşuyor" (tahmin değil)
+    let states: Vec<&str> = live["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["state"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        states,
+        vec!["gecti", "kosuyor", "bekliyor"],
+        "ilk senaryo olaya göre bitti (dosyası gelmeden), ikinci koşuyor"
+    );
+    // koşum bitince durum silinir
+    app.ci_json(&format!("/api/ci/runs/{id}/finish"), serde_json::json!({})).await;
+    let (_, live) = app.get(&format!("/api/runs/{id}/live")).await;
+    assert!(live.contains("\"current\":null"));
+    // bitmiş koşuma olay: yok sayılır
+    let (st, _) = app
+        .ci_json(&format!("/api/ci/runs/{id}/events"), serde_json::Value::Array(ev[..2].to_vec()))
+        .await;
+    assert_eq!(st, StatusCode::ACCEPTED);
 }

@@ -217,3 +217,16 @@ textarea { min-height: 70px; width: 100%; }
 .kare.m-gecti { background: var(--c-gecti); } .kare.m-kaldi { background: var(--c-kaldi); }
 .kare.m-broken { background: var(--c-broken); color: #1b1f24; } .kare.m-diger { background: var(--c-diger); }
 .kare.m-yok, .sw.m-yok { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Canlı ekran: şu an koşan senaryo */
+.simdi { border-left: 3px solid var(--running); }
+.simdi h2 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.canli-adimlar { list-style: none; margin: 10px 0 0; padding: 0; }
+.canli-adimlar li { display: grid; grid-template-columns: 12px 1fr auto; gap: 10px; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.canli-adimlar li:last-child { border-bottom: 0; }
+.canli-adimlar li::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c-diger); transform: translateY(1px); }
+.canli-adimlar li.a-gecti::before { background: var(--c-gecti); }
+.canli-adimlar li.a-kaldi::before { background: var(--c-kaldi); }
+.canli-adimlar li.a-kosuyor::before { background: var(--running); animation: nabiz 1.2s infinite; }
+.canli-adimlar li.a-kosuyor .a-metin { font-weight: 600; }
+.canli-adimlar li .hata-ozet { grid-column: 2 / 4; }

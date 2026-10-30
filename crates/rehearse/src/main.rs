@@ -23,6 +23,7 @@ fn fake_tests(args: &[String]) -> i32 {
     let mut env_out: Option<PathBuf> = None;
     let mut results: Option<PathBuf> = None;
     let mut oom = false;
+    let mut events_file: Option<PathBuf> = None;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -40,6 +41,7 @@ fn fake_tests(args: &[String]) -> i32 {
             }
             "--oom" => oom = true,
             a if a.starts_with("-Dallure.results.directory=") => results = Some(PathBuf::from(&a["-Dallure.results.directory=".len()..])),
+            a if a.starts_with("-Dstajci.canli.dosya=") => events_file = Some(PathBuf::from(&a["-Dstajci.canli.dosya=".len()..])),
             _ => {}
         }
         i += 1;
@@ -87,8 +89,43 @@ fn fake_tests(args: &[String]) -> i32 {
     res.sort_by_key(|r| r.start.unwrap_or(0));
     let mut failed = false;
     let log = env_out.as_ref().map(|p| p.with_extension("written"));
+    // CanliOlayEklentisi ile aynı biçimde olay yazar
+    let emit = |v: serde_json::Value| {
+        if let Some(p) = &events_file {
+            use std::io::Write;
+            if let Some(d) = p.parent() {
+                let _ = std::fs::create_dir_all(d);
+            }
+            let mut f = std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap();
+            writeln!(f, "{v}").unwrap();
+        }
+    };
     for (idx, r) in res.iter().enumerate() {
+        let feature = r.feature().unwrap_or("").to_string();
+        let line: i64 = r
+            .full_name
+            .as_deref()
+            .and_then(|f| f.rsplit(':').next())
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(0);
+        emit(
+            serde_json::json!({ "tur": "senaryo_basladi", "zaman": now_ms(), "ad": r.name, "feature": feature, "uri": "classpath:features/giris.feature", "satir": line }),
+        );
+        if let Some(st) = r.steps.first() {
+            emit(serde_json::json!({ "tur": "adim_basladi", "zaman": now_ms(), "metin": st.name, "sira": 1 }));
+        }
         std::thread::sleep(Duration::from_millis(delay));
+        for (k, st) in r.steps.iter().enumerate() {
+            let d = match st.status.unwrap_or_default() {
+                common::allure::Status::Passed => "PASSED",
+                common::allure::Status::Skipped => "SKIPPED",
+                common::allure::Status::Unknown => "UNDEFINED",
+                _ => "FAILED",
+            };
+            emit(
+                serde_json::json!({ "tur": "adim_bitti", "zaman": now_ms(), "metin": st.name, "sira": k + 1, "durum": d, "sure_ms": 10, "hata": null }),
+            );
+        }
         let mut files: Vec<String> = r.all_attachments().iter().map(|a| a.source.clone()).collect();
         for cp in containers.get(&r.uuid).cloned().unwrap_or_default() {
             files.extend(container_atts.get(&cp).cloned().unwrap_or_default());
@@ -107,6 +144,12 @@ fn fake_tests(args: &[String]) -> i32 {
             writeln!(fh, "{} {}", idx + 1, now_ms()).unwrap();
         }
         failed |= r.status().is_failure();
+        let d = match r.status() {
+            common::allure::Status::Passed => "PASSED",
+            common::allure::Status::Unknown => "UNDEFINED",
+            _ => "FAILED",
+        };
+        emit(serde_json::json!({ "tur": "senaryo_bitti", "zaman": now_ms(), "ad": r.name, "durum": d, "sure_ms": delay }));
         println!("[fake-tests] {} → {}", r.name, r.status().as_str());
     }
     if failed {
@@ -311,8 +354,14 @@ fn main() -> Result<()> {
         std::thread::sleep(Duration::from_millis(50));
     }
     let mut progress_seen = String::new();
+    let mut current_seen = String::new();
     let mut visible_at: HashMap<i64, u128> = HashMap::new();
     while child.try_wait()?.is_none() {
+        if let Ok(live) = get_json(&format!("{}/api/runs/{run_id}/live", server.url())) {
+            if live["current"]["active"] == true && live["current"]["step"].is_string() && current_seen.is_empty() {
+                current_seen = format!("{} → {}", live["current"]["name"], live["current"]["step"]);
+            }
+        }
         if let Ok(run) = get_json(&format!("{}/api/runs/{run_id}", server.url())) {
             let n = total_attempts(&run);
             for k in 1..=n {
@@ -335,6 +384,15 @@ fn main() -> Result<()> {
         format!("görülen: {progress_seen:?}"),
     );
     ck.check("SW-1.1", "test işi kalan senaryoda düşer (çıkış 1)", code == 1, &out);
+    ck.check(
+        "SW-3.4",
+        "şu an koşan senaryo ve adımı canlı görünür (Cucumber olayları)",
+        !current_seen.is_empty(),
+        "olay görülmedi",
+    );
+    if !current_seen.is_empty() {
+        println!("           görülen: {current_seen}");
+    }
     let written = std::fs::read_to_string(env_out.with_extension("written")).unwrap_or_default();
     let mut worst = 0u128;
     let mut missing = 0;

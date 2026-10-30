@@ -258,3 +258,31 @@ pub async fn fix_started(State(st): State<AppState>, Path(id): Path<i64>, Json(v
     let _ = st;
     Json(serde_json::json!({ "ok": true }))
 }
+
+/// Canlı olaylar (CanliOlayEklentisi → stajci watch): şu an koşan senaryo ve adım.
+/// Bellekte tutulur; koşum zaman aşımı sayacı da tazelenir.
+pub async fn live_events(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(events): Json<Vec<serde_json::Value>>,
+) -> Result<StatusCode, AppError> {
+    if events.len() > 5000 {
+        return Err(AppError::bad("bir seferde en fazla 5000 olay"));
+    }
+    let exists = st
+        .db
+        .write(move |c| {
+            Ok(c.execute(
+                "UPDATE runs SET last_activity_at = ?2 WHERE id = ?1 AND status = 'running'",
+                rusqlite::params![id, crate::db::now()],
+            )? > 0)
+        })
+        .await?;
+    if !exists {
+        // koşum yok ya da bitmiş: olaylar yok sayılır
+        return Ok(StatusCode::ACCEPTED);
+    }
+    st.canli.apply(id, &events);
+    let _ = st.live.send(id);
+    Ok(StatusCode::NO_CONTENT)
+}

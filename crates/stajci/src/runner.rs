@@ -69,6 +69,8 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     if is_maven || env("STAJ_FORCE_MAVEN_ARGS").is_some() {
         parts.push(format!("-Dtest.xmx={test_xmx}"));
         parts.push(format!("-Dallure.results.directory={}", c.results_dir.display()));
+        // canlı olay eklentisi (CanliOlayEklentisi) bu dosyaya yazar, stajci watch okur
+        parts.push(format!("-Dstajci.canli.dosya={}", c.live_events_file().display()));
         if let Some(t) = tags {
             parts.push(format!("-Dcucumber.filter.tags={t}"));
         }
@@ -203,6 +205,7 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
     // önceki koşumun sonuçları karışmasın
     if run_tests && c.results_dir.exists() && env("STAJ_KEEP_RESULTS").is_none() {
         let _ = std::fs::remove_dir_all(&c.results_dir);
+        let _ = std::fs::remove_file(c.live_events_file());
     }
     let tags = tag_expression(c)?;
     let expr = tags.as_deref().map(gherkin::TagExpr::parse).transpose()?;

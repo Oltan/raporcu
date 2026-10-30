@@ -16,6 +16,15 @@
   <div class="sayac running"><div class="e">Koşuyor</div><div class="n" id="s-kosuyor">0</div></div>
   <div class="sayac"><div class="e">Bekliyor</div><div class="n" id="s-bekliyor">0</div></div>
 </div>
+<section class="kart simdi" id="simdi" hidden>
+  <div class="baslik-satir">
+    <h2><span class="durum running kosuyor-nokta">şu an koşuyor</span> <span id="simdi-ad"></span></h2>
+    <span class="kucuk" id="simdi-sure"></span>
+  </div>
+  <div class="kucuk" id="simdi-feature"></div>
+  <ol class="canli-adimlar" id="simdi-adimlar"></ol>
+</section>
+
 <section class="kart">
   <div class="tablo"><table>
     <thead><tr><th>Durum</th><th>Senaryo</th><th>Feature</th><th></th></tr></thead>
@@ -28,7 +37,35 @@
   const etiket = { gecti: "geçti", kaldi: "kaldı", kosuyor: "koşuyor", bekliyor: "bekliyor", atlandi: "atlandı", bilinmiyor: "bilinmiyor" };
   const $ = (id) => document.getElementById(id);
   function hucre(tag, text, cls) { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; }
+  const adimEtiket = { PASSED: "gecti", FAILED: "kaldi", SKIPPED: "diger", PENDING: "diger", UNDEFINED: "diger", AMBIGUOUS: "kaldi" };
+  let sayacBaz = 0, sayacZaman = 0;
+  function simdi(c) {
+    const kart = $("simdi");
+    if (!c || !c.active) { kart.hidden = true; return; }
+    kart.hidden = false;
+    $("simdi-ad").textContent = c.name + (c.attempt > 1 ? " (" + c.attempt + ". deneme)" : "");
+    $("simdi-feature").textContent = c.feature + " · " + c.uri.replace("classpath:", "") + ":" + c.line;
+    sayacBaz = c.elapsed_s; sayacZaman = Date.now();
+    const ol = $("simdi-adimlar"); ol.replaceChildren();
+    for (const a of c.steps) {
+      const li = hucre("li", undefined, "a-" + (adimEtiket[a.status] || "diger"));
+      li.append(hucre("span", a.text, "a-metin"), hucre("span", a.ms + " ms", "kucuk"));
+      if (a.error) li.append(hucre("div", a.error, "hata-ozet"));
+      ol.append(li);
+    }
+    if (c.step) {
+      const li = hucre("li", undefined, "a-kosuyor");
+      li.append(hucre("span", c.step, "a-metin"), hucre("span", "koşuyor…", "kucuk"));
+      ol.append(li);
+    } else if (!c.steps.length) {
+      const li = hucre("li", undefined, "a-kosuyor");
+      li.append(hucre("span", "Hazırlık: @Before hook'ları (uygulama açılıyor)", "a-metin"), hucre("span", "", "kucuk"));
+      ol.append(li);
+    }
+  }
+  setInterval(() => { if (!$("simdi").hidden) $("simdi-sure").textContent = (sayacBaz + Math.floor((Date.now() - sayacZaman) / 1000)) + " sn"; }, 1000);
   function ciz(s) {
+    simdi(s.current);
     $("s-ilerleme").textContent = s.progress; $("s-gecti").textContent = s.passed; $("s-kaldi").textContent = s.failed;
     $("s-kosuyor").textContent = s.running; $("s-bekliyor").textContent = s.waiting;
     const d = $("durum");
