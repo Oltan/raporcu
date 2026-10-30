@@ -50,7 +50,7 @@ JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılı
 2. `.gitlab-ci.yml`'e tek `include` satırı: [`docs/YENI_PROJE_EKLEME.md`](docs/YENI_PROJE_EKLEME.md).
 3. Test projesinde neler olmalı (adımlar, ekler, tag'ler, triage için hata türleri):
    [`docs/TEST_PROJESI_GEREKSINIMLERI.md`](docs/TEST_PROJESI_GEREKSINIMLERI.md).
-4. Canlı ekran (şu an koşan senaryo/adım) için Cucumber eklentisi: [`docs/ANLIK_AKTARIM.md`](docs/ANLIK_AKTARIM.md).
+4. Canlı ekran (şu an koşan senaryo/adım): projeye eklenecek Java dosyası ve ayar [`docs/CANLI_EKRAN_KURULUM.md`](docs/CANLI_EKRAN_KURULUM.md); nasıl çalıştığı [`docs/ANLIK_AKTARIM.md`](docs/ANLIK_AKTARIM.md).
 5. Jira bug şablonu, zorunlu Jira alanları ve DOORS eşleşmesi (Admin > Ayarlar): [`docs/JIRA_DOORS_AYARLARI.md`](docs/JIRA_DOORS_AYARLARI.md).
 6. Self-healing için OpenCode ya da Claude Code + vLLM, ajan ve skill tanımı, nasıl çağrıldığı: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
 7. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):

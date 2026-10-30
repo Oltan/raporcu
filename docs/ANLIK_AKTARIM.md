@@ -1,5 +1,8 @@
 # Anlık aktarım: test koşarken sonuçlar raporcu'ya nasıl gelir
 
+
+> Kısa kurulum (yalnızca test projesine eklenecekler, Java kodu dahil): [`CANLI_EKRAN_KURULUM.md`](CANLI_EKRAN_KURULUM.md)
+
 Bu belge bir Java + Cucumber 7 + TestFX test projesinin GitLab runner'da koşarken sonuçlarının
 raporcu'nun canlı ekranına nasıl aktığını uçtan uca anlatır. Kısaca: **iki kanal** var.
 
