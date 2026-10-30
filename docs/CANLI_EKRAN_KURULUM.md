@@ -1,6 +1,6 @@
 # Canlı ekran: test projesine eklenecekler
 
-raporcu'nun canlı ekranında **şu an koşan senaryo ve adım** görünsün diye test projenize
+divan'ın canlı ekranında **şu an koşan senaryo ve adım** görünsün diye test projenize
 eklenecek her şey burada. Toplam **1 Java dosyası + 1 satır ayar**. Başka bağımlılık, CI değişkeni
 ya da kod değişikliği gerekmez.
 
@@ -46,14 +46,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * raporcu canlı aktarım eklentisi.
+ * divan canlı aktarım eklentisi.
  *
  * Allure sonuç dosyası ancak senaryo BİTİNCE yazılır. Canlı ekranda "şu an hangi senaryo, hangi
  * adımda" bilgisini göstermek için bu eklenti Cucumber olaylarını anında bir JSON-lines dosyasına
- * yazar; {@code stajci watch} dosyayı izleyip raporcu'ya gönderir.
+ * yazar; {@code ulak watch} dosyayı izleyip divan'a gönderir.
  *
- * Dosya: {@code -Dstajci.canli.dosya=...} (stajci start bunu verir), yoksa
- * {@code target/stajci-canli/olaylar.jsonl}. Her satır bir olay:
+ * Dosya: {@code -Dulak.canli.dosya=...} (ulak start bunu verir), yoksa
+ * {@code target/ulak-canli/olaylar.jsonl}. Her satır bir olay:
  *
  * <pre>
  * {"tur":"senaryo_basladi","zaman":1793304316815,"ad":"...","feature":"...","uri":"...","satir":10}
@@ -73,9 +73,9 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
     private int adimSirasi;
 
     public CanliOlayEklentisi() {
-        String yol = System.getProperty("stajci.canli.dosya");
+        String yol = System.getProperty("ulak.canli.dosya");
         if (yol == null || yol.isBlank()) {
-            yol = System.getenv().getOrDefault("STAJ_CANLI_DOSYA", "target/stajci-canli/olaylar.jsonl");
+            yol = System.getenv().getOrDefault("ULAK_CANLI_DOSYA", "target/ulak-canli/olaylar.jsonl");
         }
         dosya = Path.of(yol);
     }
@@ -144,7 +144,7 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
                 + ",\"sure_ms\":" + r.getDuration().toMillis() + "}");
     }
 
-    /** Bir satır yazar ve hemen diske iter (stajci saniyede bir okur). Hata testi etkilemez. */
+    /** Bir satır yazar ve hemen diske iter (ulak saniyede bir okur). Hata testi etkilemez. */
     private synchronized void yaz(String satir) {
         try {
             if (yazici == null) {
@@ -158,7 +158,7 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
             yazici.write('\n');
             yazici.flush();
         } catch (IOException e) {
-            System.err.println("[raporcu] canlı olay yazılamadı: " + e.getMessage());
+            System.err.println("[divan] canlı olay yazılamadı: " + e.getMessage());
         }
     }
 
@@ -196,8 +196,8 @@ Ne yapar:
 
 - Cucumber'ın olaylarını dinler; her senaryo başında/sonunda ve her **Gherkin adımının** (hook'lar
   hariç) başında/sonunda dosyaya bir JSON satırı yazar ve hemen diske iter.
-- Dosya yolu: `stajci start` bunu `-Dstajci.canli.dosya=...` ile verir. Elle koşarken
-  `target/stajci-canli/olaylar.jsonl`.
+- Dosya yolu: `ulak start` bunu `-Dulak.canli.dosya=...` ile verir. Elle koşarken
+  `target/ulak-canli/olaylar.jsonl`.
 - Yazamazsa yalnızca `System.err`'e bir satır basar; **testin sonucunu asla etkilemez**.
 - Test kodunuza, hook'larınıza, Allure'a dokunmaz; yanlarında çalışır.
 
@@ -219,12 +219,12 @@ cucumber.plugin=pretty, io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, com.si
 
 ## 3. Başka bir şey gerekmiyor
 
-CI tarafında her şey hazır: `stajci start` olay dosyasının yolunu Maven'a verir, `stajci watch`
-dosyayı saniyede bir okuyup raporcu'ya gönderir, canlı ekran WebSocket ile güncellenir.
-Canlı ekranın adresi `stajci start` çıktısında yazar:
+CI tarafında her şey hazır: `ulak start` olay dosyasının yolunu Maven'a verir, `ulak watch`
+dosyayı saniyede bir okuyup divan'a gönderir, canlı ekran WebSocket ile güncellenir.
+Canlı ekranın adresi `ulak start` çıktısında yazar:
 
 ```
-[stajci run_id=12] koşum açıldı: 48 senaryo bekleniyor. Canlı durum: http://raporcu:8080/runs/12/live
+[ulak run_id=12] koşum açıldı: 48 senaryo bekleniyor. Canlı durum: http://divan:8080/runs/12/live
 ```
 
 ya da koşum sayfasındaki **Canlı izle** düğmesi.
@@ -237,7 +237,7 @@ ya da koşum sayfasındaki **Canlı izle** düğmesi.
 2. Dosya oluşmuş olmalı:
 
    ```bash
-   head -5 target/stajci-canli/olaylar.jsonl
+   head -5 target/ulak-canli/olaylar.jsonl
    ```
 
    ```json
@@ -246,7 +246,7 @@ ya da koşum sayfasındaki **Canlı izle** düğmesi.
    {"tur":"adim_bitti","zaman":1793340895710,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":37,"hata":null}
    ```
 
-3. raporcu ile birlikte görmek için: `deneme/ev-denemesi.sh` (ya da Windows'ta `ev-denemesi.cmd`)
+3. divan ile birlikte görmek için: `deneme/ev-denemesi.sh` (ya da Windows'ta `ev-denemesi.cmd`)
    içindeki `ornek-test-projesi` yerine kendi projenizi koyun; canlı ekran tarayıcıda açılır.
 
 ## Sorun giderme
@@ -254,7 +254,7 @@ ya da koşum sayfasındaki **Canlı izle** düğmesi.
 | Belirti | Neden / çözüm |
 |---------|---------------|
 | `olaylar.jsonl` hiç oluşmuyor | Eklenti yüklenmemiş: `cucumber.plugin` satırındaki paket.sınıf adı yanlış ya da dosya başka bir `junit-platform.properties`'te. sınıf adı yanlışsa Cucumber testler başlamadan eklentiyi yükleyemediğini söyleyen bir hatayla durur |
-| Canlı ekranda "şu an koşuyor" kartı yok, yalnızca senaryolar bitince güncelleniyor | Olaylar gelmiyor: CI'da `stajci start` kullanılıyor mu (doğrudan `mvn test` değil)? `.stajci/watch.log` dosyasına bakın |
+| Canlı ekranda "şu an koşuyor" kartı yok, yalnızca senaryolar bitince güncelleniyor | Olaylar gelmiyor: CI'da `ulak start` kullanılıyor mu (doğrudan `mvn test` değil)? `.ulak/watch.log` dosyasına bakın |
 | Feature adı boş | Feature dosyası `Feature:` / `Özellik:` / `Ability:` / `Business Need:` ile başlamıyor (eklenti adı bu satırdan okur) |
 | Kart "Hazırlık: @Before hook'ları" diyor | Normal: senaryo başladı, uygulama açılıyor; ilk Gherkin adımı başlayınca adımlar görünür |
 | Derleme hatası `instanceof ... adim` | Java 11: `if (olay.getTestStep() instanceof PickleStepTestStep) { PickleStepTestStep adim = (PickleStepTestStep) olay.getTestStep(); ... }` biçimine çevirin; `switch (c) { case '"' -> ... }` bloğunu klasik `switch` + `break` ile yazın |

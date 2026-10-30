@@ -1,6 +1,6 @@
 # Örnek test projesi: JavaFX + Cucumber + TestFX + Allure
 
-raporcu ile çalışan, gerçekten koşan küçük bir referans proje. `testdata/allure/ornek-giris/`
+divan ile çalışan, gerçekten koşan küçük bir referans proje. `testdata/allure/ornek-giris/`
 altındaki örnek sonuçlar bu projenin Xvfb altındaki gerçek koşusundan alındı. Kendi test
 projene Allure'u eklerken buradaki parçaları kopyala.
 
@@ -12,7 +12,7 @@ xvfb-run -a -s "-screen 0 1920x1080x24" mvn -B test -Dmaven.test.failure.ignore=
 ls target/allure-results
 ```
 
-CI'da bunu `stajci start` yapar (Xvfb, bellek sınırları, features.txt tag'leri, canlı gönderim).
+CI'da bunu `ulak start` yapar (Xvfb, bellek sınırları, features.txt tag'leri, canlı gönderim).
 
 ## Senaryolar ve ürettikleri Allure çıktısı
 
@@ -25,7 +25,7 @@ CI'da bunu `stajci start` yapar (Xvfb, bellek sınırları, features.txt tag'ler
 | Yavaş açılan karşılama mesajı | `@DOORS-1005 @flaky` | failed → **passed** | rerun: aynı `historyId` ile iki sonuç |
 | Beni hatırla seçeneği | `@DOORS-1006 @wip` | (status yok) | tanımsız adım: `status` alanı hiç yazılmaz |
 
-Çıktıda dikkat edilecekler (raporcu ayrıştırıcısı bunlara göre yazıldı):
+Çıktıda dikkat edilecekler (divan ayrıştırıcısı bunlara göre yazıldı):
 
 - `*-result.json` her deneme için ayrı; rerun'da `historyId` aynı kalır.
 - `@After` hook'unda `scenario.attach(...)` ile eklenen ekran görüntüsü ve video **result
@@ -46,6 +46,6 @@ CI'da bunu `stajci start` yapar (Xvfb, bellek sınırları, features.txt tag'ler
    `@After`: senaryo kaldıysa pencere bölgesinin robot ile alınan gerçek ekran görüntüsü
    `scenario.attach(png, "image/png", "Ekran görüntüsü")`. Başarılı senaryoda görüntü alınmaz.
 5. **`VideoKaydi.java`** — senaryo boyunca ffmpeg (Linux `x11grab`, Windows `gdigrab`), 5 fps
-   H.264; yalnızca senaryo kalırsa `video/mp4` olarak eklenir. `STAJ_VIDEO=false` ile kapanır.
-6. **`features.txt`** — koşulacak tag ifadeleri; `stajci preflight` kontrol eder.
+   H.264; yalnızca senaryo kalırsa `video/mp4` olarak eklenir. `ULAK_VIDEO=false` ile kapanır.
+6. **`features.txt`** — koşulacak tag ifadeleri; `ulak preflight` kontrol eder.
 7. **`AGENTS.md`, `opencode.json`, `.opencode/agents/fix.md`** — self-healing için.

@@ -1,12 +1,12 @@
 # Test projesinden beklenenler (Cucumber + Java + TestFX)
 
-raporcu testleri koşmaz; GitLab runner test projesini koşar, raporcu yalnızca projenin ürettiği
+divan testleri koşmaz; GitLab runner test projesini koşar, divan yalnızca projenin ürettiği
 **Allure sonuçlarını** okur. Raporda ne görüneceği tamamen test projesinin ne ürettiğine bağlıdır.
-Bu belge, raporcu'nun eksiksiz çalışması için test projesinde bulunması gerekenleri listeler.
+Bu belge, divan'ın eksiksiz çalışması için test projesinde bulunması gerekenleri listeler.
 Çalışan referans: `ornek-test-projesi/` (bu repoda Xvfb altında gerçekten koşuyor ve
 `testdata/allure/ornek-giris/` altındaki örnekler ondan üretildi).
 
-Önem: **Z** zorunlu (yoksa `stajci preflight` işi düşürür ya da rapor boş kalır),
+Önem: **Z** zorunlu (yoksa `ulak preflight` işi düşürür ya da rapor boş kalır),
 **Ö** önerilir (özellik eksik çalışır), **İ** isteğe bağlı.
 
 ---
@@ -17,7 +17,7 @@ Bu belge, raporcu'nun eksiksiz çalışması için test projesinde bulunması ge
 |---|---------|------|---------------------------|
 | 1.1 | `io.qameta.allure:allure-cucumber7-jvm` bağımlılığı (pom.xml, `test` kapsamı) | Z | Sonuç dosyalarını bu adaptör yazar. Yoksa yükleme 422 "Allure eklentisi eksik" ile reddedilir. |
 | 1.2 | `junit-platform.properties`: `cucumber.plugin=pretty, io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm` | Z | Adaptör eklenti olarak açılmazsa hiçbir dosya oluşmaz. |
-| 1.3 | Sonuç klasörü `target/allure-results` (`allure.properties` ya da `-Dallure.results.directory`) | Z | stajci bu klasörü izler ve zip'ler. Farklıysa `STAJ_RESULTS_DIR` CI değişkeni. |
+| 1.3 | Sonuç klasörü `target/allure-results` (`allure.properties` ya da `-Dallure.results.directory`) | Z | ulak bu klasörü izler ve zip'ler. Farklıysa `ULAK_RESULTS_DIR` CI değişkeni. |
 | 1.4 | Cucumber 7.x (`cucumber-java`, `cucumber-junit-platform-engine`, `junit-platform-suite`) | Z | allure-cucumber7-jvm Cucumber 7 içindir. |
 | 1.5 | Her senaryonun adı feature içinde **benzersiz** ve kalıcı | Z | Geçmiş, flaky tespiti ve Jira eşleşmesi Allure `historyId`'ye dayanır; o da feature + senaryo adından türer. Ad değişirse geçmiş sıfırlanır. |
 | 1.6 | Senaryo taslaklarında örnek tablosu sütunları anlamlı | Ö | Her satır ayrı sonuç; raporda `giris.feature:23` satır numarasıyla ayrılır. |
@@ -34,9 +34,9 @@ Bu belge, raporcu'nun eksiksiz çalışması için test projesinde bulunması ge
 
 ## 3. Hata durumunun doğru sınıflanması (triage için kritik)
 
-Allure iki tür başarısızlık yazar; raporcu triage kuralları ve self-healing hedefi buna bakar:
+Allure iki tür başarısızlık yazar; divan triage kuralları ve self-healing hedefi buna bakar:
 
-| Allure durumu | Nasıl oluşur | raporcu yorumu | Sonraki adım |
+| Allure durumu | Nasıl oluşur | divan yorumu | Sonraki adım |
 |---------------|--------------|----------------|--------------|
 | `failed` | `AssertionError` (JUnit/AssertJ assertion'ı) | **Ürün hatası** | Jira (gözlem/otomatik bug) |
 | `broken` | Diğer her istisna (NullPointer, düğüm bulunamadı, zaman aşımı...) | **Test kodu hatası** | OpenCode / Claude Code düzeltmesi |
@@ -53,7 +53,7 @@ Bu yüzden:
 ## 4. Hata anında kanıt (ekler)
 
 `@After` hook'unda `scenario.attach(...)` ile eklenen dosyalar Allure'da `*-container.json`
-içine düşer; raporcu bunları senaryoya bağlar. Referans: `Hooks.java`, `VideoKaydi.java`.
+içine düşer; divan bunları senaryoya bağlar. Referans: `Hooks.java`, `VideoKaydi.java`.
 
 | # | Ek | Önem | Ayrıntı |
 |---|----|------|---------|
@@ -62,7 +62,7 @@ içine düşer; raporcu bunları senaryoya bağlar. Referans: `Hooks.java`, `Vid
 | 4.3 | **Video** — kalınca, `video/mp4` | Ö | ffmpeg; Linux `x11grab` (Xvfb ekranı), Windows `gdigrab` (masaüstü). 5 fps, H.264 CRF 35; geçen senaryonun videosu silinir. |
 | 4.4 | Uygulama / test logu — kalınca, `text/plain` | İ | Son N satır yeterli. İlk 3 metin eki (16 KB'a kadar) self-healing istemine veri olarak eklenir. |
 
-Ekler için `scenario.attach(bayt, mime, ad)` kullanın; mime türünü doğru verin (raporcu görüntü,
+Ekler için `scenario.attach(bayt, mime, ad)` kullanın; mime türünü doğru verin (divan görüntü,
 video ve metni buna göre gösterir).
 
 ## 5. Tag'ler (izlenebilirlik, arama, CSV, DOORS, Jira)
@@ -75,19 +75,19 @@ video ve metni buna göre gösterir).
 | 5.4 | `@sample-fail`, `@wip` | İ | Kasıtlı/yarım senaryolar; self-healing ve otomatik bug atlar. |
 
 **`features.txt`** (proje kökü, Ö): her satır bir Cucumber tag ifadesi (`@smoke`,
-`@gece and not @wip`). Satırlar `or` ile birleşir. `stajci preflight` her tag'in en az bir
-senaryoda geçtiğini doğrular; CI değişkeni `STAJ_TAGS` bunu ezer.
+`@gece and not @wip`). Satırlar `or` ile birleşir. `ulak preflight` her tag'in en az bir
+senaryoda geçtiğini doğrular; CI değişkeni `ULAK_TAGS` bunu ezer.
 
 ## 6. Koşma biçimi (CI ve bellek)
 
 | # | Gereken | Önem | Neden |
 |---|---------|------|-------|
-| 6.1 | Surefire `<forkCount>1</forkCount>`, `<argLine>-Xmx${test.xmx} -Djava.awt.headless=false -Dfile.encoding=UTF-8</argLine>` | Z | Bellek sınırı (stajci `-Dtest.xmx` verir), gerçek ekran. Yoksa preflight uyarır. |
+| 6.1 | Surefire `<forkCount>1</forkCount>`, `<argLine>-Xmx${test.xmx} -Djava.awt.headless=false -Dfile.encoding=UTF-8</argLine>` | Z | Bellek sınırı (ulak `-Dtest.xmx` verir), gerçek ekran. Yoksa preflight uyarır. |
 | 6.2 | `<rerunFailingTestsCount>1</rerunFailingTestsCount>` | Ö | Kalan senaryo bir kez tekrar koşar; raporda "2 deneme", önce kalıp sonra geçen **flaky** işaretlenir. Otomatik Jira bug'ı yalnızca tekrar denemeden sonra açılır. |
 | 6.3 | Monocle / `testfx.headless=true` / `prism.order=sw` **olmamalı** | Z | Gereksinim: uygulama gerçek ekranda açılır. preflight işi düşürür. |
-| 6.4 | `mvn -B test` ile koşabilmeli (ek elle adım yok) | Z | `stajci start` bu komutu çağırır (`STAJ_TEST_COMMAND` ile değiştirilebilir). |
+| 6.4 | `mvn -B test` ile koşabilmeli (ek elle adım yok) | Z | `ulak start` bu komutu çağırır (`ULAK_TEST_COMMAND` ile değiştirilebilir). |
 | 6.5 | Test, uygulamayı `FxToolkit.registerPrimaryStage()` + `setupApplication(...)` ile açıp `cleanupStages()` ile kapatmalı | Z | Her senaryo temiz pencereyle başlar; ekran görüntüsü doğru pencereden alınır. |
-| 6.6 | Sabit pencere/ekran boyutu | Ö | Ekran görüntüleri ve video karşılaştırılabilir olur (Linux `STAJ_SCREEN`, Windows sabit çözünürlük). |
+| 6.6 | Sabit pencere/ekran boyutu | Ö | Ekran görüntüleri ve video karşılaştırılabilir olur (Linux `ULAK_SCREEN`, Windows sabit çözünürlük). |
 
 ## 7. Self-healing (OpenCode / Claude Code + vLLM) için
 
@@ -106,17 +106,17 @@ Bağlantı ayrıntıları: `docs/KOD_AJANI_VLLM.md`.
 
 | # | Gereken | Önem |
 |---|---------|------|
-| 8.1 | `.gitlab-ci.yml` içinde tek `include` + `STAJ_OS: linux|windows` | Z |
+| 8.1 | `.gitlab-ci.yml` içinde tek `include` + `ULAK_OS: linux|windows` | Z |
 | 8.2 | Masked CI değişkeni `CI_API_TOKEN` | Z |
 | 8.3 | Webhook (Pipeline + Merge request events) | Ö — pipeline durumu, gece e-postası, MR birleşti/reddedildi sayıları |
 | 8.4 | Gece schedule'ı 02:00 | Ö |
-| 8.5 | `STAJ_FIX_TOKEN` (proje erişim tokenı, `api` + `write_repository`) | self-healing için Z |
+| 8.5 | `ULAK_FIX_TOKEN` (proje erişim tokenı, `api` + `write_repository`) | self-healing için Z |
 
 ---
 
 ## Kontrol: rapor eksiksiz mi?
 
-Test projesini bir kez koşturup sonucu raporcu'ya yükleyin ve şunlara bakın:
+Test projesini bir kez koşturup sonucu divan'a yükleyin ve şunlara bakın:
 
 - [ ] Koşum raporunda her senaryo bir kez sayılıyor; rerun edilenlerde "2 deneme" rozeti var.
 - [ ] Kalan senaryonun sayfasında: hata mesajı + yığın izi, **tüm Gherkin adımları** (alt adımlar
@@ -124,7 +124,7 @@ Test projesini bir kez koşturup sonucu raporcu'ya yükleyin ve şunlara bakın:
 - [ ] Geçen senaryoda ekran görüntüsü/video **yok**.
 - [ ] Assertion hatası "failed / Ürün hatası", diğer istisnalar "broken / Test kodu hatası".
 - [ ] DOORS ve Jira tag'leri rozet olarak görünüyor; aramada DOORS numarasıyla bulunuyor.
-- [ ] `stajci preflight` uyarısız geçiyor.
+- [ ] `ulak preflight` uyarısız geçiyor.
 
 Hızlı kontrol için Allure çıktısının kendisi:
 

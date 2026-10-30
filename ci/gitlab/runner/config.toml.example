@@ -3,7 +3,7 @@ concurrent = 1
 check_interval = 0
 
 [[runners]]
-  name = "raporcu-linux"          # Windows için: raporcu-windows
+  name = "divan-linux"          # Windows için: divan-windows
   url = "https://gitlab.sirket.local/"
   token = "glrt-..."                # runner kayıt token'ı
   executor = "shell"

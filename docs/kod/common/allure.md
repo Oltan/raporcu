@@ -1,7 +1,7 @@
 # common/src/allure.rs
 
 **Amaç:** `allure-results` klasöründeki dosyaların modeli ve ayrıştırıcısı (allure-java 2.x,
-`allure-cucumber7-jvm`). raporcu, stajci ve prova aynı modeli kullanır. Gerçek örnekler:
+`allure-cucumber7-jvm`). divan, ulak ve prova aynı modeli kullanır. Gerçek örnekler:
 `testdata/allure/ornek-giris/`.
 
 ## Dosya türleri (`file_kind(dosya_adı)`)

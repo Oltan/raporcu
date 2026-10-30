@@ -1,22 +1,22 @@
 # CI şablonu ve dağıtım dosyaları
 
 ## ci/gitlab/template/.gitlab-ci.yml (SW-1.1, 1.4)
-Test projesi `include: project/ref/file` + `STAJ_OS: linux|windows` ekler. Aşamalar
+Test projesi `include: project/ref/file` + `ULAK_OS: linux|windows` ekler. Aşamalar
 `test → report → fix`.
 
 | Ortak iş | Script | Notlar |
 |----------|--------|--------|
-| `.staj-linux` / `.staj-windows` | `before_script`: `curl -fsS -o stajci "$STAJ_SERVER/api/tools/stajci?os=…"` | etiket `linux` / `windows`; OS'e özgü tek yer (SW-10.9) |
-| `.staj-test` | `stajci preflight`, `stajci start` | artifact (her zaman, 7 gün): `target/allure-results/`, `.stajci/`; `reports: dotenv: stajci.env` (`STAJ_RUN_ID`, `STAJ_REPORT_URL`); `STAJ_FIX_ONLY=true` ise atlanır |
-| `.staj-report` | `stajci upload`, `stajci finish` | `when: always` (test düşse de); artifact `.stajci/queue/` 30 gün (SW-2.6); `environment: rapor/$CI_COMMIT_REF_SLUG`, `url: $STAJ_REPORT_URL` (SW-5.4) |
-| `.staj-fix` | `stajci fix` | `allow_failure: true`; `STAJ_FIX=off` ise yok |
+| `.ulak-linux` / `.ulak-windows` | `before_script`: `curl -fsS -o ulak "$ULAK_SERVER/api/tools/ulak?os=…"` | etiket `linux` / `windows`; OS'e özgü tek yer (SW-10.9) |
+| `.ulak-test` | `ulak preflight`, `ulak start` | artifact (her zaman, 7 gün): `target/allure-results/`, `.ulak/`; `reports: dotenv: ulak.env` (`ULAK_RUN_ID`, `ULAK_REPORT_URL`); `ULAK_FIX_ONLY=true` ise atlanır |
+| `.ulak-report` | `ulak upload`, `ulak finish` | `when: always` (test düşse de); artifact `.ulak/queue/` 30 gün (SW-2.6); `environment: rapor/$CI_COMMIT_REF_SLUG`, `url: $ULAK_REPORT_URL` (SW-5.4) |
+| `.ulak-fix` | `ulak fix` | `allow_failure: true`; `ULAK_FIX=off` ise yok |
 
-Somut işler: `staj-{test,report,fix}-{linux,windows}`, `STAJ_OS`'a göre `rules` ile seçilir. Hiçbiri
+Somut işler: `ulak-{test,report,fix}-{linux,windows}`, `ULAK_OS`'a göre `rules` ile seçilir. Hiçbiri
 `merge_request_event` pipeline'ında koşmaz; `auto-fix/…` branch'inde test/report yalnızca
-`STAJ_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
-Windows işlerinde `STAJ_XVFB=off`. Değişkenler: `STAJ_SERVER=http://127.0.0.1:8080` (aynı makine),
-`STAJ_RESULTS_DIR`, `STAJ_MAVEN_XMX=512m`, `STAJ_TEST_XMX=768m`, `STAJ_VIDEO_FPS=5`,
-`STAJ_XVFB=on`, `STAJ_SCREEN=1920x1080`, isteğe bağlı `STAJ_TAGS`, `STAJ_FIX`; `CI_API_TOKEN`
+`ULAK_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
+Windows işlerinde `ULAK_XVFB=off`. Değişkenler: `ULAK_SERVER=http://127.0.0.1:8080` (aynı makine),
+`ULAK_RESULTS_DIR`, `ULAK_MAVEN_XMX=512m`, `ULAK_TEST_XMX=768m`, `ULAK_VIDEO_FPS=5`,
+`ULAK_XVFB=on`, `ULAK_SCREEN=1920x1080`, isteğe bağlı `ULAK_TAGS`, `ULAK_FIX`; `CI_API_TOKEN`
 masked proje/grup değişkeni.
 
 ## ci/gitlab/runner/config.toml.example
@@ -26,13 +26,13 @@ masked proje/grup değişkeni.
 Test projesine kopyalanacak ajan dosyaları: `opencode.json` (vLLM sağlayıcısı, `fix` ajanı),
 `AGENTS.md`; `CLAUDE.md` (Claude Code için aynı kurallar). Ayrıntı `docs/KOD_AJANI_VLLM.md`.
 
-## deploy/linux/raporcu.service
-systemd hizmeti: `raporcu` kullanıcısı, `/opt/raporcu` (`.env` çalışma klasöründen okunur), `MemoryMax=150M` / `MemoryHigh=110M`
-(SW-10.6), `Restart=on-failure`, sertleştirme (`ProtectSystem=strict`, yazma yalnızca `/var/lib/raporcu` ve `/opt/raporcu`).
+## deploy/linux/divan.service
+systemd hizmeti: `divan` kullanıcısı, `/opt/divan` (`.env` çalışma klasöründen okunur), `MemoryMax=150M` / `MemoryHigh=110M`
+(SW-10.6), `Restart=on-failure`, sertleştirme (`ProtectSystem=strict`, yazma yalnızca `/var/lib/divan` ve `/opt/divan`).
 
 ## deploy/windows/kurulum.ps1
 Uyku/ekran kapanması/kilit kapalı; GitLab runner'ı **oturum açılınca** başlayan zamanlanmış görev
-olarak (hizmet değil, TestFX masaüstü ister, SW-1.6); raporcu'yu açılışta SYSTEM görevi olarak kurar.
+olarak (hizmet değil, TestFX masaüstü ister, SW-1.6); divan'ı açılışta SYSTEM görevi olarak kurar.
 
 ## deploy/windows/rdp-cikis.cmd
 RDP oturumunu `tscon <oturum> /dest:console` ile konsola geri verir; masaüstü kilitlenmez.

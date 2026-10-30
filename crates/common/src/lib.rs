@@ -1,10 +1,10 @@
-//! raporcu ve stajci'nin ortak kodu: Allure modeli, API tipleri, sürüm bilgisi.
+//! divan ve ulak'ın ortak kodu: Allure modeli, API tipleri, sürüm bilgisi.
 
 pub mod allure;
 pub mod api;
 
-/// stajci ile sunucunun uyumlu olması gereken protokol sürümü (SW-10.9).
-/// stajci her istekte `X-Stajci-Version` başlığında kendi paket sürümünü gönderir; sunucu
+/// ulak ile sunucunun uyumlu olması gereken protokol sürümü (SW-10.9).
+/// ulak her istekte `X-Ulak-Version` başlığında kendi paket sürümünü gönderir; sunucu
 /// major.minor eşleşmezse isteği reddeder.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -17,7 +17,7 @@ pub fn versions_compatible(a: &str, b: &str) -> bool {
     matches!((mm(a), mm(b)), (Some(x), Some(y)) if x == y)
 }
 
-pub const VERSION_HEADER: &str = "x-stajci-version";
+pub const VERSION_HEADER: &str = "x-ulak-version";
 
 #[cfg(test)]
 mod tests {

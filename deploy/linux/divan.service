@@ -1,0 +1,27 @@
+# /etc/systemd/system/divan.service
+# Kurulum: docs/GITLAB_CI_KURULUMU.md, "divan sunucusu (Ubuntu)"
+[Unit]
+Description=divan test sonuç merkezi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=divan
+Group=divan
+WorkingDirectory=/opt/divan
+# .env burada okunur (DATA_DIR, CI_API_TOKEN, ADMIN_PASSWORD_HASH, ...)
+ExecStart=/opt/divan/divan
+Restart=on-failure
+RestartSec=5
+# SW-10.6: sert bellek sınırı (hedef < 100 MB, normal kullanım ~30 MB)
+MemoryMax=150M
+MemoryHigh=110M
+# sertleştirme
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/divan /opt/divan
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

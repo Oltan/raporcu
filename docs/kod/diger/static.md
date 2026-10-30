@@ -1,4 +1,4 @@
-# crates/raporcu/static — statik dosyalar
+# crates/divan/static — statik dosyalar
 
 İkiliye gömülür (rust-embed, `debug-embed` ile hata ayıklama derlemesinde de), `/static/<ad>`
 adresinden `Cache-Control: public, max-age=3600` ile sunulur. Dış bağlantı (CDN) yok; kapalı ağda çalışır.

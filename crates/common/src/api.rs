@@ -1,8 +1,8 @@
-//! stajci ↔ raporcu istek/yanıt tipleri.
+//! ulak ↔ divan istek/yanıt tipleri.
 
 use serde::{Deserialize, Serialize};
 
-/// GitLab CI'dan gelen koşum bilgisi (SW-4.3, SW-4.6). stajci bunları CI_* değişkenlerinden doldurur.
+/// GitLab CI'dan gelen koşum bilgisi (SW-4.3, SW-4.6). ulak bunları CI_* değişkenlerinden doldurur.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct CiInfo {
@@ -85,7 +85,7 @@ pub struct FinishRequest {
     pub status: Option<String>,
 }
 
-/// stajci fix → sunucu (SW-7.3)
+/// ulak fix → sunucu (SW-7.3)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct FixResult {
@@ -112,7 +112,7 @@ pub struct TriageSuggestion {
     pub confidence: f64,
 }
 
-/// Sunucu → stajci fix (SW-7.1)
+/// Sunucu → ulak fix (SW-7.1)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct FixCandidate {

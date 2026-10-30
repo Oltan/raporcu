@@ -15,9 +15,9 @@ import java.util.concurrent.TimeUnit;
  * İşletim sistemine özgü tek kısım burasıdır.
  *
  * Ayarlar (system property ya da ortam değişkeni):
- *   video.enabled / STAJ_VIDEO      true|false (varsayılan: ffmpeg varsa true)
- *   video.fps     / STAJ_VIDEO_FPS  varsayılan 5
- *   video.crf     / STAJ_VIDEO_CRF  varsayılan 35 (büyüdükçe dosya küçülür)
+ *   video.enabled / ULAK_VIDEO      true|false (varsayılan: ffmpeg varsa true)
+ *   video.fps     / ULAK_VIDEO_FPS  varsayılan 5
+ *   video.crf     / ULAK_VIDEO_CRF  varsayılan 35 (büyüdükçe dosya küçülür)
  */
 final class VideoKaydi {
 
@@ -30,13 +30,13 @@ final class VideoKaydi {
     }
 
     static VideoKaydi baslat() {
-        if (!Boolean.parseBoolean(ayar("video.enabled", "STAJ_VIDEO", "true"))) {
+        if (!Boolean.parseBoolean(ayar("video.enabled", "ULAK_VIDEO", "true"))) {
             return null;
         }
         try {
             Path dosya = Files.createTempFile("senaryo-", ".mp4");
             List<String> komut = new ArrayList<>(List.of("ffmpeg", "-hide_banner", "-loglevel", "error", "-y"));
-            String fps = ayar("video.fps", "STAJ_VIDEO_FPS", "5");
+            String fps = ayar("video.fps", "ULAK_VIDEO_FPS", "5");
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
                 komut.addAll(List.of("-f", "gdigrab", "-framerate", fps, "-i", "desktop"));
             } else {
@@ -44,7 +44,7 @@ final class VideoKaydi {
                 komut.addAll(List.of("-f", "x11grab", "-framerate", fps, "-i", ekran));
             }
             komut.addAll(List.of("-c:v", "libx264", "-preset", "ultrafast",
-                    "-crf", ayar("video.crf", "STAJ_VIDEO_CRF", "35"), "-pix_fmt", "yuv420p", dosya.toString()));
+                    "-crf", ayar("video.crf", "ULAK_VIDEO_CRF", "35"), "-pix_fmt", "yuv420p", dosya.toString()));
             Process surec = new ProcessBuilder(komut).redirectErrorStream(true)
                     .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
             return new VideoKaydi(surec, dosya);

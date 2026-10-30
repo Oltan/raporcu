@@ -21,7 +21,7 @@ JIRA_REQUIRE_RETRY=true
 Şirket Jira'larında bug ekranında genellikle zorunlu özel alanlar olur (faz, bulunduğu ortam,
 sürüm, bileşen...). Bunlar eksikse Jira bug'ı reddeder.
 
-1. **Admin → Ayarlar → "Jira alanlarını getir"**. raporcu, projenizin `JIRA_ISSUE_TYPE` ekranındaki
+1. **Admin → Ayarlar → "Jira alanlarını getir"**. divan, projenizin `JIRA_ISSUE_TYPE` ekranındaki
    alanları Jira'dan okur ve bir tabloda gösterir:
 
    | Kimlik | Ad | Zorunlu | Tür | İzinli değerler |
@@ -100,7 +100,7 @@ Otomatik açmada aynı hata Admin panelindeki "Jira gözlem kayıtları"nda `hat
 
 ## 5. Ürün hatası: taslak → tek tıkla aç
 
-Varsayılan (`JIRA_AUTO_CREATE=observe`): raporcu Jira'ya **yazmaz**, bug'ı **taslak** olarak
+Varsayılan (`JIRA_AUTO_CREATE=observe`): divan Jira'ya **yazmaz**, bug'ı **taslak** olarak
 hazırlar; siz göz atıp açarsınız.
 
 **Taslak ne zaman hazırlanır:**
@@ -108,7 +108,7 @@ hazırlar; siz göz atıp açarsınız.
   `urun` ise, rerun'da da kaldıysa (`JIRA_REQUIRE_RETRY`), koşum başına en fazla
   `JIRA_MAX_BUGS_PER_RUN`.
 - Fix işinde OpenCode bir senaryoya **"ürün hatası"** derse (güven ≥ `TRIAGE_AUTO_CONFIDENCE`, 0,70):
-  OpenCode kodu değiştirmez, raporcu o senaryo için taslak hazırlar (gerekçesiyle).
+  OpenCode kodu değiştirmez, divan o senaryo için taslak hazırlar (gerekçesiyle).
 - Aynı senaryo ya da aynı hata (parmak izi) için bekleyen taslak varsa, ya da senaryonun bağlı bir
   bug'ı varsa yenisi hazırlanmaz: her gece taslak birikmez. Jira'da aynı hatanın açık bug'ı bulunursa
   senaryo ona bağlanır, taslak gerekmez.

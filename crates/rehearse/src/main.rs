@@ -2,7 +2,7 @@
 //!
 //!   cargo run -p rehearse
 //!
-//! Sunucu gerçek bir süreç olarak açılır; stajci gerçek ikilidir. Testler yerine `fake-tests`
+//! Sunucu gerçek bir süreç olarak açılır; ulak gerçek ikilidir. Testler yerine `fake-tests`
 //! alt komutu Allure örneklerini (testdata) senaryo senaryo yazar.
 
 use anyhow::Result;
@@ -16,7 +16,7 @@ fn now_ms() -> u128 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis()
 }
 
-/// Sahte test koşusu: stajci'nin Maven'a verdiği argümanları alır, sonuçları sırayla yazar.
+/// Sahte test koşusu: ulak'ın Maven'a verdiği argümanları alır, sonuçları sırayla yazar.
 fn fake_tests(args: &[String]) -> i32 {
     let mut sample = sample_dir();
     let mut delay = 200u64;
@@ -41,7 +41,7 @@ fn fake_tests(args: &[String]) -> i32 {
             }
             "--oom" => oom = true,
             a if a.starts_with("-Dallure.results.directory=") => results = Some(PathBuf::from(&a["-Dallure.results.directory=".len()..])),
-            a if a.starts_with("-Dstajci.canli.dosya=") => events_file = Some(PathBuf::from(&a["-Dstajci.canli.dosya=".len()..])),
+            a if a.starts_with("-Dulak.canli.dosya=") => events_file = Some(PathBuf::from(&a["-Dulak.canli.dosya=".len()..])),
             _ => {}
         }
         i += 1;
@@ -204,24 +204,24 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             .unwrap_or_default()
     };
     for os in ["linux", "windows"] {
-        let fix = first_rule_ifs(&format!("staj-fix-{os}"));
-        let test = first_rule_ifs(&format!("staj-test-{os}"));
+        let fix = first_rule_ifs(&format!("ulak-fix-{os}"));
+        let test = first_rule_ifs(&format!("ulak-test-{os}"));
         ck.check(
             "SW-7.2",
-            &format!("{os}: auto-fix branch'inde fix işi yok, test işi yalnızca STAJ_FIX_PIPELINE=on ile; MR pipeline'ında yok"),
-            fix.iter().any(|r| r.contains("auto-fix") && !r.contains("STAJ_FIX_PIPELINE"))
-                && test.iter().any(|r| r.contains("auto-fix") && r.contains("STAJ_FIX_PIPELINE"))
+            &format!("{os}: auto-fix branch'inde fix işi yok, test işi yalnızca ULAK_FIX_PIPELINE=on ile; MR pipeline'ında yok"),
+            fix.iter().any(|r| r.contains("auto-fix") && !r.contains("ULAK_FIX_PIPELINE"))
+                && test.iter().any(|r| r.contains("auto-fix") && r.contains("ULAK_FIX_PIPELINE"))
                 && fix.iter().chain(&test).filter(|r| r.contains("merge_request_event")).count() == 2,
             format!("{fix:?} {test:?}"),
         );
     }
     for os in ["linux", "windows"] {
         let tag_ok = ["test", "report", "fix"].iter().all(|k| {
-            let job = &y[format!("staj-{k}-{os}").as_str()];
+            let job = &y[format!("ulak-{k}-{os}").as_str()];
             job.is_mapping()
         });
         ck.check("SW-1.1", &format!("{os} için 3 iş tanımlı"), tag_ok, "");
-        let base = &y[format!(".staj-{os}").as_str()];
+        let base = &y[format!(".ulak-{os}").as_str()];
         ck.check(
             "SW-1.1",
             &format!("{os} işleri '{os}' etiketli runner'a gider"),
@@ -229,7 +229,7 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             "",
         );
         for k in ["report", "fix"] {
-            let rules = y[format!("staj-{k}-{os}").as_str()]["rules"].as_sequence().unwrap();
+            let rules = y[format!("ulak-{k}-{os}").as_str()]["rules"].as_sequence().unwrap();
             let last = rules.last().unwrap();
             ck.check(
                 "SW-1.1",
@@ -239,43 +239,38 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             );
         }
     }
-    let mut only_stajci = true;
-    for k in [".staj-test", ".staj-report", ".staj-fix"] {
+    let mut only_ulak = true;
+    for k in [".ulak-test", ".ulak-report", ".ulak-fix"] {
         for line in y[k]["script"].as_sequence().unwrap() {
-            only_stajci &= line.as_str().unwrap_or("").starts_with("stajci ");
+            only_ulak &= line.as_str().unwrap_or("").starts_with("ulak ");
         }
     }
-    ck.check(
-        "SW-1.1",
-        "script satırları yalnızca stajci alt komutlarını çağırır",
-        only_stajci,
-        "",
-    );
+    ck.check("SW-1.1", "script satırları yalnızca ulak alt komutlarını çağırır", only_ulak, "");
     let vars = &y["variables"];
     ck.check(
         "SW-1.7",
-        "bellek sınırları CI değişkeni (STAJ_MAVEN_XMX, STAJ_TEST_XMX)",
-        vars["STAJ_MAVEN_XMX"].is_string() && vars["STAJ_TEST_XMX"].is_string(),
+        "bellek sınırları CI değişkeni (ULAK_MAVEN_XMX, ULAK_TEST_XMX)",
+        vars["ULAK_MAVEN_XMX"].is_string() && vars["ULAK_TEST_XMX"].is_string(),
         "",
     );
     ck.check(
         "SW-1.2",
-        "Linux'ta Xvfb sabit çözünürlük (STAJ_XVFB, STAJ_SCREEN)",
-        vars["STAJ_XVFB"].as_str() == Some("on") && vars["STAJ_SCREEN"].is_string(),
+        "Linux'ta Xvfb sabit çözünürlük (ULAK_XVFB, ULAK_SCREEN)",
+        vars["ULAK_XVFB"].as_str() == Some("on") && vars["ULAK_SCREEN"].is_string(),
         "",
     );
     ck.check(
         "SW-5.4",
         "rapor linki pipeline environment linkinde",
-        y[".staj-report"]["environment"]["url"].as_str() == Some("$STAJ_REPORT_URL"),
+        y[".ulak-report"]["environment"]["url"].as_str() == Some("$ULAK_REPORT_URL"),
         "",
     );
     ck.check(
         "SW-2.6",
         "gönderilemeyen sonuçlar artifact olarak saklanır",
-        y[".staj-report"]["artifacts"]["paths"]
+        y[".ulak-report"]["artifacts"]["paths"]
             .as_sequence()
-            .is_some_and(|p| p.iter().any(|x| x.as_str() == Some(".stajci/queue/"))),
+            .is_some_and(|p| p.iter().any(|x| x.as_str() == Some(".ulak/queue/"))),
         "",
     );
     Ok(())
@@ -287,13 +282,13 @@ fn main() -> Result<()> {
         Some("fake-tests") => std::process::exit(fake_tests(&args[1..])),
         Some("fake-opencode") => std::process::exit(fake_opencode()),
         Some("fake-validate") => std::process::exit(
-            std::env::var("STAJ_FAKE_VALIDATE")
+            std::env::var("ULAK_FAKE_VALIDATE")
                 .map(|v| if v == "fail" { 1 } else { 0 })
                 .unwrap_or(0),
         ),
         _ => {}
     }
-    println!("== raporcu prova (SW-10.2) ==");
+    println!("== divan prova (SW-10.2) ==");
     build_binaries()?;
     let mut ck = Checks::default();
     let tmp = tempfile::tempdir()?;
@@ -302,27 +297,27 @@ fn main() -> Result<()> {
     println!("\n-- CI şablonu");
     template_checks(&mut ck)?;
 
-    println!("\n-- Sunucu ve stajci dağıtımı");
+    println!("\n-- Sunucu ve ulak dağıtımı");
     let mut server = Server::new(&root.join("data"));
     std::fs::create_dir_all(server.data_dir.join("tools"))?;
-    let tools_name = if cfg!(windows) { "stajci-windows.exe" } else { "stajci-linux" };
-    std::fs::copy(exe("stajci"), server.data_dir.join("tools").join(tools_name))?;
+    let tools_name = if cfg!(windows) { "ulak-windows.exe" } else { "ulak-linux" };
+    std::fs::copy(exe("ulak"), server.data_dir.join("tools").join(tools_name))?;
     server.start()?;
     let os = if cfg!(windows) { "windows" } else { "linux" };
-    let (st, bin) = get_bytes(&format!("{}/api/tools/stajci?os={os}", server.url()))?;
+    let (st, bin) = get_bytes(&format!("{}/api/tools/ulak?os={os}", server.url()))?;
     let proj = project_copy(root, "proje")?;
-    let stajci_path = proj.join(format!("stajci{}", std::env::consts::EXE_SUFFIX));
-    std::fs::write(&stajci_path, &bin)?;
+    let ulak_path = proj.join(format!("ulak{}", std::env::consts::EXE_SUFFIX));
+    std::fs::write(&ulak_path, &bin)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&stajci_path, std::fs::Permissions::from_mode(0o755))?;
+        std::fs::set_permissions(&ulak_path, std::fs::Permissions::from_mode(0o755))?;
     }
-    let mut s = Stajci::new(&stajci_path, &proj, &server.url());
+    let mut s = Ulak::new(&ulak_path, &proj, &server.url());
     let ver = s.run(&["--version"])?;
     ck.check(
         "SW-10.9",
-        "stajci sunucudan indirilir ve çalışır",
+        "ulak sunucudan indirilir ve çalışır",
         st == 200 && ver.code == 0,
         format!("{st} {}", ver.text),
     );
@@ -333,7 +328,7 @@ fn main() -> Result<()> {
     let bad = project_copy(root, "eksik")?;
     let pom = std::fs::read_to_string(bad.join("pom.xml"))?.replace("allure-cucumber7-jvm", "yok");
     std::fs::write(bad.join("pom.xml"), pom)?;
-    let sb = Stajci::new(&stajci_path, &bad, &server.url());
+    let sb = Ulak::new(&ulak_path, &bad, &server.url());
     let pf = sb.run(&["preflight"])?;
     ck.check(
         "SW-1.5",
@@ -344,27 +339,27 @@ fn main() -> Result<()> {
 
     println!("\n-- Test işi: start + watch (canlı)");
     let env_out = root.join("env-1.json");
-    s.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 700, &env_out, ""))
-        .set("STAJ_FORCE_MAVEN_ARGS", "1")
-        .set("STAJ_WATCH_INTERVAL_MS", "300");
+    s.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 700, &env_out, ""))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
+        .set("ULAK_WATCH_INTERVAL_MS", "300");
     let has_xvfb = cfg!(target_os = "linux") && Path::new("/usr/bin/xvfb-run").exists();
-    s.set("STAJ_XVFB", if has_xvfb { "on" } else { "off" });
+    s.set("ULAK_XVFB", if has_xvfb { "on" } else { "off" });
     // ikinci proje aynı anda koşar (SW-1.2: ekranlar karışmaz)
     let proj2 = project_copy(root, "proje2")?;
     let env_out2 = root.join("env-2.json");
-    let mut s2 = Stajci::new(&stajci_path, &proj2, &server.url());
-    s2.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 100, &env_out2, ""))
-        .set("STAJ_FORCE_MAVEN_ARGS", "1")
+    let mut s2 = Ulak::new(&ulak_path, &proj2, &server.url());
+    s2.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 100, &env_out2, ""))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
         .set("CI_PROJECT_ID", "4343")
         .set("CI_PROJECT_PATH", "prova/ikinci")
-        .set("STAJ_XVFB", if has_xvfb { "on" } else { "off" });
+        .set("ULAK_XVFB", if has_xvfb { "on" } else { "off" });
     let mut child2 = s2.command(&["start"]).stdout(std::process::Stdio::null()).spawn()?;
     let mut child = s.command(&["start"]).stdout(std::process::Stdio::piped()).spawn()?;
     // koşum id'si
     let t0 = Instant::now();
     let mut run_id = 0;
     while t0.elapsed() < Duration::from_secs(15) {
-        if let Ok(t) = std::fs::read_to_string(proj.join(".stajci/run.json")) {
+        if let Ok(t) = std::fs::read_to_string(proj.join(".ulak/run.json")) {
             run_id = serde_json::from_str::<serde_json::Value>(&t)?["run_id"].as_i64().unwrap_or(0);
             if run_id > 0 {
                 break;
@@ -459,19 +454,19 @@ fn main() -> Result<()> {
 
     println!("\n-- Report işi: upload + finish");
     let up = s.run(&["upload"])?;
-    let env_file = std::fs::read_to_string(proj.join("stajci.env")).unwrap_or_default();
+    let env_file = std::fs::read_to_string(proj.join("ulak.env")).unwrap_or_default();
     ck.check(
         "SW-5.4",
-        "rapor linki yükleme çıktısında ve stajci.env'de",
-        up.code == 0 && up.text.contains(&format!("Rapor: {}/runs/{run_id}", server.url())) && env_file.contains("STAJ_REPORT_URL="),
+        "rapor linki yükleme çıktısında ve ulak.env'de",
+        up.code == 0 && up.text.contains(&format!("Rapor: {}/runs/{run_id}", server.url())) && env_file.contains("ULAK_REPORT_URL="),
         &up.text,
     );
     ck.check(
         "SW-10.7",
-        "stajci çıktısında her satırda run_id",
+        "ulak çıktısında her satırda run_id",
         up.text
             .lines()
-            .filter(|l| l.starts_with("[stajci"))
+            .filter(|l| l.starts_with("[ulak"))
             .all(|l| l.contains(&format!("run_id={run_id}"))),
         &up.text,
     );
@@ -497,10 +492,10 @@ fn main() -> Result<()> {
     );
 
     println!("\n-- Bellek sınırı aşımı");
-    let mut s3 = Stajci::new(&stajci_path, &proj, &server.url());
-    s3.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &root.join("env-oom.json"), "--oom"))
-        .set("STAJ_FORCE_MAVEN_ARGS", "1")
-        .set("STAJ_XVFB", "off");
+    let mut s3 = Ulak::new(&ulak_path, &proj, &server.url());
+    s3.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &root.join("env-oom.json"), "--oom"))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
+        .set("ULAK_XVFB", "off");
     let o = s3.run(&["start"])?;
     ck.check(
         "SW-1.7",
@@ -511,8 +506,8 @@ fn main() -> Result<()> {
 
     println!("\n-- Windows oturum kontrolü");
     if !cfg!(windows) {
-        let mut s4 = Stajci::new(&stajci_path, &proj, &server.url());
-        s4.set("STAJ_FAKE_WINDOWS_SESSION", "Services");
+        let mut s4 = Ulak::new(&ulak_path, &proj, &server.url());
+        s4.set("ULAK_FAKE_WINDOWS_SESSION", "Services");
         let o = s4.run(&["start", "--no-tests"])?;
         ck.check(
             "SW-1.6",
@@ -524,11 +519,11 @@ fn main() -> Result<()> {
 
     println!("\n-- Sunucu koşum sırasında kapanıp açılır (SW-2.6)");
     let proj3 = project_copy(root, "proje3")?;
-    let mut s5 = Stajci::new(&stajci_path, &proj3, &server.url());
-    s5.set("STAJ_TEST_COMMAND", fake_cmd(&sample_dir(), 500, &root.join("env-3.json"), ""))
-        .set("STAJ_FORCE_MAVEN_ARGS", "1")
-        .set("STAJ_XVFB", "off")
-        .set("STAJ_WATCH_INTERVAL_MS", "200")
+    let mut s5 = Ulak::new(&ulak_path, &proj3, &server.url());
+    s5.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 500, &root.join("env-3.json"), ""))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
+        .set("ULAK_XVFB", "off")
+        .set("ULAK_WATCH_INTERVAL_MS", "200")
         .set("CI_PROJECT_PATH", "prova/kesinti")
         .set("CI_PROJECT_ID", "4444");
     let mut ch = s5.command(&["start"]).stdout(std::process::Stdio::null()).spawn()?;
@@ -539,7 +534,7 @@ fn main() -> Result<()> {
     ch.wait()?;
     let up = s5.run(&["upload"])?;
     let fin = s5.run(&["finish"])?;
-    let rid: i64 = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj3.join(".stajci/run.json"))?)?["run_id"]
+    let rid: i64 = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj3.join(".ulak/run.json"))?)?["run_id"]
         .as_i64()
         .unwrap();
     let run = get_json(&format!("{}/api/runs/{rid}", server.url()))?;
@@ -553,14 +548,14 @@ fn main() -> Result<()> {
     println!("\n-- Sunucu yokken yükleme kuyruğa alınır, --resume ile gönderilir");
     let proj4 = project_copy(root, "proje4")?;
     copy_dir(&sample_dir(), &proj4.join("target/allure-results"))?;
-    let mut s6 = Stajci::new(&stajci_path, &proj4, &server.url());
-    s6.set("STAJ_RETRY_MAX", "1")
-        .set("STAJ_RETRY_BASE_MS", "100")
+    let mut s6 = Ulak::new(&ulak_path, &proj4, &server.url());
+    s6.set("ULAK_RETRY_MAX", "1")
+        .set("ULAK_RETRY_BASE_MS", "100")
         .set("CI_PROJECT_PATH", "prova/kuyruk")
         .set("CI_PROJECT_ID", "4545");
     server.stop();
     let up = s6.run(&["upload"])?;
-    let queued = std::fs::read_dir(proj4.join(".stajci/queue")).map(|r| r.count()).unwrap_or(0);
+    let queued = std::fs::read_dir(proj4.join(".ulak/queue")).map(|r| r.count()).unwrap_or(0);
     ck.check(
         "SW-2.6",
         "ulaşılamayınca kuyruğa yazılır",
@@ -569,7 +564,7 @@ fn main() -> Result<()> {
     );
     server.start()?;
     let rs = s6.run(&["upload", "--resume"])?;
-    let queued = std::fs::read_dir(proj4.join(".stajci/queue")).map(|r| r.count()).unwrap_or(0);
+    let queued = std::fs::read_dir(proj4.join(".ulak/queue")).map(|r| r.count()).unwrap_or(0);
     let list = get_json(&format!("{}/api/runs", server.url()))?;
     let found = list["kosumlar"]
         .as_array()
@@ -583,16 +578,16 @@ fn main() -> Result<()> {
         &rs.text,
     );
 
-    extra_steps(&mut ck, &server, &stajci_path, root)?;
+    extra_steps(&mut ck, &server, &ulak_path, root)?;
 
     server.stop();
     std::process::exit(ck.result());
 }
 
-/// Sahte OpenCode: STAJ_FAKE_MODE'a göre test kodunu değiştirir.
+/// Sahte OpenCode: ULAK_FAKE_MODE'a göre test kodunu değiştirir.
 fn fake_opencode() -> i32 {
-    let mode = std::env::var("STAJ_FAKE_MODE").unwrap_or_else(|_| "ok".into());
-    let prompt = std::fs::read_to_string(std::env::var("STAJ_FIX_PROMPT_FILE").unwrap_or_default()).unwrap_or_default();
+    let mode = std::env::var("ULAK_FAKE_MODE").unwrap_or_else(|_| "ok".into());
+    let prompt = std::fs::read_to_string(std::env::var("ULAK_FIX_PROMPT_FILE").unwrap_or_default()).unwrap_or_default();
     let steps = Path::new("src/test/java/com/ornek/test/GirisAdimlari.java");
     let mut code = std::fs::read_to_string(steps).unwrap();
     match mode.as_str() {
@@ -619,8 +614,8 @@ fn fake_opencode() -> i32 {
         prompt.len(),
         prompt.contains("Ekran görüntüsü")
     );
-    println!("STAJ_OZET: #sifremiUnuttum seçicisi olmayan bir düğümü arıyordu");
-    println!("STAJ_TRIAGE: {{\"category\": \"test_kodu\", \"reason\": \"Seçici yanlış\", \"confidence\": 0.9}}");
+    println!("ULAK_OZET: #sifremiUnuttum seçicisi olmayan bir düğümü arıyordu");
+    println!("ULAK_TRIAGE: {{\"category\": \"test_kodu\", \"reason\": \"Seçici yanlış\", \"confidence\": 0.9}}");
     0
 }
 
@@ -665,7 +660,7 @@ fn fake_gitlab() -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
     (port, got)
 }
 
-/// GitLab MR webhook'u: MR kapandı/birleşti (raporcu açık MR sayımını günceller).
+/// GitLab MR webhook'u: MR kapandı/birleşti (divan açık MR sayımını günceller).
 fn mr_closed(server: &Server, iid: usize) -> Result<()> {
     let body = format!(
         r#"{{"object_kind":"merge_request","object_attributes":{{"iid":{iid},"state":"closed"}},"project":{{"id":4242,"path_with_namespace":"prova/ornek-test-projesi"}}}}"#
@@ -686,8 +681,8 @@ fn sh(dir: &Path, args: &[&str]) -> Result<String> {
 }
 
 /// Self-healing (SW-7.2, 9.4, 7.3, 4.4, 5.4): sahte OpenCode + sahte GitLab + yerel git deposu.
-fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> Result<()> {
-    println!("\n-- Fix işi: stajci fix (sahte OpenCode ve GitLab)");
+fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Result<()> {
+    println!("\n-- Fix işi: ulak fix (sahte OpenCode ve GitLab)");
     if std::process::Command::new("git").arg("--version").output().is_err() {
         println!("  [ATLANDI] SW-7.2  git bulunamadı");
         return Ok(());
@@ -705,22 +700,22 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
     let bare = root.join("uzak.git");
     sh(root, &["init", "-q", "--bare", bare.to_str().unwrap()])?;
     sh(&proj, &["init", "-q", "-b", "main"])?;
-    std::fs::write(proj.join(".gitignore"), "target/\n.stajci/\nstajci\nstajci.exe\nstajci.env\n")?;
+    std::fs::write(proj.join(".gitignore"), "target/\n.ulak/\nulak\nulak.exe\nulak.env\n")?;
     sh(&proj, &["add", "-A"])?;
     sh(&proj, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "ilk"])?;
     let (gl_port, mrs) = fake_gitlab();
-    let mut s = Stajci::new(stajci, &proj, &server.url());
-    s.set("STAJ_RUN_ID", run_id.to_string())
+    let mut s = Ulak::new(ulak, &proj, &server.url());
+    s.set("ULAK_RUN_ID", run_id.to_string())
         .set(
-            "STAJ_OPENCODE_CMD",
+            "ULAK_OPENCODE_CMD",
             format!("\"{}\" fake-opencode {{istem}}", exe("rehearse").display()),
         )
-        .set("STAJ_FIX_VALIDATE_CMD", format!("\"{}\" fake-validate", exe("rehearse").display()))
-        .set("STAJ_XVFB", "off")
-        .set("STAJ_GITLAB_API", format!("http://127.0.0.1:{gl_port}/api/v4"))
-        .set("STAJ_FIX_TOKEN", "sahte-fix-token")
-        .set("STAJ_PUSH_REMOTE", bare.to_str().unwrap())
-        .set("STAJ_REPORT_URL", format!("{}/runs/{run_id}", server.url()));
+        .set("ULAK_FIX_VALIDATE_CMD", format!("\"{}\" fake-validate", exe("rehearse").display()))
+        .set("ULAK_XVFB", "off")
+        .set("ULAK_GITLAB_API", format!("http://127.0.0.1:{gl_port}/api/v4"))
+        .set("ULAK_FIX_TOKEN", "sahte-fix-token")
+        .set("ULAK_PUSH_REMOTE", bare.to_str().unwrap())
+        .set("ULAK_REPORT_URL", format!("{}/runs/{run_id}", server.url()));
     let o = s.run(&["fix"])?;
     let branches = sh(&bare, &["branch", "--list"]).unwrap_or_default();
     let mr = mrs.lock().unwrap().first().cloned().unwrap_or_default();
@@ -775,7 +770,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
     );
     mr_closed(server, 1)?;
 
-    s.set("STAJ_FAKE_VALIDATE", "fail");
+    s.set("ULAK_FAKE_VALIDATE", "fail");
     let o = s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().get(1).cloned().unwrap_or_default();
     let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
@@ -787,7 +782,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
     );
 
     mr_closed(server, 2)?;
-    s.set("STAJ_FAKE_VALIDATE", "ok").set("STAJ_FAKE_MODE", "outside");
+    s.set("ULAK_FAKE_VALIDATE", "ok").set("ULAK_FAKE_MODE", "outside");
     let before = mrs.lock().unwrap().len();
     let o = s.run(&["fix"])?;
     let clean = sh(&proj, &["status", "--porcelain"]).unwrap_or_default();
@@ -798,7 +793,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         format!("{}\n{clean}", o.text),
     );
 
-    s.set("STAJ_FAKE_MODE", "assert");
+    s.set("ULAK_FAKE_MODE", "assert");
     s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().last().cloned().unwrap_or_default();
     ck.check(
@@ -815,7 +810,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         "",
     );
 
-    // raporcu'daki senaryo düğmesi: STAJ_FIX_SCENARIO_ID ile yalnızca o senaryo (hedefi jira olsa da)
+    // divan'daki senaryo düğmesi: ULAK_FIX_SCENARIO_ID ile yalnızca o senaryo (hedefi jira olsa da)
     let run = get_json(&format!("{}/api/runs/{run_id}", server.url()))?;
     let sid = run["senaryolar"]
         .as_array()
@@ -824,7 +819,7 @@ fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> 
         .find(|x| x["senaryo"]["name"] == "Yanlış şifrede özel mesaj")
         .and_then(|x| x["senaryo"]["id"].as_i64())
         .unwrap_or(0);
-    s.set("STAJ_FAKE_MODE", "normal").set("STAJ_FIX_SCENARIO_ID", sid.to_string());
+    s.set("ULAK_FAKE_MODE", "normal").set("ULAK_FIX_SCENARIO_ID", sid.to_string());
     let o = s.run(&["fix"])?;
     ck.check(
         "SW-7.4",

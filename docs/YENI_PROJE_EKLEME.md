@@ -1,6 +1,6 @@
 # Yeni test projesi ekleme (SW-10.4)
 
-Bir Cucumber + TestFX (JavaFX) test projesini raporcu'ye bağlamak için. Hazır örnek:
+Bir Cucumber + TestFX (JavaFX) test projesini divan'a bağlamak için. Hazır örnek:
 `ornek-test-projesi/`.
 
 **1. Allure adaptörü (`pom.xml`)** — `ornek-test-projesi/pom.xml` içinden kopyalayın:
@@ -22,18 +22,18 @@ senaryolar proje kökündeki `features.txt` dosyasında (her satır bir tag ifad
 
 ```yaml
 include:
-  - project: 'ekip/raporcu'
+  - project: 'ekip/divan'
     ref: main
     file: '/ci/gitlab/template/.gitlab-ci.yml'
 variables:
-  STAJ_OS: linux      # ya da windows
+  ULAK_OS: linux      # ya da windows
 ```
 
-Tam örnek: `ornek-test-projesi/.gitlab-ci.yml`. raporcu deposu şirket GitLab'ında değilse
+Tam örnek: `ornek-test-projesi/.gitlab-ci.yml`. divan deposu şirket GitLab'ında değilse
 `ci/gitlab/template/.gitlab-ci.yml` dosyasını include etmek yerine olduğu gibi kopyalayın.
 
 **6. GitLab ayarları** — CI değişkenleri `CI_API_TOKEN` (masked), self-healing için
-`STAJ_FIX_TOKEN`; webhook (Pipeline + Merge request events); gece schedule'ı 02:00.
+`ULAK_FIX_TOKEN`; webhook (Pipeline + Merge request events); gece schedule'ı 02:00.
 Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.
 
 **7. OpenCode** — `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agents/fix.md` ve
@@ -41,6 +41,6 @@ Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.
 `ci/skills/*` → projede `.claude/skills/` (OpenCode ve Claude Code ikisi de okur). Ayrıntı:
 `docs/KOD_AJANI_VLLM.md`.
 
-**8. Deneyin** — branch'e push edin; pipeline'da `stajci preflight` eksikleri açık mesajla söyler.
+**8. Deneyin** — branch'e push edin; pipeline'da `ulak preflight` eksikleri açık mesajla söyler.
 İlk yükleme bittiğinde proje dashboard'da kendiliğinden görünür; rapor linki report işinin
 çıktısında ve pipeline'ın environment linkindedir.

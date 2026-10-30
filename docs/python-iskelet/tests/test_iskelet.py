@@ -1,4 +1,4 @@
-"""Rust testlerinin Python karşılıkları (crates/raporcu/tests/*). Aynı testdata kullanılır."""
+"""Rust testlerinin Python karşılıkları (crates/divan/tests/*). Aynı testdata kullanılır."""
 import io
 import json
 import threading
@@ -10,8 +10,8 @@ import pytest
 import uvicorn
 from fastapi.testclient import TestClient
 
-from raporcu.app import create_app
-from stajci.watch import EventTail, watch
+from divan.app import create_app
+from ulak.watch import EventTail, watch
 
 REPO = Path(__file__).resolve().parents[3]          # docs/python-iskelet/tests → depo kökü
 SAMPLE = REPO / "testdata/allure/ornek-giris"
@@ -24,7 +24,7 @@ Q = "project_path=ekip/javafx&branch=main&pipeline_id=9001"
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app({"data_dir": tmp_path, "public_url": "http://raporcu.test", "ci_api_token": TOKEN,
+    app = create_app({"data_dir": tmp_path, "public_url": "http://divan.test", "ci_api_token": TOKEN,
                       "migrations_dir": MIGR, "max_upload_mb": 512, "max_entry_mb": 256})
     with TestClient(app) as c:
         c.app = app
@@ -53,7 +53,7 @@ def test_sw_9_1_ci_requires_token(client):
 
 
 def test_sw_10_9_version_mismatch(client):
-    r = client.post("/api/ci/runs/start", json={"project_path": "a/b"}, headers={**H, "x-stajci-version": "9.9.0"})
+    r = client.post("/api/ci/runs/start", json={"project_path": "a/b"}, headers={**H, "x-ulak-version": "9.9.0"})
     assert r.status_code == 409
 
 
@@ -148,7 +148,7 @@ def test_sw_3_2_watch_against_real_server(tmp_path):
         time.sleep(0.05)
     import requests
     rid = requests.post("http://127.0.0.1:18787/api/ci/runs/start", json={"project_path": "a/b"}, headers=H).json()["run_id"]
-    res, state = tmp_path / "allure-results", tmp_path / ".stajci"
+    res, state = tmp_path / "allure-results", tmp_path / ".ulak"
     res.mkdir(); state.mkdir()
     for p in SAMPLE.iterdir():
         (res / p.name).write_bytes(p.read_bytes())

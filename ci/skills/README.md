@@ -11,7 +11,7 @@ hem **Claude Code** (`.claude/skills/`) okur; iki ajan için tek kopya yeter.
 
 | Skill | Ne zaman yüklenir |
 |-------|-------------------|
-| `hata-siniflandirma` | her zaman, değişiklikten önce: test kodu / ürün / ortam / flaky kararı, `STAJ_TRIAGE` |
+| `hata-siniflandirma` | her zaman, değişiklikten önce: test kodu / ürün / ortam / flaky kararı, `ULAK_TRIAGE` |
 | `testfx-secici` | seçici, bekleme, düğüm bulunamadı hataları |
 | `cucumber-adim` | undefined/ambiguous adım, adım tanımı ve feature kuralları |
 

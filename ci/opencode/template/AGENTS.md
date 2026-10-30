@@ -1,7 +1,7 @@
 # AGENTS.md — <PROJE ADI> test projesi
 
-Bu dosya OpenCode (ve diğer kod ajanları) için projeyi tanıtır. raporcu self-healing akışı
-(`stajci fix`) bu dosyayı ve `.opencode/agents/fix.md` ajanını kullanır.
+Bu dosya OpenCode (ve diğer kod ajanları) için projeyi tanıtır. divan self-healing akışı
+(`ulak fix`) bu dosyayı ve `.opencode/agents/fix.md` ajanını kullanır.
 Ajanın yükleyebileceği skill'ler `.claude/skills/` altındadır (`hata-siniflandirma`,
 `testfx-secici`, `cucumber-adim`); projeye özel bilgi için oraya yeni skill ekleyin.
 
@@ -33,4 +33,4 @@ Tek senaryo koşturmak için:
 
     mvn -B test -Dcucumber.filter.name="^Senaryo adı$"
 
-Linux'ta gerçek ekran gerekir (Xvfb); stajci bunu kendisi sağlar.
+Linux'ta gerçek ekran gerekir (Xvfb); ulak bunu kendisi sağlar.

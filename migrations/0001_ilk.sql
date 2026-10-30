@@ -107,7 +107,7 @@ CREATE TABLE attachments (
 );
 CREATE INDEX attachments_scenario ON attachments(scenario_id);
 
--- stajci start ile bildirilen beklenen senaryolar (canlı ekranda "bekliyor") (SW-3.1, SW-3.4)
+-- ulak start ile bildirilen beklenen senaryolar (canlı ekranda "bekliyor") (SW-3.1, SW-3.4)
 CREATE TABLE expected_scenarios (
     id       INTEGER PRIMARY KEY,
     run_id   INTEGER NOT NULL REFERENCES runs(id),

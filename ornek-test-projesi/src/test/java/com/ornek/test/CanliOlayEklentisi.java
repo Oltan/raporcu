@@ -23,14 +23,14 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * raporcu canlı aktarım eklentisi.
+ * divan canlı aktarım eklentisi.
  *
  * Allure sonuç dosyası ancak senaryo BİTİNCE yazılır. Canlı ekranda "şu an hangi senaryo, hangi
  * adımda" bilgisini göstermek için bu eklenti Cucumber olaylarını anında bir JSON-lines dosyasına
- * yazar; {@code stajci watch} dosyayı izleyip raporcu'ya gönderir.
+ * yazar; {@code ulak watch} dosyayı izleyip divan'a gönderir.
  *
- * Dosya: {@code -Dstajci.canli.dosya=...} (stajci start bunu verir), yoksa
- * {@code target/stajci-canli/olaylar.jsonl}. Her satır bir olay:
+ * Dosya: {@code -Dulak.canli.dosya=...} (ulak start bunu verir), yoksa
+ * {@code target/ulak-canli/olaylar.jsonl}. Her satır bir olay:
  *
  * <pre>
  * {"tur":"senaryo_basladi","zaman":1793304316815,"ad":"...","feature":"...","uri":"...","satir":10}
@@ -50,9 +50,9 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
     private int adimSirasi;
 
     public CanliOlayEklentisi() {
-        String yol = System.getProperty("stajci.canli.dosya");
+        String yol = System.getProperty("ulak.canli.dosya");
         if (yol == null || yol.isBlank()) {
-            yol = System.getenv().getOrDefault("STAJ_CANLI_DOSYA", "target/stajci-canli/olaylar.jsonl");
+            yol = System.getenv().getOrDefault("ULAK_CANLI_DOSYA", "target/ulak-canli/olaylar.jsonl");
         }
         dosya = Path.of(yol);
     }
@@ -121,7 +121,7 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
                 + ",\"sure_ms\":" + r.getDuration().toMillis() + "}");
     }
 
-    /** Bir satır yazar ve hemen diske iter (stajci saniyede bir okur). Hata testi etkilemez. */
+    /** Bir satır yazar ve hemen diske iter (ulak saniyede bir okur). Hata testi etkilemez. */
     private synchronized void yaz(String satir) {
         try {
             if (yazici == null) {
@@ -135,7 +135,7 @@ public class CanliOlayEklentisi implements ConcurrentEventListener {
             yazici.write('\n');
             yazici.flush();
         } catch (IOException e) {
-            System.err.println("[raporcu] canlı olay yazılamadı: " + e.getMessage());
+            System.err.println("[divan] canlı olay yazılamadı: " + e.getMessage());
         }
     }
 

@@ -1,12 +1,12 @@
-# Anlık aktarım: test koşarken sonuçlar raporcu'ya nasıl gelir
+# Anlık aktarım: test koşarken sonuçlar divan'a nasıl gelir
 
 
 > Kısa kurulum (yalnızca test projesine eklenecekler, Java kodu dahil): [`CANLI_EKRAN_KURULUM.md`](CANLI_EKRAN_KURULUM.md)
 
 Bu belge bir Java + Cucumber 7 + TestFX test projesinin GitLab runner'da koşarken sonuçlarının
-raporcu'nun canlı ekranına nasıl aktığını uçtan uca anlatır. Kısaca: **iki kanal** var.
+divan'ın canlı ekranına nasıl aktığını uçtan uca anlatır. Kısaca: **iki kanal** var.
 
-| Kanal | Kim yazar | Ne zaman | Ne taşır | raporcu'da |
+| Kanal | Kim yazar | Ne zaman | Ne taşır | divan'da |
 |-------|-----------|----------|----------|------------|
 | **Canlı olaylar** | `CanliOlayEklentisi` (Cucumber eklentisi, test projesinde) | Anında: senaryo/adım başladığı ve bittiği an | Senaryo adı, feature, adım metni, adım durumu, hata | "Şu an koşuyor" kartı, adım listesi, biten senaryonun sonucu |
 | **Allure sonuçları** | `allure-cucumber7-jvm` | Senaryo **bitince** | Tam sonuç: adımlar, alt adımlar, hata + yığın izi, ekran görüntüsü, video, sahne ağacı | Rapor, geçmiş, triage, Jira, CSV — kalıcı kayıt |
@@ -20,26 +20,26 @@ döner.
 ## 1. Akış
 
 ```
-GitLab runner (test makinesi)                                          raporcu sunucusu
+GitLab runner (test makinesi)                                          divan sunucusu
 ───────────────────────────────────────────────────────────────────    ─────────────────────────────
-stajci start
+ulak start
  ├─ .feature dosyalarını sayar (tag süzgeciyle) ──── POST /api/ci/runs/start ──▶ koşum "çalışıyor",
  │                                                  {expected:[ad, feature]}     beklenen senaryolar
- ├─ stajci watch'ı ayrı süreç olarak başlatır
- └─ xvfb-run mvn -B test -Dallure.results.directory=…  -Dstajci.canli.dosya=…
+ ├─ ulak watch'ı ayrı süreç olarak başlatır
+ └─ xvfb-run mvn -B test -Dallure.results.directory=…  -Dulak.canli.dosya=…
         │
         │  JVM (surefire, tek fork)
-        │   Cucumber ──▶ CanliOlayEklentisi ──▶ target/stajci-canli/olaylar.jsonl   (anında, satır satır)
+        │   Cucumber ──▶ CanliOlayEklentisi ──▶ target/ulak-canli/olaylar.jsonl   (anında, satır satır)
         │            └─▶ AllureCucumber7Jvm ──▶ target/allure-results/*.json, *-attachment*  (senaryo bitince)
         │
-stajci watch  (saniyede bir, STAJ_WATCH_INTERVAL_MS)
+ulak watch  (saniyede bir, ULAK_WATCH_INTERVAL_MS)
  ├─ olaylar.jsonl: yeni tam satırlar ──────────────── POST /api/ci/runs/{id}/events ──▶ bellekte "şu an"
  └─ allure-results: yeni dosyalar (ekler önce) ────── POST /api/ci/runs/{id}/results?name=… ─▶ SQLite
                                                                                        │
                                                          WebSocket /ws/runs/{id} ◀─────┘ (değişince
                                                          tarayıcı: /runs/{id}/live        anlık görüntü)
-mvn biter → stajci start: "stop" dosyası, watch son dosyaları gönderip çıkar
-report işi: stajci upload (toplu zip, tekrarlar sayılmaz) → stajci finish
+mvn biter → ulak start: "stop" dosyası, watch son dosyaları gönderip çıkar
+report işi: ulak upload (toplu zip, tekrarlar sayılmaz) → ulak finish
 ```
 
 ## 2. Zaman çizelgesi: tek senaryo
@@ -81,8 +81,8 @@ Hepsinin çalışan örneği `ornek-test-projesi/`dedir.
    cucumber.plugin=pretty, io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, com.sirket.test.CanliOlayEklentisi
    ```
 
-3. Bitti. Dosya yolunu `stajci start` `-Dstajci.canli.dosya=…` ile verir; elle koşturunca
-   `target/stajci-canli/olaylar.jsonl`'e yazar.
+3. Bitti. Dosya yolunu `ulak start` `-Dulak.canli.dosya=…` ile verir; elle koşturunca
+   `target/ulak-canli/olaylar.jsonl`'e yazar.
 
 Eklentinin davranışı:
 
@@ -98,7 +98,7 @@ Eklentinin davranışı:
 
 ### 3.3 Surefire
 
-`stajci start` Maven'a `-Dallure.results.directory` ve `-Dstajci.canli.dosya` verir; surefire
+`ulak start` Maven'a `-Dallure.results.directory` ve `-Dulak.canli.dosya` verir; surefire
 bunları forklanan test JVM'ine sistem özelliği olarak geçirir. `forkCount=1` olmalı (bellek
 için zaten öyle). `rerunFailingTestsCount` açıksa rerun'da aynı senaryo ikinci kez
 `senaryo_basladi` üretir; canlı ekranda "(2. deneme)" yazar, son durum geçerli olur.
@@ -118,7 +118,7 @@ bilgi olarak taşır, süreleri kendi saatiyle hesaplar (saat farkı sorun olmaz
 `durum` değerleri Cucumber'ınkilerdir: `PASSED`, `FAILED`, `SKIPPED`, `PENDING`, `UNDEFINED`,
 `AMBIGUOUS`. Gerçek bir koşunun tamamı: `testdata/canli/ornek-giris-olaylar.jsonl`.
 
-## 5. stajci watch
+## 5. ulak watch
 
 - Test işinden **ayrı süreç**; çökerse test etkilenmez (iş sonunda toplu zip yine gider).
 - Her turda (varsayılan 1 sn):
@@ -128,12 +128,12 @@ bilgi olarak taşır, süreleri kendi saatiyle hesaplar (saat farkı sorun olmaz
   2. **Allure dosyaları:** `allure-results`'ta yeni dosyaları bulur; önce ekler, sonra
      container/result json'ları. Yazımı süren dosyayı göndermez (boyut iki tur aynı kalmalı ya da
      300 ms'den eski olmalı). Her dosya ayrı `POST /api/ci/runs/{id}/results?name=<dosya>`.
-     Gönderilenler `.stajci/sent.txt`'e yazılır.
+     Gönderilenler `.ulak/sent.txt`'e yazılır.
 - Sunucuya ulaşamazsa artan aralıklarla (1 → 30 sn) bekler. `stop` dosyası görülünce son turu
   yapıp çıkar; gönderilemeyenler report işindeki toplu yüklemeyle gider.
-- Çıktısı `.stajci/watch.log` (iş artifact'inde).
+- Çıktısı `.ulak/watch.log` (iş artifact'inde).
 
-## 6. raporcu tarafı
+## 6. divan tarafı
 
 | Uç | Ne yapar |
 |----|----------|
@@ -164,20 +164,20 @@ senaryo başlayınca yeniden kurulur. Allure sonuçları kaybolmaz.
 
 | Değişken | Nerede | Varsayılan | Açıklama |
 |----------|--------|-----------|----------|
-| `STAJ_SERVER` | CI değişkeni | `http://127.0.0.1:8080` | raporcu ayrı makinedeyse onun adresi (HTTP yeterli) |
-| `STAJ_WATCH_INTERVAL_MS` | CI | 1000 | İzleme turu |
-| `STAJ_WATCH` | CI | açık | `off`: canlı gönderim yok, yalnızca iş sonunda toplu |
-| `STAJ_CANLI_DOSYA` | CI | `target/stajci-canli/olaylar.jsonl` | Olay dosyası |
-| `STAJ_WATCH_DRAIN_SECS` | CI | 30 | Testler bitince izleyicinin son dosyaları göndermesi için süre |
-| `RUN_STALL_TIMEOUT_SECS` | raporcu `.env` | 900 | Hiç olay/sonuç gelmezse koşum bu süre sonra `interrupted` |
+| `ULAK_SERVER` | CI değişkeni | `http://127.0.0.1:8080` | divan ayrı makinedeyse onun adresi (HTTP yeterli) |
+| `ULAK_WATCH_INTERVAL_MS` | CI | 1000 | İzleme turu |
+| `ULAK_WATCH` | CI | açık | `off`: canlı gönderim yok, yalnızca iş sonunda toplu |
+| `ULAK_CANLI_DOSYA` | CI | `target/ulak-canli/olaylar.jsonl` | Olay dosyası |
+| `ULAK_WATCH_DRAIN_SECS` | CI | 30 | Testler bitince izleyicinin son dosyaları göndermesi için süre |
+| `RUN_STALL_TIMEOUT_SECS` | divan `.env` | 900 | Hiç olay/sonuç gelmezse koşum bu süre sonra `interrupted` |
 
 ## 8. Sorun giderme
 
 | Belirti | Bakılacak yer |
 |---------|---------------|
-| Koşum açıldı ama hiçbir şey gelmiyor | `.stajci/watch.log`; `STAJ_SERVER` adresine runner'dan `curl $STAJ_SERVER/api/health` |
-| Sonuçlar geliyor, "şu an koşuyor" kartı yok | `target/stajci-canli/olaylar.jsonl` oluşuyor mu? `cucumber.plugin` listesinde eklenti var mı? |
+| Koşum açıldı ama hiçbir şey gelmiyor | `.ulak/watch.log`; `ULAK_SERVER` adresine runner'dan `curl $ULAK_SERVER/api/health` |
+| Sonuçlar geliyor, "şu an koşuyor" kartı yok | `target/ulak-canli/olaylar.jsonl` oluşuyor mu? `cucumber.plugin` listesinde eklenti var mı? |
 | Feature adı boş | Feature dosyasının ilk anahtar satırı `Özellik:` / `Feature:` mı? |
-| Senaryolar "bekliyor"da kalıyor | Beklenen liste `.feature` dosyalarından sayılır; tag süzgeci (`features.txt`, `STAJ_TAGS`) Maven'a verilenle aynı mı? |
+| Senaryolar "bekliyor"da kalıyor | Beklenen liste `.feature` dosyalarından sayılır; tag süzgeci (`features.txt`, `ULAK_TAGS`) Maven'a verilenle aynı mı? |
 | Koşum yarıda `interrupted` oldu | Test 15 dk boyunca hiç olay/sonuç üretmediyse; uzun hazırlık varsa `RUN_STALL_TIMEOUT_SECS`'i büyüt |
 | Sunucu kısa süre kapandı | Kayıp yok: watch tekrar dener, report işindeki toplu zip eksikleri tamamlar, tekrarlar sayılmaz |

@@ -1,12 +1,12 @@
 # Evde deneme (GitLab olmadan)
 
 Tüm akışı tek komutla, gerçek JavaFX + Cucumber + TestFX testleriyle koşturur:
-raporcu sunucusu açılır → `stajci preflight` → `stajci start` (testler koşar, canlı ekran
-tarayıcıda açılır) → `stajci upload` → `stajci finish` → dashboard.
+divan sunucusu açılır → `ulak preflight` → `ulak start` (testler koşar, canlı ekran
+tarayıcıda açılır) → `ulak upload` → `ulak finish` → dashboard.
 
 Test projesi olarak `ornek-test-projesi/` kullanılır: giriş ekranı olan küçük bir JavaFX
 uygulaması ve 7 senaryo. Bilerek bir kalan (assertion), bir broken (olmayan düğüm), bir flaky
-(ilk denemede kalır, rerun'da geçer) ve bir tanımsız adım içerir. Böylece raporcu'nun her durumu
+(ilk denemede kalır, rerun'da geçer) ve bir tanımsız adım içerir. Böylece divan'ın her durumu
 görülür. Proje bir kopyası üzerinde koşar, asıl klasör kirlenmez.
 
 ## Gerekenler
@@ -21,7 +21,7 @@ görülür. Proje bir kopyası üzerinde koşar, asıl klasör kirlenmez.
 
 ## Çalıştırma
 
-Paketin kökünde (raporcu ikilisinin yanında):
+Paketin kökünde (divan ikilisinin yanında):
 
 ```bash
 ./ev-denemesi.sh        # Linux, 1 koşum
@@ -45,7 +45,7 @@ Port 8080 doluysa: `PORT=8090 ./ev-denemesi.sh` / `ev-denemesi.ps1 -Port 8090`.
 4. **Dashboard** (`/`): son koşum donut grafiği; birden çok koşumda gidişat çizgisi ve flaky listesi.
 5. **Arama** (`/search`): ör. DOORS numarası `DOORS-1003` ya da `@sample-fail` tag'i; CSV dışa aktarma.
 6. Admin işleri (paylaşım linki, triage, Jira düğmesi): betiği kapatın, `ev-denemesi-veri`
-   klasöründe `raporcu set-admin-password` (Windows: `..\raporcu.exe set-admin-password`)
+   klasöründe `divan set-admin-password` (Windows: `..\divan.exe set-admin-password`)
    çalıştırın; şifre o klasördeki `.env`'e yazılır. Betiği yeniden başlatınca `/login` ile girin.
    Önceki koşumlar silinmez.
 
@@ -56,4 +56,4 @@ Her şey `ev-denemesi-veri/` klasöründe; silmek yeterli.
 `ornek-test-projesi` yerine kendi projeni koymak için: önce `java/` klasöründeki dosyaları
 (Hooks, VideoKaydi, CanliOlayEklentisi, junit-platform.properties, features.txt) projene ekle
 (`docs/YENI_PROJE_EKLEME.md`), sonra projeyi `ornek-test-projesi` adıyla betiğin yanına koy ya da
-betikteki `PROJE_KAYNAK` satırını değiştir. `stajci preflight` eksik bir şey varsa açıkça söyler.
+betikteki `PROJE_KAYNAK` satırını değiştir. `ulak preflight` eksik bir şey varsa açıkça söyler.

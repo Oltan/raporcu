@@ -11,10 +11,10 @@ Bu ortamda (Linux, GitLab'sız) doğrulanamayan kabul kriterleri. Her madde biti
 - [ ] SW-1.3 Schedule 02:00'de başlar, sabah rapor hazır.
 - [ ] SW-1.4 `include` satırı ile çalışır; şablon değişince ertesi koşum yeni sürümü kullanır.
 - [ ] SW-1.5 Allure bağımlılığı silinmiş bir branch'te iş "Allure adaptörü eksik" mesajıyla düşer.
-- [ ] SW-1.7 `STAJ_TEST_XMX=64m` ile iş "BELLEK SINIRI AŞILDI" mesajıyla düşer; normal gece OOM yok.
+- [ ] SW-1.7 `ULAK_TEST_XMX=64m` ile iş "BELLEK SINIRI AŞILDI" mesajıyla düşer; normal gece OOM yok.
 - [ ] SW-3.6 Pipeline başlayınca dashboard'da "kuyrukta / çalışıyor".
 - [ ] SW-5.4 Rapor linki report işi çıktısında ve pipeline environment linkinde.
-- [ ] SW-10.9 Sunucu güncellenince ertesi koşum yeni stajci'yi indirir.
+- [ ] SW-10.9 Sunucu güncellenince ertesi koşum yeni ulak'ı indirir.
 
 ## Windows runner
 
@@ -37,5 +37,5 @@ Bu ortamda (Linux, GitLab'sız) doğrulanamayan kabul kriterleri. Her madde biti
 ## Kurulum
 
 - [ ] SW-10.1 Rehberle sıfırdan Ubuntu ve Windows kurulumu yapıldı.
-- [ ] SW-10.3 Repo şirket GitLab'ında (push kapalıysa `git bundle create raporcu.bundle --all`).
+- [ ] SW-10.3 Repo şirket GitLab'ında (push kapalıysa `git bundle create divan.bundle --all`).
 - [ ] SW-10.4 Başka bir ekip rehberle kendi projesini bağladı.

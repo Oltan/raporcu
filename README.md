@@ -1,8 +1,8 @@
-# raporcu — test sonuç merkezi
+# divan — test sonuç merkezi
 
 GitLab CI'da koşan JavaFX (Cucumber + TestFX) e2e testlerinin Allure sonuçlarını alır; canlı
 durum, rapor, paylaşım, triage, Jira/DOORS ve OpenCode ile self-healing sağlar. Rust ile yazıldı:
-tek ikili sunucu (`raporcu`, ~6 MB, ~30 MB RAM) + tek ikili CI aracı (`stajci`), SQLite,
+tek ikili sunucu (`divan`, ~6 MB, ~30 MB RAM) + tek ikili CI aracı (`ulak`), SQLite,
 Ubuntu ve Windows.
 
 ![Koşum raporu](docs/img/kosum-raporu.png)
@@ -11,12 +11,12 @@ Ubuntu ve Windows.
 
 ```
 test projesi pipeline'ı (GitLab runner, aynı makine)
-  test   : stajci preflight → stajci start  (Xvfb / masaüstü, izleyici sonuçları anında gönderir)
-  report : stajci upload → stajci finish     (toplu zip, rapor linki, kuyruk)
-  fix    : stajci fix                        (OpenCode → auto-fix branch → MR)
+  test   : ulak preflight → ulak start  (Xvfb / masaüstü, izleyici sonuçları anında gönderir)
+  report : ulak upload → ulak finish     (toplu zip, rapor linki, kuyruk)
+  fix    : ulak fix                        (OpenCode → auto-fix branch → MR)
                     │ localhost
                     ▼
-raporcu: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOORS · self-healing paneli
+divan: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOORS · self-healing paneli
 ```
 
 ## Hızlı başlangıç
@@ -24,8 +24,8 @@ raporcu: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOOR
 ```bash
 cargo build --release
 cp .env.example .env          # CI_API_TOKEN, PUBLIC_URL, ...
-./target/release/raporcu set-admin-password
-./target/release/raporcu    # http://127.0.0.1:8080
+./target/release/divan set-admin-password
+./target/release/divan    # http://127.0.0.1:8080
 ```
 
 Örnek sonuçları yüklemek için:
@@ -60,8 +60,8 @@ JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılı
 
 | Yol | İçerik |
 |-----|--------|
-| `crates/raporcu` | sunucu: axum + askama/htmx + WebSocket, SQLite (`rusqlite` bundled) |
-| `crates/stajci` | CI aracı: `preflight`, `start`, `watch`, `upload`, `finish`, `fix` |
+| `crates/divan` | sunucu: axum + askama/htmx + WebSocket, SQLite (`rusqlite` bundled) |
+| `crates/ulak` | CI aracı: `preflight`, `start`, `watch`, `upload`, `finish`, `fix` |
 | `crates/common` | Allure modeli/ayrıştırıcı, API tipleri, sürüm uyumu |
 | `crates/rehearse` | prova: CI akışını yerelde benzetir (`cargo run -p rehearse`) |
 | `crates/e2esmoke` | uçtan uca smoke (`cargo run -p e2esmoke`) |
@@ -82,9 +82,9 @@ JavaFX projesini gerçek testlerle koşturur; canlı ekran tarayıcıda açılı
 ```bash
 cargo clippy --all-targets -- -D warnings
 cargo test                 # 105 test (Wine varsa: --target x86_64-pc-windows-gnu)
-cargo run -p rehearse      # 44 prova adımı (sunucu + stajci gerçek süreç olarak)
+cargo run -p rehearse      # 44 prova adımı (sunucu + ulak gerçek süreç olarak)
 cargo run -p e2esmoke      # 18 uçtan uca kontrol
-cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci
+cargo build --release --target x86_64-pc-windows-gnu -p divan -p ulak
 ```
 
 Gereksinimlerin durumu: [`GEREKSINIMLER_1.md`](GEREKSINIMLER_1.md). Plan: [`docs/PLAN.md`](docs/PLAN.md).

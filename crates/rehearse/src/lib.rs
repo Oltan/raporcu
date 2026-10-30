@@ -1,4 +1,4 @@
-//! Prova ve smoke için ortak düzenek: sunucuyu ayrı süreç olarak açar, stajci'yi çalıştırır.
+//! Prova ve smoke için ortak düzenek: sunucuyu ayrı süreç olarak açar, ulak'ı çalıştırır.
 
 use anyhow::{bail, Context, Result};
 use std::io::Read;
@@ -23,14 +23,13 @@ pub fn exe(name: &str) -> PathBuf {
 
 pub fn build_binaries() -> Result<()> {
     // Windows ikilileri Wine altında koşarken cargo çağrılamaz; önceden derlenmiş olmalı.
-    if std::env::var("STAJ_SKIP_BUILD").is_ok() {
+    if std::env::var("ULAK_SKIP_BUILD").is_ok() {
         return Ok(());
     }
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let release = bin_dir().ends_with("release");
     let mut cmd = Command::new(cargo);
-    cmd.args(["build", "-q", "-p", "raporcu", "-p", "stajci"])
-        .current_dir(workspace_root());
+    cmd.args(["build", "-q", "-p", "divan", "-p", "ulak"]).current_dir(workspace_root());
     if release {
         cmd.arg("--release");
     }
@@ -67,7 +66,7 @@ impl Server {
     }
 
     pub fn start(&mut self) -> Result<()> {
-        let mut cmd = Command::new(exe("raporcu"));
+        let mut cmd = Command::new(exe("divan"));
         cmd.env("DATA_DIR", &self.data_dir)
             .env("BIND_ADDR", format!("127.0.0.1:{}", self.port))
             .env("PUBLIC_URL", self.url())
@@ -84,7 +83,7 @@ impl Server {
             cmd.env(k, v);
         }
         std::fs::create_dir_all(&self.data_dir)?;
-        self.child = Some(cmd.spawn().context("raporcu başlatılamadı")?);
+        self.child = Some(cmd.spawn().context("divan başlatılamadı")?);
         let deadline = Instant::now() + Duration::from_secs(20);
         while Instant::now() < deadline {
             if let Ok(r) = get(&format!("{}/api/health", self.url())) {
@@ -180,7 +179,7 @@ pub fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
     for e in std::fs::read_dir(src)? {
         let e = e?;
         let n = e.file_name();
-        if n == "target" || n == ".stajci" {
+        if n == "target" || n == ".ulak" {
             continue;
         }
         if e.path().is_dir() {
@@ -196,8 +195,8 @@ pub fn sample_dir() -> PathBuf {
     workspace_root().join("testdata/allure/ornek-giris")
 }
 
-/// stajci komutu: gerçek CI'daki gibi proje klasöründe, ortam değişkenleriyle.
-pub struct Stajci {
+/// ulak komutu: gerçek CI'daki gibi proje klasöründe, ortam değişkenleriyle.
+pub struct Ulak {
     pub exe: PathBuf,
     pub project: PathBuf,
     pub env: Vec<(String, String)>,
@@ -208,13 +207,13 @@ pub struct Output {
     pub text: String,
 }
 
-impl Stajci {
-    pub fn new(exe: &Path, project: &Path, server: &str) -> Stajci {
-        Stajci {
+impl Ulak {
+    pub fn new(exe: &Path, project: &Path, server: &str) -> Ulak {
+        Ulak {
             exe: exe.to_path_buf(),
             project: project.to_path_buf(),
             env: vec![
-                ("STAJ_SERVER".into(), server.into()),
+                ("ULAK_SERVER".into(), server.into()),
                 ("CI_API_TOKEN".into(), TOKEN.into()),
                 ("CI_PROJECT_ID".into(), "4242".into()),
                 ("CI_PROJECT_PATH".into(), "prova/ornek-test-projesi".into()),
@@ -233,7 +232,7 @@ impl Stajci {
                     "CI_JOB_URL".into(),
                     "https://gitlab.sirket.local/prova/ornek-test-projesi/-/jobs/1".into(),
                 ),
-                ("STAJ_RETRY_BASE_MS".into(), "200".into()),
+                ("ULAK_RETRY_BASE_MS".into(), "200".into()),
             ],
         }
     }
@@ -257,7 +256,7 @@ impl Stajci {
         let out = self
             .command(args)
             .output()
-            .with_context(|| format!("stajci {args:?} çalıştırılamadı"))?;
+            .with_context(|| format!("ulak {args:?} çalıştırılamadı"))?;
         let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
         Ok(Output {
             code: out.status.code().unwrap_or(-1),

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# raporcu ev denemesi (Linux): GitLab olmadan tüm akışı gerçek JavaFX testleriyle koşturur.
+# divan ev denemesi (Linux): GitLab olmadan tüm akışı gerçek JavaFX testleriyle koşturur.
 #
 #   ./ev-denemesi.sh            # 1 koşum
 #   ./ev-denemesi.sh 3          # 3 koşum (dashboard'da gidişat grafiği ve flaky tespiti için)
@@ -14,13 +14,13 @@ TOKEN=ev-denemesi
 KOK=$(cd "$(dirname "$0")" && pwd)
 
 bul() { for p in "$@"; do [ -e "$p" ] && { echo "$p"; return; }; done; }
-RAPORCU=$(bul "$KOK/raporcu" "$KOK/../raporcu" "$KOK/../target/release/raporcu" "$KOK/../target/debug/raporcu")
-STAJCI=$(bul "$KOK/tools/stajci-linux" "$KOK/../tools/stajci-linux" "$KOK/../target/release/stajci" "$KOK/../target/debug/stajci")
+DIVAN=$(bul "$KOK/divan" "$KOK/../divan" "$KOK/../target/release/divan" "$KOK/../target/debug/divan")
+ULAK=$(bul "$KOK/tools/ulak-linux" "$KOK/../tools/ulak-linux" "$KOK/../target/release/ulak" "$KOK/../target/debug/ulak")
 PROJE_KAYNAK=$(bul "$KOK/ornek-test-projesi" "$KOK/../ornek-test-projesi")
 
 hata() { echo "HATA: $*" >&2; exit 1; }
-[ -n "$RAPORCU" ] || hata "raporcu ikilisi bulunamadı (paketin kökünde ya da target/release altında olmalı)"
-[ -n "$STAJCI" ] || hata "stajci ikilisi bulunamadı (tools/stajci-linux)"
+[ -n "$DIVAN" ] || hata "divan ikilisi bulunamadı (paketin kökünde ya da target/release altında olmalı)"
+[ -n "$ULAK" ] || hata "ulak ikilisi bulunamadı (tools/ulak-linux)"
 [ -n "$PROJE_KAYNAK" ] || hata "ornek-test-projesi klasörü bulunamadı"
 command -v java >/dev/null || hata "java yok: sudo apt install openjdk-21-jdk"
 command -v mvn >/dev/null || hata "maven yok: sudo apt install maven"
@@ -36,13 +36,13 @@ echo "Çalışma klasörü: $IS"
 # --- sunucu ---
 export DATA_DIR="$IS/veri" BIND_ADDR="127.0.0.1:$PORT" PUBLIC_URL="http://127.0.0.1:$PORT" CI_API_TOKEN="$TOKEN" LOG_STDOUT=false
 mkdir -p "$DATA_DIR/tools"
-cp "$STAJCI" "$DATA_DIR/tools/stajci-linux"
-(cd "$IS" && exec "$RAPORCU") > "$IS/sunucu.txt" 2>&1 &
+cp "$ULAK" "$DATA_DIR/tools/ulak-linux"
+(cd "$IS" && exec "$DIVAN") > "$IS/sunucu.txt" 2>&1 &
 SUNUCU=$!
 trap 'kill $SUNUCU 2>/dev/null' EXIT
 for _ in $(seq 50); do curl -s "$PUBLIC_URL/api/health" >/dev/null && break; sleep 0.2; done
 curl -s "$PUBLIC_URL/api/health" >/dev/null || { cat "$IS/sunucu.txt"; hata "sunucu açılmadı"; }
-echo "raporcu açıldı: $PUBLIC_URL"
+echo "divan açıldı: $PUBLIC_URL"
 ac() { command -v xdg-open >/dev/null && xdg-open "$1" >/dev/null 2>&1 || true; }
 ac "$PUBLIC_URL/"
 
@@ -50,31 +50,31 @@ ac "$PUBLIC_URL/"
 PROJE="$IS/ornek-test-projesi"
 rm -rf "$PROJE"
 cp -r "$PROJE_KAYNAK" "$PROJE"
-rm -rf "$PROJE/target" "$PROJE/.stajci"
-export STAJ_SERVER="$PUBLIC_URL" CI_PROJECT_PATH="ev/ornek-test-projesi" CI_COMMIT_REF_NAME="main"
+rm -rf "$PROJE/target" "$PROJE/.ulak"
+export ULAK_SERVER="$PUBLIC_URL" CI_PROJECT_PATH="ev/ornek-test-projesi" CI_COMMIT_REF_NAME="main"
 cd "$PROJE"
 
-"$STAJCI" preflight || hata "ön kontrol geçmedi"
+"$ULAK" preflight || hata "ön kontrol geçmedi"
 for n in $(seq "$KOSU"); do
   echo
   echo "=== Koşum $n / $KOSU ==="
-  rm -f .stajci/run.json
+  rm -f .ulak/run.json
   # koşum açılınca canlı ekranı tarayıcıda aç
   ( for _ in $(seq 300); do
-      if [ -f .stajci/run.json ]; then
-        url=$(sed -n 's/.*"report_url": *"\([^"]*\)".*/\1/p' .stajci/run.json)
+      if [ -f .ulak/run.json ]; then
+        url=$(sed -n 's/.*"report_url": *"\([^"]*\)".*/\1/p' .ulak/run.json)
         [ -n "$url" ] && { echo ">>> Canlı ekran: $url/live"; ac "$url/live"; }
         break
       fi
       sleep 0.2
     done ) &
-  "$STAJCI" start;  echo "(test işi çıkış kodu: $? — örnek projede bilerek kalan senaryolar var, 1 normaldir)"
-  "$STAJCI" upload
-  "$STAJCI" finish
+  "$ULAK" start;  echo "(test işi çıkış kodu: $? — örnek projede bilerek kalan senaryolar var, 1 normaldir)"
+  "$ULAK" upload
+  "$ULAK" finish
 done
 
 echo
 echo "Bitti. Dashboard: $PUBLIC_URL/"
-echo "Admin (paylaşım, triage) için: kapatın, cd \"$IS\" && \"$RAPORCU\" set-admin-password, sonra betiği yeniden çalıştırın."
+echo "Admin (paylaşım, triage) için: kapatın, cd \"$IS\" && \"$DIVAN\" set-admin-password, sonra betiği yeniden çalıştırın."
 echo "Sunucu açık kalıyor; kapatmak için Enter."
 read -r _

@@ -3,7 +3,7 @@
 param(
   [string]$Kullanici = "testrunner",
   [string]$RunnerDir = "C:\GitLab-Runner",
-  [string]$StajDir = "C:\raporcu"
+  [string]$DivanDir = "C:\divan"
 )
 
 # 1) Uyku, ekran kapanması ve hazırda bekleme kapalı
@@ -26,8 +26,8 @@ Write-Host "Otomatik oturum açma için: Autologon64.exe $Kullanici $env:COMPUTE
 $runner = Join-Path $RunnerDir "gitlab-runner.exe"
 schtasks /create /tn "GitLab Runner (masaustu)" /tr "`"$runner`" run --working-directory `"$RunnerDir`" --config `"$RunnerDir\config.toml`"" /sc onlogon /ru $Kullanici /rl highest /f
 
-# 5) raporcu sunucusu: makine açılınca (oturum gerektirmez) SYSTEM olarak
-$server = Join-Path $StajDir "raporcu.exe"
-schtasks /create /tn "raporcu sunucusu" /tr "cmd /c cd /d `"$StajDir`" && `"$server`"" /sc onstart /ru SYSTEM /rl highest /f
+# 5) divan sunucusu: makine açılınca (oturum gerektirmez) SYSTEM olarak
+$server = Join-Path $DivanDir "divan.exe"
+schtasks /create /tn "divan sunucusu" /tr "cmd /c cd /d `"$DivanDir`" && `"$server`"" /sc onstart /ru SYSTEM /rl highest /f
 
 Write-Host "Tamam. Ekran çözünürlüğünü sabitleyin (Ayarlar > Ekran, ör. 1920x1080) ve makineyi yeniden başlatın."

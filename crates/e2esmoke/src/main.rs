@@ -1,18 +1,18 @@
-//! Uçtan uca smoke (SW-10.2): sonuçlar CI yükleme yolundan (stajci upload → POST /api/ci/runs,
+//! Uçtan uca smoke (SW-10.2): sonuçlar CI yükleme yolundan (ulak upload → POST /api/ci/runs,
 //! SW-2.1) gönderilir, rapor sayfaları gerçek sunucuda doğrulanır.
 //!
 //!   cargo run -p e2esmoke                       # kendi sunucusunu açar
-//!   STAJ_SERVER=http://host:8080 CI_API_TOKEN=... cargo run -p e2esmoke   # çalışan sunucuya karşı
+//!   ULAK_SERVER=http://host:8080 CI_API_TOKEN=... cargo run -p e2esmoke   # çalışan sunucuya karşı
 
 use anyhow::Result;
 use rehearse::*;
 
 fn main() -> Result<()> {
-    println!("== raporcu uçtan uca smoke (SW-10.2) ==");
+    println!("== divan uçtan uca smoke (SW-10.2) ==");
     build_binaries()?;
     let tmp = tempfile::tempdir()?;
     let root = tmp.path();
-    let external = std::env::var("STAJ_SERVER").ok();
+    let external = std::env::var("ULAK_SERVER").ok();
     let mut server = Server::new(&root.join("data"));
     let admin_pw = "Smoke-Admin-123";
     let (url, token) = match &external {
@@ -21,10 +21,10 @@ fn main() -> Result<()> {
             // SW-9.5: admin şifresi set-admin-password ile .env'e yazılır
             std::fs::create_dir_all(&server.data_dir)?;
             let envf = server.data_dir.join(".env");
-            let st = std::process::Command::new(exe("raporcu"))
+            let st = std::process::Command::new(exe("divan"))
                 .arg("set-admin-password")
                 .env("ENV_FILE", &envf)
-                .env("STAJ_NEW_ADMIN_PASSWORD", admin_pw)
+                .env("ULAK_NEW_ADMIN_PASSWORD", admin_pw)
                 .status()?;
             anyhow::ensure!(st.success(), "set-admin-password başarısız");
             server.start()?;
@@ -36,17 +36,17 @@ fn main() -> Result<()> {
     let (st, body) = get(&format!("{url}/api/health"))?;
     ck.check("SW-10.5", "sağlık ucu 200", st == 200 && body.contains("ok"), &body);
 
-    // test projesi gibi: target/allure-results + stajci upload (run.json yok → yeni koşum)
+    // test projesi gibi: target/allure-results + ulak upload (run.json yok → yeni koşum)
     let proj = root.join("proje");
     copy_dir(&sample_dir(), &proj.join("target/allure-results"))?;
-    let mut s = Stajci::new(&exe("stajci"), &proj, &url);
+    let mut s = Ulak::new(&exe("ulak"), &proj, &url);
     s.set("CI_API_TOKEN", token.clone())
         .set("CI_PROJECT_PATH", "smoke/ornek")
         .set("CI_PROJECT_ID", "9090");
     let up = s.run(&["upload"])?;
     ck.check(
         "SW-2.1",
-        "stajci upload ile CI yükleme yolu",
+        "ulak upload ile CI yükleme yolu",
         up.code == 0 && up.text.contains("Rapor:"),
         &up.text,
     );
@@ -161,7 +161,7 @@ fn main() -> Result<()> {
         ck.check(
             "SW-9.5",
             "doğru şifreyle giriş, HttpOnly çerez",
-            st == 303 && cookie.starts_with("staj_oturum="),
+            st == 303 && cookie.starts_with("divan_oturum="),
             "",
         );
         let (st, hs, _) = post(&format!("{url}/admin/runs/{run_id}/share"), &[("Cookie", &cookie)], b"")?;
@@ -214,7 +214,7 @@ fn main() -> Result<()> {
             "",
         );
         // yedek
-        let st = std::process::Command::new(exe("raporcu"))
+        let st = std::process::Command::new(exe("divan"))
             .arg("backup")
             .env("DATA_DIR", &server.data_dir)
             .output()?;
