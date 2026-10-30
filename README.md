@@ -67,7 +67,8 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 | `testdata/allure/` | gerçek `allure-results` örnekleri (testler bunları kullanır) |
 | `deploy/` | systemd servisi, Windows kurulum betikleri |
 | `docs/` | plan, kurulum, kararlar, pilot kontrol listesi, [anlık aktarım](docs/ANLIK_AKTARIM.md) |
-| `docs/kod/` | [her kaynak dosyanın açıklaması](docs/kod/README.md) (dilden bağımsız, Python'a taşıma haritası) |
+| `docs/kod/` | [her kaynak dosyanın açıklaması](docs/kod/README.md) (dilden bağımsız) |
+| `docs/PYTHON_GECIS.md`, `docs/python-iskelet/` | [Python'a geçiş rehberi](docs/PYTHON_GECIS.md) ve çalışan, testli Python iskeleti |
 
 ## Doğrulama
 

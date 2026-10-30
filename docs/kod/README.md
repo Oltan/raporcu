@@ -27,6 +27,8 @@ Konu belgeleri: [anlık aktarım](../ANLIK_AKTARIM.md) · [CI kurulumu](../GITLA
 
 ## Python'a geçiş haritası
 
+Adım adım rehber: [`../PYTHON_GECIS.md`](../PYTHON_GECIS.md); çalışan iskelet: [`../python-iskelet/`](../python-iskelet/).
+
 | Rust | Python karşılığı | Not |
 |------|------------------|-----|
 | axum + tokio | **FastAPI** (ya da Starlette) + uvicorn | uç noktalar ve yollar aynı kalmalı (stajci ve CI şablonu bunlara bağlı) |

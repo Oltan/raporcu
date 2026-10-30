@@ -89,4 +89,5 @@ gözlem modu), e-posta, canlı durumu temizleme.
   istemde test çıktısı `<<<VERI-…>>>` blokları içinde veridir.
 - Monocle/headless JavaFX kullanılmaz (preflight reddeder); Linux'ta Xvfb, Windows'ta masaüstü oturumu.
 - Her kaynak dosyanın dilden bağımsız açıklaması `docs/kod/` altında (olası Python taşıması için);
-  dosyanın davranışı değişirse ilgili belgeyi de güncelle.
+  dosyanın davranışı değişirse ilgili belgeyi de güncelle. Python geçiş rehberi `docs/PYTHON_GECIS.md`,
+  iskelet `docs/python-iskelet/` (`pytest -q`); sunucu sözleşmesi (uçlar, JSON alanları) değişirse iskeleti de güncelle.
