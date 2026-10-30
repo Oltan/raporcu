@@ -117,20 +117,23 @@ Senaryo: Yanlış şifrede özel mesaj
 `1003`, DOORS nesnesinin **kimlik özniteliğinin** değeridir (varsayılan `Absolute Number`).
 Bir senaryo birden çok gereksinimi karşılıyorsa birden çok `@DOORS-…` tag'i taşır.
 
+**Aktarım CSV ile yapılır:** koşum sayfası → **DOORS CSV** (`/runs/<koşum>/doors.csv`), kendi
+aktarım betiğinizle DOORS'a alınır. Sütunlar (UTF-8 BOM, virgül):
+
+```
+DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih
+DOORS-1003,Yanlış şifrede özel mesaj,Giriş ekranı,Kaldı,STAJ-42,12,2026-10-30T02:14:05Z
+```
+
+Bir senaryo birden çok DOORS numarası taşıyorsa her numara ayrı satırdır; Jira sütunu tag'deki ve
+bağlanan bug'ları boşlukla birleştirir.
+
 Admin → Ayarlar → **DOORS**:
 
 | Ayar | Varsayılan | Açıklama |
 |------|-----------|----------|
-| Modül yolu | (boş) | ör. `/Proje/Gereksinimler/SRS`. Boşsa DXL o an açık modülde çalışır; doluysa modülü düzenleme kipinde açar, günceller ve kaydeder |
-| Kimlik özniteliği | `Absolute Number` | tag'deki numaranın karşılaştırıldığı öznitelik (ör. `Object Identifier`, `Req ID`) |
-| Sonuç / Tarih / Jira / Rapor linki öznitelikleri | `Test Sonucu`, `Test Tarihi`, `Jira`, `Test Raporu` | modüldeki öznitelik adları; boş bırakılan yazılmaz |
-| Sonuç değerleri | `Geçti`, `Kaldı`, `Atlandı`, `Koşulmadı` | sonuç özniteliği enum ise değerleri **birebir** aynı olmalı (ör. `Passed` / `Failed`) |
+| Sonuç değerleri | `Geçti`, `Kaldı`, `Atlandı`, `Koşulmadı` | CSV'nin Sonuç sütununa yazılır; aktarım betiğinizin beklediği değerleri girin (ör. `Passed` / `Failed`) |
 | DOORS linki şablonu | (boş) | rapordaki DOORS rozetlerini tıklanabilir yapar; `{{no}}` = 1003, `{{id}}` = DOORS-1003 |
-
-**Aktarım:** koşum sayfası → **DOORS DXL** dosyasını indirin, DOORS'ta *Tools → Edit DXL* ile
-çalıştırın. Betik her DOORS numarası için kimlik özniteliği eşleşen nesneyi bulur, sonuç, tarih,
-Jira ve rapor linkini yazar; sonunda "N nesne güncellendi, M numara bulunamadı" der.
-**DOORS CSV** aynı bilgiyi DOORS'un CSV içe aktarımı ya da Excel için verir.
 
 **DOORS linki:** DOORS'ta bir nesneye sağ tık → *Copy URL* ile alınan adreste nesne numarasının
 geçtiği yeri `{{no}}` ile değiştirin. Ör.:
@@ -139,4 +142,10 @@ geçtiği yeri `{{no}}` ile değiştirin. Ör.:
 doors://doors.sirket.local:36677/?version=2&prodID=0&view=00000021&urn=urn:telelogic::1-432a1b2c3d4e5f60-O-{{no}}-0001a2b3
 ```
 
-Not: DXL betiği gerçek bir DOORS modülünde henüz denenmedi (pilot kontrol listesi).
+### DXL betiği (isteğe bağlı, varsayılan kapalı)
+
+`.env`'de `DOORS_DXL=true` yapılırsa koşum sayfasında **DOORS DXL** düğmesi çıkar ve ayarlar
+sayfasında DXL alanları görünür: modül yolu, kimlik özniteliği (`Absolute Number`), sonuç / tarih /
+Jira / rapor linki öznitelik adları. Betik DOORS'ta *Tools → Edit DXL* ile çalıştırılır, kimlik
+özniteliği eşleşen nesnelere yazar. Kapalıyken bu ayarlar korunur, yalnızca gizlenir. DXL gerçek bir
+DOORS modülünde henüz denenmedi.

@@ -13,6 +13,8 @@
   yazılır (Content-Length yok); büyük listeler belleğe alınmaz (SW-10.6). İstemci koparsa durur.
 
 ## DOORS (ayarlar: `ayarlar.md` → DoorsAyar)
+Aktarım CSV ile. DXL varsayılan kapalı: `DOORS_DXL=true` değilse `/runs/{id}/doors.dxl` 404 ve düğme gizli.
+
 - `doors_rows(koşum, ayar)`: DOORS numarası olan her son deneme, **her DOORS numarası için bir satır**;
   sonuç ayardaki değerlerle (`ayar.status`).
 - `doors_csv`: BOM + `DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih`.

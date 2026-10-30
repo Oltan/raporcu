@@ -28,6 +28,7 @@ branch, commit, kosum, tarih (değerleri `jira::vars` üretir).
 - `extra_fields(metin)`: boş → boş nesne; JSON nesnesi değilse açıklayıcı hata.
 
 ## DoorsAyar
+CSV için yalnızca sonuç değerleri ve link şablonu kullanılır; modül ve öznitelik alanları DXL içindir (`DOORS_DXL`), kapalıyken formda gizli alan olarak taşınır.
 `modul` (boş = açık modül), `id_oznitelik` (Absolute Number), `sonuc_/tarih_/jira_/rapor_oznitelik`
 (boş = yazılmaz), sonuç değerleri `gecti/kaldi/atlandi/kosulmadi`, `link_sablonu` (`{{no}}`, `{{id}}`).
 - `status(allure)`: passed → gecti, failed/broken → kaldi, skipped → atlandi, diğer → kosulmadi.

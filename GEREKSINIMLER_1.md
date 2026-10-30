@@ -335,7 +335,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Test: B
 - Doğrulama: `test_sw_6_4_doors_csv_and_dxl`, e2esmoke
 - Not: DXL betiği gerçek DOORS modülünde denenmedi (pilot listesi).
-- Ek: modül yolu, kimlik/sonuç/tarih/Jira/rapor öznitelik adları, sonuç enum değerleri ve DOORS linki şablonu Admin > Ayarlar > DOORS'tan; DXL bunlarla üretilir. Doğrulama: `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
+- Ek: aktarım CSV ile (kullanıcının kendi aktarım betiği); sonuç değerleri ve DOORS linki şablonu Admin > Ayarlar > DOORS'tan. DXL isteğe bağlı, varsayılan kapalı (`DOORS_DXL=true`). Doğrulama: `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
 
 ---
 

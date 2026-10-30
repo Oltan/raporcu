@@ -774,7 +774,7 @@ async fn test_sw_6_3_auto_bug_uses_template_fields() {
 
 #[tokio::test]
 async fn test_sw_6_4_doors_settings_used_in_dxl_csv_and_links() {
-    let app = app();
+    let app = app_with(|c| c.doors_dxl = true);
     let cookie = app.admin_cookie();
     let id = upload_sample(&app, Q).await;
     let form = "modul=%2FProje%2FSRS&id_oznitelik=Object+Identifier&sonuc_oznitelik=Test+Result&tarih_oznitelik=&jira_oznitelik=Jira&rapor_oznitelik=&gecti=Passed&kaldi=Failed&atlandi=Skipped&kosulmadi=Not+Run&link_sablonu=doors%3A%2F%2Fdoors.sirket.local%3A36677%2F%3Furn%3Dx-%7B%7Bno%7D%7D";
@@ -800,4 +800,20 @@ async fn test_sw_6_4_doors_settings_used_in_dxl_csv_and_links() {
     // boş kimlik özniteliği kaydedilmez
     let r = post_form(&app, "/admin/ayarlar/doors", &cookie, "id_oznitelik=").await;
     assert!(r.status().is_client_error() || r.status().is_server_error());
+}
+
+#[tokio::test]
+async fn test_sw_6_4_doors_csv_settings_kept_when_dxl_off() {
+    let app = app();
+    let cookie = app.admin_cookie();
+    let (_, page) = app.get_admin("/admin/ayarlar").await;
+    assert!(page.contains("DOORS_DXL=true") && page.contains(r#"type="hidden" name="id_oznitelik""#));
+    // DXL alanları gizliyken kaydetmek onları silmez; CSV sonuç değerleri değişir
+    let form = "modul=&id_oznitelik=Absolute+Number&sonuc_oznitelik=Test+Sonucu&tarih_oznitelik=Test+Tarihi&jira_oznitelik=Jira&rapor_oznitelik=Test+Raporu&gecti=Passed&kaldi=Failed&atlandi=Skipped&kosulmadi=Not+Run&link_sablonu=";
+    let r = post_form(&app, "/admin/ayarlar/doors", &cookie, form).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    let id = upload_sample(&app, Q).await;
+    let (_, csv) = app.get(&format!("/runs/{id}/doors.csv")).await;
+    assert!(csv.contains("DOORS-1003,Yanlış şifrede özel mesaj,Giriş ekranı,Failed"), "{csv}");
+    assert_eq!(app.state.ayarlar.get().doors.id_oznitelik, "Absolute Number");
 }

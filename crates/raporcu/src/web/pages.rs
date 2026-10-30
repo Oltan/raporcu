@@ -306,6 +306,7 @@ pub struct RunScenario {
 #[template(path = "run.html")]
 struct RunPage {
     l: Layout,
+    doors_dxl: bool,
     run: RunRow,
     groups: Vec<FeatureGroup>,
     donut: String,
@@ -428,6 +429,7 @@ pub fn group_by_feature(rows: Vec<RunScenario>) -> Vec<FeatureGroup> {
 impl RunPage {
     fn new(l: Layout, run: RunRow, rows: Vec<RunScenario>, fixes: Vec<FixRow>, notice: Option<String>) -> RunPage {
         RunPage {
+            doors_dxl: false,
             donut: run_donut(&run),
             legend: legend(&run_slices(&run)),
             groups: group_by_feature(rows),
@@ -513,7 +515,9 @@ pub async fn run_page(
         }
         _ => None,
     };
-    Ok(render(&RunPage::new(l, run, rows, fixes, notice)))
+    let mut page = RunPage::new(l, run, rows, fixes, notice);
+    page.doors_dxl = st.cfg.doors_dxl;
+    Ok(render(&page))
 }
 
 fn html_escape(s: &str) -> String {
@@ -847,6 +851,9 @@ pub async fn doors_csv(State(st): State<AppState>, Path(id): Path<i64>) -> Resul
 }
 
 pub async fn doors_dxl(State(st): State<AppState>, Path(id): Path<i64>) -> Result<Response, AppError> {
+    if !st.cfg.doors_dxl {
+        return Err(AppError::not_found()); // DOORS_DXL=true ile açılır
+    }
     let ayar = st.ayarlar.get().doors;
     let a2 = ayar.clone();
     let rows = st.db.read(move |c| crate::export::doors_rows(c, id, &a2)).await?;

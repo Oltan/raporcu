@@ -63,9 +63,11 @@
 
 <section class="kart">
   <h2>DOORS</h2>
-  <p class="kucuk">Senaryolar DOORS gereksinimine <code>@DOORS-&lt;no&gt;</code> tag'iyle bağlanır; <code>&lt;no&gt;</code> DOORS nesnesinin aşağıdaki kimlik özniteliğinin değeridir.
-    Koşum sayfasındaki "DOORS DXL" betiği bu ayarlarla üretilir: modülü açar, eşleşen nesnelerin sonuç özniteliklerini yazar.</p>
+  <p class="kucuk">Senaryolar DOORS gereksinimine <code>@DOORS-&lt;no&gt;</code> tag'iyle bağlanır. Aktarım koşum sayfasındaki
+    <b>DOORS CSV</b> ile yapılır (<code>DOORS ID, Senaryo, Feature, Sonuç, Jira, Koşum, Tarih</code>); sonuç sütunu aşağıdaki değerlerle yazılır.
+    {% if !doors_dxl %}DXL betiği kapalı (açmak için <code>.env</code>: <code>DOORS_DXL=true</code>).{% endif %}</p>
   <form method="post" action="/admin/ayarlar/doors" class="dikey">
+    {% if doors_dxl %}
     <label>Modül yolu (boşsa DXL o an açık modülde çalışır)<input name="modul" value="{{ doors.modul }}" placeholder="/Proje/Gereksinimler/SRS"></label>
     <div class="satir">
       <label>Kimlik özniteliği<input name="id_oznitelik" value="{{ doors.id_oznitelik }}" required></label>
@@ -74,7 +76,15 @@
       <label>Jira özniteliği<input name="jira_oznitelik" value="{{ doors.jira_oznitelik }}"></label>
       <label>Rapor linki özniteliği<input name="rapor_oznitelik" value="{{ doors.rapor_oznitelik }}"></label>
     </div>
-    <p class="kucuk">Sonuç değerleri DOORS'taki sonuç özniteliğinin enum değerleriyle birebir aynı olmalı. Öznitelik adını boş bırakırsanız o öznitelik yazılmaz.</p>
+    {% else %}
+    <input type="hidden" name="modul" value="{{ doors.modul }}">
+    <input type="hidden" name="id_oznitelik" value="{{ doors.id_oznitelik }}">
+    <input type="hidden" name="sonuc_oznitelik" value="{{ doors.sonuc_oznitelik }}">
+    <input type="hidden" name="tarih_oznitelik" value="{{ doors.tarih_oznitelik }}">
+    <input type="hidden" name="jira_oznitelik" value="{{ doors.jira_oznitelik }}">
+    <input type="hidden" name="rapor_oznitelik" value="{{ doors.rapor_oznitelik }}">
+    {% endif %}
+    <p class="kucuk">Sonuç değerleri: aktarım betiğinizin ya da DOORS'taki sonuç özniteliğinin beklediği değerler (ör. <code>Passed</code> / <code>Failed</code>).</p>
     <div class="satir">
       <label>Geçti<input name="gecti" value="{{ doors.gecti }}"></label>
       <label>Kaldı (failed/broken)<input name="kaldi" value="{{ doors.kaldi }}"></label>

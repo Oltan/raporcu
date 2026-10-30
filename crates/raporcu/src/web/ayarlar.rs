@@ -26,6 +26,7 @@ struct AyarlarPage {
     yer_tutucular: &'static [(&'static str, &'static str)],
     jira_ayarli: bool,
     jira_bilgi: String,
+    doors_dxl: bool,
     /// "Jira alanlarını getir" sonucu
     alanlar: Option<Result<Vec<FieldMeta>, String>>,
     notice: Option<String>,
@@ -63,6 +64,7 @@ pub async fn page(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Que
         doors: a.doors,
         yer_tutucular: ayarlar::YER_TUTUCULAR,
         jira_ayarli: Jira::from_config(&st.cfg).is_some(),
+        doors_dxl: st.cfg.doors_dxl,
         jira_bilgi: jira_bilgi(&st),
         alanlar,
         notice: q.notice,
@@ -105,6 +107,7 @@ pub async fn save_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap
                     doors: a.doors,
                     yer_tutucular: ayarlar::YER_TUTUCULAR,
                     jira_ayarli: Jira::from_config(&st.cfg).is_some(),
+                    doors_dxl: st.cfg.doors_dxl,
                     jira_bilgi: jira_bilgi(&st),
                     alanlar: None,
                     notice: None,

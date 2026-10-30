@@ -211,7 +211,13 @@ async fn test_sw_4_8_large_csv_is_streamed() {
 
 #[tokio::test]
 async fn test_sw_6_4_doors_csv_and_dxl() {
-    let app = app();
+    // DXL varsayılan kapalı: düğme yok, uç 404
+    let off = app();
+    let id0 = upload_sample(&off, Q).await;
+    let (_, page) = off.get(&format!("/runs/{id0}")).await;
+    assert!(page.contains("DOORS CSV") && !page.contains("doors.dxl"));
+    assert_eq!(off.get(&format!("/runs/{id0}/doors.dxl")).await.0, StatusCode::NOT_FOUND);
+    let app = app_with(|c| c.doors_dxl = true);
     let id = upload_sample(&app, Q).await;
     let (st, csv) = app.get(&format!("/runs/{id}/doors.csv")).await;
     assert_eq!(st, StatusCode::OK);

@@ -79,3 +79,7 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   düğmesi yalnızca o senaryoyu, triage hedefinden bağımsız düzeltir.
 - **Xvfb ekran numarası:** `xvfb-run -a` aramayı süreç numarasına göre farklı yerden başlatır
   (`-n 99+pid%400`); aynı anda başlayan iki işin aynı ekranı alması (provada görüldü) önlenir.
+- **DOORS aktarımı CSV:** kullanıcının kendi aktarım betiği var; DXL betiği öncelik değil,
+  `DOORS_DXL=false` varsayılanıyla kapalı (kod duruyor, `true` ile açılır).
+- **Self-healing ajanı komutla çağrılır:** `stajci fix` runner'da `opencode run …` ya da `claude -p …`
+  komutunu çalıştırır (`STAJ_FIX_CMD` ile tamamen değiştirilebilir); dış servise erişim gerekmez.

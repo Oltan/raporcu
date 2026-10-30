@@ -127,9 +127,9 @@ fn main() -> Result<()> {
     let (st, dx) = get(&format!("{url}/runs/{run_id}/doors.dxl"))?;
     ck.check(
         "SW-6.4",
-        "DOORS DXL",
-        st == 200 && dx.contains("m = current") && dx.contains("string idAttr"),
-        "",
+        "DOORS DXL kapalıysa 404, açıksa betik (DOORS_DXL)",
+        st == 404 || (st == 200 && dx.contains("m = current") && dx.contains("string idAttr")),
+        format!("{st}"),
     );
     let (st, srch) = get(&format!("{url}/search?doors=DOORS-1003"))?;
     ck.check("SW-4.7", "DOORS numarasıyla arama", st == 200 && srch.contains("1 sonuç"), "");
