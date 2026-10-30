@@ -83,3 +83,7 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   `DOORS_DXL=false` varsayılanıyla kapalı (kod duruyor, `true` ile açılır).
 - **Self-healing ajanı komutla çağrılır:** `stajci fix` runner'da `opencode run …` ya da `claude -p …`
   komutunu çalıştırır (`STAJ_FIX_CMD` ile tamamen değiştirilebilir); dış servise erişim gerekmez.
+- **Türkçe argümanlar ve dil ayarı:** GitLab runner servisi POSIX (ASCII) dil ayarıyla çalışınca Java
+  komut satırındaki Türkçe karakterleri bozuyor (`-Dcucumber.filter.name=^Geçerli…$` hiç eşleşmiyor;
+  gerçek Maven ile görüldü). stajci Maven'a `LC_ALL=C.UTF-8` verir; fix doğrulamasında ad filtresi
+  ayrıca ASCII'ye indirilir (`ş` → `.`).

@@ -57,13 +57,31 @@ pub struct TestCommand {
     pub envs: Vec<(String, String)>,
 }
 
+fn locale_is_utf8() -> bool {
+    // öncelik: LC_ALL > LC_CTYPE > LANG
+    ["LC_ALL", "LC_CTYPE", "LANG"]
+        .iter()
+        .find_map(|k| env(k).filter(|v| !v.is_empty()))
+        .is_some_and(|v| {
+            let v = v.to_lowercase();
+            v.contains("utf-8") || v.contains("utf8")
+        })
+}
+
+/// Windows'ta `mvn` bir .cmd dosyasıdır; uzantısız başlatılamaz.
+pub fn program_for_os(program: String) -> String {
+    if cfg!(windows) && program == "mvn" {
+        "mvn.cmd".into()
+    } else {
+        program
+    }
+}
+
 pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     let mut parts = ctx::split_command(&env_or("STAJ_TEST_COMMAND", "mvn -B test"));
-    let mut program = parts.remove(0);
-    let is_maven = program == "mvn" || program.ends_with("mvnw") || program.ends_with("mvnw.cmd");
-    if cfg!(windows) && program == "mvn" {
-        program = "mvn.cmd".into();
-    }
+    let first = parts.remove(0);
+    let is_maven = first == "mvn" || first.ends_with("mvnw") || first.ends_with("mvnw.cmd");
+    let program = program_for_os(first);
     let maven_xmx = env_or("STAJ_MAVEN_XMX", "512m");
     let test_xmx = env_or("STAJ_TEST_XMX", "768m");
     if is_maven || env("STAJ_FORCE_MAVEN_ARGS").is_some() {
@@ -87,10 +105,15 @@ pub fn build_test_command(c: &Ctx, tags: Option<&str>) -> TestCommand {
     if !maven_opts.contains("stdout.encoding") {
         maven_opts.push_str(" -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8");
     }
-    let envs = vec![
+    let mut envs = vec![
         ("MAVEN_OPTS".to_string(), maven_opts),
         ("STAJ_VIDEO_FPS".to_string(), env_or("STAJ_VIDEO_FPS", "5")),
     ];
+    // Runner sistem servisi olarak çoğu zaman POSIX (ASCII) dil ayarıyla çalışır; Java o zaman
+    // komut satırındaki Türkçe karakterleri bozar (tag ve senaryo adı filtreleri eşleşmez).
+    if !cfg!(windows) && !locale_is_utf8() {
+        envs.push(("LC_ALL".to_string(), "C.UTF-8".to_string()));
+    }
     wrap_display(TestCommand {
         program,
         args: parts,

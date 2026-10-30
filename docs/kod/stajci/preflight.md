@@ -11,6 +11,8 @@
 | 5 | pom'da `-Xmx` | yoksa UYARI |
 | 6 | surefire varsa `<forkCount>1</forkCount>` | yoksa UYARI |
 | 7 | `src/test` altında en az bir senaryo | yoksa HATA |
+| 7b | `cucumber.execution.parallel.enabled=true` (properties ya da pom) | HATA (TestFX tek ekran, canlı ekran tek senaryo) |
+| 7c | `CanliOlayEklentisi` properties/java/pom içinde | yoksa UYARI (canlı ekranda adım görünmez; `docs/CANLI_EKRAN_KURULUM.md`) |
 | 8 | `features.txt`: ayrıştırılamazsa HATA; ifadedeki her tag en az bir senaryoda olmalı (yoksa HATA); hiç senaryo seçmiyorsa HATA; dosya yoksa UYARI | |
 
 Çıktı satırları: `ön kontrol: TAMAM|UYARI|HATA  …`, sonda geçti ya da "N hata ile düştü; testler

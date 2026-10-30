@@ -33,8 +33,10 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       - Değişiklik yoksa → `no_change`.
    7. Değişiklik varsa: `git add -A`, staged diff; `+`/`-` satırlarında `assert`, `Assert`,
       `verify(`, `Verify`, `.should`, `expect(` → uyarı "assertion satırlarını değiştiriyor".
-   8. Doğrulama: `STAJ_FIX_VALIDATE_CMD` ya da `mvn -B test -Dcucumber.filter.name=^<ad>$ -Dtest.xmx=…`
-      (Linux'ta Xvfb). Geçti mi.
+   8. Doğrulama (`validate_command`): `STAJ_FIX_VALIDATE_CMD` ya da test işiyle **aynı komut**
+      (`build_test_command`: `STAJ_TEST_COMMAND`, Windows'ta `mvn.cmd`, bellek sınırları, Xvfb, UTF-8 dil ayarı)
+      + `-Dcucumber.filter.name=^<ad>$`. Ad `regex_quote` ile: düzenli ifade karakterleri kaçırılır, ASCII
+      olmayan harfler `.` olur (Cucumber tam eşleşme yapar; POSIX dil ayarında Java Türkçe argümanı bozar). Geçti mi.
    9. Commit (`stajci-opencode` adına), push: `STAJ_PUSH_REMOTE` ya da
       `<CI_SERVER_URL şeması>://oauth2:<STAJ_FIX_TOKEN>@<host>/<CI_PROJECT_PATH>.git` (`-f`,
       `HEAD:refs/heads/<branch>`). Push hatasında token mesajdan silinir.

@@ -7,6 +7,8 @@
 //! 4. Headless/Monocle kullanılmıyor (SW-1.2, SW-1.6)
 //! 5. Surefire bellek sınırı (`-Xmx`) ve tek fork (SW-1.7) — uyarı
 //! 6. `features.txt` tag'leri geçerli ve en az bir senaryoda kullanılıyor
+//! 7. Cucumber paralel koşumu kapalı (TestFX tek ekran; canlı ekran tek senaryo varsayar) — hata
+//! 8. Canlı olay eklentisi (`CanliOlayEklentisi`) ekli — yoksa uyarı (canlı ekranda adım görünmez)
 
 use crate::ctx::say;
 use crate::gherkin;
@@ -42,6 +44,26 @@ fn grep_tree(dir: &Path, exts: &[&str], needle: &str) -> bool {
     false
 }
 
+/// Ağaçtaki dosyalardan herhangi birinin içeriği `f`'yi sağlıyor mu.
+fn grep_lines(dir: &Path, exts: &[&str], f: &dyn Fn(&str) -> bool) -> bool {
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                let n = e.file_name().to_string_lossy().to_string();
+                if n != "target" && !n.starts_with('.') {
+                    stack.push(p);
+                }
+            } else if exts.iter().any(|x| p.to_string_lossy().ends_with(x)) && std::fs::read_to_string(&p).is_ok_and(|s| f(&s)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub fn check(project: &Path) -> Report {
     let mut r = Report::default();
     let pom_path = project.join("pom.xml");
@@ -69,6 +91,30 @@ pub fn check(project: &Path) -> Report {
         r.errors.push(
             "Cucumber Allure eklentisi ayarlı değil: src/test/resources/junit-platform.properties içine \
              `cucumber.plugin=io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm` ekleyin."
+                .into(),
+        );
+    }
+
+    // Paralel koşum: properties'te ya da pom'da (configurationParameters) açık mı
+    let parallel = |t: &str| {
+        t.lines().any(|l| {
+            let l = l.trim().replace(' ', "");
+            !l.starts_with('#') && l.contains("cucumber.execution.parallel.enabled") && l.contains("true")
+        })
+    };
+    if parallel(&pom) || grep_lines(&test_dir, &[".properties"], &parallel) {
+        r.errors.push(
+            "Cucumber paralel koşumu açık (cucumber.execution.parallel.enabled=true): TestFX aynı ekranda \
+             senaryoları sırayla koşmalı; kapatın (false)."
+                .into(),
+        );
+    }
+    if pom.contains("CanliOlayEklentisi") || grep_tree(&test_dir, &[".properties", ".java"], "CanliOlayEklentisi") {
+        r.ok.push("Canlı olay eklentisi ekli".into());
+    } else {
+        r.warnings.push(
+            "Canlı olay eklentisi (CanliOlayEklentisi) yok: canlı ekranda şu an koşan senaryo/adım görünmez, \
+             sonuçlar senaryo bitince gelir. Kurulum: docs/CANLI_EKRAN_KURULUM.md"
                 .into(),
         );
     }
@@ -215,6 +261,29 @@ mod tests {
         assert!(r.errors.iter().any(|e| e.contains("@olmayan_tag")), "{:?}", r.errors);
         std::fs::write(p.join("features.txt"), "smoke\n").unwrap();
         assert!(check(&p).errors.iter().any(|e| e.contains("features.txt geçersiz")));
+    }
+
+    #[test]
+    fn test_sw_1_5_parallel_rejected_and_live_plugin_warned() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = sample(tmp.path());
+        let f = p.join("src/test/resources/junit-platform.properties");
+        let props = std::fs::read_to_string(&f).unwrap();
+        assert!(check(&p).warnings.iter().all(|w| !w.contains("CanliOlayEklentisi")));
+        std::fs::write(
+            &f,
+            props.replace(
+                "cucumber.execution.parallel.enabled=false",
+                "cucumber.execution.parallel.enabled = true",
+            ),
+        )
+        .unwrap();
+        assert!(check(&p).errors.iter().any(|e| e.contains("paralel")));
+        std::fs::write(&f, props.replace(", com.ornek.test.CanliOlayEklentisi", "")).unwrap();
+        std::fs::remove_file(p.join("src/test/java/com/ornek/test/CanliOlayEklentisi.java")).unwrap();
+        let r = check(&p);
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(r.warnings.iter().any(|w| w.contains("CanliOlayEklentisi")));
     }
 
     #[test]

@@ -21,7 +21,9 @@ testleri koşar (SW-1.2, 1.6, 1.7).
    - Maven ise (ya da `STAJ_FORCE_MAVEN_ARGS`): `-Dtest.xmx=<STAJ_TEST_XMX, 768m>`,
      `-Dallure.results.directory=<…>`, `-Dstajci.canli.dosya=<…>`, tag varsa
      `-Dcucumber.filter.tags=<ifade>`. `STAJ_EXTRA_ARGS` eklenir.
-   - Ortam: `MAVEN_OPTS` içinde `-Xmx` yoksa `-Xmx<STAJ_MAVEN_XMX, 512m> -XX:+ExitOnOutOfMemoryError`;
+   - Ortam: Linux'ta dil ayarı (LC_ALL > LC_CTYPE > LANG) UTF-8 değilse `LC_ALL=C.UTF-8` (runner servisi
+     POSIX ile çalışınca Java komut satırındaki Türkçe tag/ad filtrelerini bozar);
+     `MAVEN_OPTS` içinde `-Xmx` yoksa `-Xmx<STAJ_MAVEN_XMX, 512m> -XX:+ExitOnOutOfMemoryError`;
      `stdout/stderr.encoding=UTF-8`; `STAJ_VIDEO_FPS` (5).
    - `wrap_display`: Linux'ta `STAJ_XVFB=on` ya da (`auto` ve `DISPLAY` yok) ise
      `xvfb-run -a -n <99+pid%400> -s "-screen 0 <STAJ_SCREEN, 1920x1080>x24 -nolisten tcp" <komut>` (`-n`: boş ekran aramasının başlangıcı; aynı anda başlayan iki iş çakışmaz), `GDK_BACKEND=x11`.

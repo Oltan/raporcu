@@ -257,6 +257,43 @@ fn report(c: &Ctx, run_id: i64, r: &FixResult) {
 /// Kod ajanı: `STAJ_FIX_AGENT=opencode` (varsayılan) ya da `claude` (Claude Code).
 /// Komutun tamamı `STAJ_FIX_CMD` (eski adı `STAJ_OPENCODE_CMD`) ile ezilebilir.
 /// Yer tutucular: `{istem}` istem metni, `{ekran}` ekran görüntüsü yolu, `{istem_dosyasi}`.
+/// Doğrulama koşusu: test işiyle aynı komut (STAJ_TEST_COMMAND, mvn.cmd, bellek sınırları, Xvfb),
+/// yalnızca bu senaryo. `STAJ_FIX_VALIDATE_CMD` verilirse o komut olduğu gibi.
+fn validate_command(c: &Ctx, scenario: &str) -> crate::runner::TestCommand {
+    if let Some(t) = env("STAJ_FIX_VALIDATE_CMD") {
+        let mut vt = crate::ctx::split_command(&t);
+        let program = crate::runner::program_for_os(vt.remove(0));
+        return crate::runner::wrap_display(crate::runner::TestCommand {
+            program,
+            args: vt,
+            envs: vec![],
+        });
+    }
+    let mut cmd = crate::runner::build_test_command(c, None);
+    // xvfb-run sarmalıyorsa ek argümanlar yine Maven'a geçer (komutun sonuna eklenir)
+    cmd.args.push(format!("-Dcucumber.filter.name=^{}$", regex_quote(scenario)));
+    cmd
+}
+
+/// `-Dcucumber.filter.name` için senaryo adı → düzenli ifade. Cucumber adı tam eşleşmeyle
+/// karşılaştırır. Düzenli ifade karakterleri kaçırılır; ASCII olmayan harfler `.` olur: runner
+/// POSIX/ASCII dil ayarıyla çalışırken Java komut satırındaki Türkçe karakterleri bozar
+/// ("Geçerli" eşleşmez, "Ge.erli" eşleşir).
+pub fn regex_quote(s: &str) -> String {
+    let mut o = String::with_capacity(s.len() + 8);
+    for ch in s.chars() {
+        if !ch.is_ascii() {
+            o.push('.');
+            continue;
+        }
+        if "\\^$.|?*+()[]{}".contains(ch) {
+            o.push('\\');
+        }
+        o.push(ch);
+    }
+    o
+}
+
 pub fn agent_command() -> String {
     if let Some(c) = env("STAJ_FIX_CMD").or_else(|| env("STAJ_OPENCODE_CMD")) {
         return c;
@@ -430,18 +467,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                 result.warnings.push(format!("Dikkat: düzeltme assertion satırlarını değiştiriyor ({} satır). Testin doğruladığı davranışın değişmediğini inceleyin.", asserts.len()));
             }
             // doğrulama koşusu
-            let vtmpl = env("STAJ_FIX_VALIDATE_CMD").unwrap_or_else(|| "mvn -B test".into());
-            let mut vt = crate::ctx::split_command(&vtmpl);
-            if env("STAJ_FIX_VALIDATE_CMD").is_none() {
-                vt.push(format!("-Dcucumber.filter.name=^{}$", cand.name));
-                vt.push(format!("-Dtest.xmx={}", env_or("STAJ_TEST_XMX", "768m")));
-            }
-            let vcmd = crate::runner::TestCommand {
-                program: vt.remove(0),
-                args: vt,
-                envs: vec![],
-            };
-            let vcmd = crate::runner::wrap_display(vcmd);
+            let vcmd = validate_command(c, &cand.name);
             let (vcode, _) = crate::runner::run_streaming(&vcmd, dir).unwrap_or((1, false));
             let passed = vcode == 0;
             result.validation_passed = Some(passed);
@@ -623,5 +649,7 @@ mod tests {
         );
         assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "İSTEM"]);
         assert_eq!(slug("Şifremi unuttum bağlantısı"), "sifremi-unuttum-baglantisi");
+        assert_eq!(regex_quote("Giriş (yanlış şifre) v1.2?"), "Giri. \\(yanl.. .ifre\\) v1\\.2\\?");
+        assert!(regex_quote("Geçerli bilgilerle giriş").is_ascii());
     }
 }
