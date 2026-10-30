@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard<script src="/static/charts.js" defer></script>
+{% endblock %}
 {% block content %}
 <div class="baslik">
   <div>
@@ -23,14 +24,58 @@
   </form>
 </div>
 
-{% if let Some(r) = self.last_finished() %}
-<div class="sayaclar">
-  <div class="sayac"><div class="e">Son biten koşum</div><div class="n"><a href="/runs/{{ r.id }}">#{{ r.id }}</a></div></div>
-  <div class="sayac passed"><div class="e">Geçti</div><div class="n">{{ r.passed }}</div></div>
-  <div class="sayac failed"><div class="e">Kaldı</div><div class="n">{{ r.failures() }}</div></div>
-  <div class="sayac"><div class="e">Başarı</div><div class="n">%{{ r.pass_pct() }}</div></div>
-  <div class="sayac unknown"><div class="e">Flaky</div><div class="n">{{ flaky.len() }}</div></div>
+{% if let Some(ch) = charts %}
+<p class="alt kapsam">Kapsam: <b>{{ ch.scope }}</b> · son biten koşum <a href="/runs/{{ ch.last.id }}">#{{ ch.last.id }}</a> ({{ ch.last.started_at|zaman }})</p>
+<div class="izgara-ozet">
+  <section class="kart ozet-donut">
+    <h2>Son koşum</h2>
+    <div class="donut-satir">
+      {{ ch.donut|safe }}
+      {% let legend = ch.legend %}
+      <ul class="lejant-liste">
+        {% for li in legend %}
+        <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
+        {% endfor %}
+        <li class="lj-ayrac"><i class="sw m-flaky"></i><span class="lj-ad">Flaky</span><b>{{ flaky.len() }}</b><span></span></li>
+      </ul>
+    </div>
+  </section>
+  <section class="kart">
+    <h2>Gidişat: geçme oranı</h2>
+    <p class="alt">Son {{ ch.trend_n }} koşum. Noktanın üzerine gelince ayrıntı, tıklayınca koşum açılır.</p>
+    <div class="grafik-kap">{{ ch.line|safe }}</div>
+  </section>
 </div>
+
+<section class="kart">
+  <div class="baslik-satir">
+    <h2>Koşum başına senaryo durumları</h2>
+    <ul class="lejant-yatay">
+      <li><i class="sw m-gecti"></i>Geçti</li><li><i class="sw m-kaldi"></i>Kaldı</li><li><i class="sw m-broken"></i>Broken</li><li><i class="sw m-diger"></i>Bilinmiyor / atlandı</li>
+    </ul>
+  </div>
+  <div class="grafik-kap">{{ ch.columns|safe }}</div>
+</section>
+
+<section class="kart">
+  <h2>Feature bazında</h2>
+  <p class="alt">Son biten koşumda her feature'ın durumu ve son 10 koşumdaki geçme oranı gidişatı. Feature'a tıklayınca o koşumdaki senaryoları açılır.</p>
+  <div class="tablo"><table class="feature-ozet">
+    <tr><th>Feature</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Geçme</th><th>Gidişat</th><th class="num">Değişim</th></tr>
+    {% for df in ch.features %}
+    <tr>
+      <td><a class="feature-adi" href="/runs/{{ ch.last.id }}#{{ df.anchor }}"><span class="durum-nokta {{ df.f.state() }}" aria-hidden="true"></span>{{ df.f.feature }}</a></td>
+      <td class="cubuk-hucre">{{ df.bar|safe }}</td>
+      <td class="num">{{ df.f.passed }}</td>
+      <td class="num">{% if df.f.failed > 0 %}<b>{{ df.f.failed }}</b>{% else %}0{% endif %}</td>
+      <td class="num">{% if df.f.broken > 0 %}<b>{{ df.f.broken }}</b>{% else %}0{% endif %}</td>
+      <td class="num">%{{ df.f.pass_pct() }}</td>
+      <td>{{ df.spark|safe }}</td>
+      <td class="num">{% if df.change() > 0 %}<span class="degisim iyi">▲ {{ df.change() }}</span>{% elif df.change() < 0 %}<span class="degisim kotu">▼ {{ -df.change() }}</span>{% else %}<span class="kucuk">—</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
 {% endif %}
 
 {% if !pipelines.is_empty() %}
@@ -101,4 +146,5 @@
   </table></div>
 </section>
 {% endif %}
+<script src="/static/charts.js" defer></script>
 {% endblock %}

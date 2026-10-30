@@ -71,7 +71,7 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 
 ```bash
 cargo clippy --all-targets -- -D warnings
-cargo test                 # 97 test (Wine varsa: --target x86_64-pc-windows-gnu)
+cargo test                 # 100 test (Wine varsa: --target x86_64-pc-windows-gnu)
 cargo run -p rehearse      # 43 prova adımı (sunucu + stajci gerçek süreç olarak)
 cargo run -p e2esmoke      # 18 uçtan uca kontrol
 cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci

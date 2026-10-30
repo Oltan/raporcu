@@ -46,11 +46,7 @@ impl RunRow {
         }
     }
     pub fn pass_pct(&self) -> i64 {
-        if self.total == 0 {
-            0
-        } else {
-            self.passed * 100 / self.total
-        }
+        crate::charts::pct(self.passed, self.total)
     }
 }
 
@@ -694,4 +690,100 @@ pub fn search(c: &Connection, f: &SearchFilter) -> Result<(Vec<SearchRow>, i64)>
         })
     })?;
     Ok((rows.collect::<rusqlite::Result<_>>()?, total))
+}
+
+// ---------------------------------------------------------------------------------------------
+// Grafikler: gidişat ve feature bazlı özet
+
+/// Proje + branch'in son `limit` biten koşumu, eskiden yeniye.
+pub fn trend(c: &Connection, project_id: i64, branch: &str, limit: i64) -> Result<Vec<RunRow>> {
+    let mut st = c.prepare(&format!(
+        "SELECT * FROM (SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id
+          WHERE r.project_id = ?1 AND r.branch = ?2 AND r.status <> 'running' AND r.total > 0
+          ORDER BY r.id DESC LIMIT ?3) ORDER BY 1"
+    ))?;
+    let rows = st.query_map(params![project_id, branch, limit], run_row)?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct FeatureRow {
+    pub feature: String,
+    pub feature_file: Option<String>,
+    pub total: i64,
+    pub passed: i64,
+    pub failed: i64,
+    pub broken: i64,
+    pub other: i64,
+    pub duration_ms: i64,
+}
+
+impl FeatureRow {
+    pub fn failures(&self) -> i64 {
+        self.failed + self.broken
+    }
+    pub fn pass_pct(&self) -> i64 {
+        crate::charts::pct(self.passed, self.total)
+    }
+    pub fn duration(&self) -> String {
+        let s = self.duration_ms / 1000;
+        if s >= 60 {
+            format!("{} dk {} sn", s / 60, s % 60)
+        } else {
+            format!("{s} sn")
+        }
+    }
+    /// Durum: kaldi > broken > bilinmiyor > gecti
+    pub fn state(&self) -> &'static str {
+        if self.failed > 0 {
+            "kaldi"
+        } else if self.broken > 0 {
+            "broken"
+        } else if self.other > 0 && self.passed == 0 {
+            "diger"
+        } else {
+            "gecti"
+        }
+    }
+}
+
+/// Bir koşumun feature'ları (son denemeler). Sorunlu olanlar önce.
+pub fn run_features(c: &Connection, run_id: i64) -> Result<Vec<FeatureRow>> {
+    let mut st = c.prepare(
+        "SELECT COALESCE(feature, '(feature yok)'), MIN(feature_file), COUNT(*),
+                SUM(status = 'passed'), SUM(status = 'failed'), SUM(status = 'broken'),
+                SUM(status NOT IN ('passed', 'failed', 'broken')), COALESCE(SUM(duration_ms), 0)
+         FROM scenarios WHERE run_id = ?1 AND is_latest = 1
+         GROUP BY COALESCE(feature, '(feature yok)')
+         ORDER BY SUM(status = 'failed') + SUM(status = 'broken') DESC, 1",
+    )?;
+    let rows = st.query_map([run_id], |r| {
+        Ok(FeatureRow {
+            feature: r.get(0)?,
+            feature_file: r.get(1)?,
+            total: r.get(2)?,
+            passed: r.get(3)?,
+            failed: r.get(4)?,
+            broken: r.get(5)?,
+            other: r.get(6)?,
+            duration_ms: r.get(7)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Feature başına son koşumlardaki geçme oranları (eskiden yeniye), proje + branch kapsamında.
+pub fn feature_trends(c: &Connection, project_id: i64, branch: &str, limit: i64) -> Result<std::collections::BTreeMap<String, Vec<f64>>> {
+    let mut st = c.prepare(
+        "WITH recent AS (SELECT id FROM runs WHERE project_id = ?1 AND branch = ?2 AND status <> 'running' ORDER BY id DESC LIMIT ?3)
+         SELECT COALESCE(feature, '(feature yok)'), run_id, 100.0 * SUM(status = 'passed') / COUNT(*)
+         FROM scenarios WHERE run_id IN (SELECT id FROM recent) AND is_latest = 1
+         GROUP BY 1, run_id ORDER BY run_id",
+    )?;
+    let mut out: std::collections::BTreeMap<String, Vec<f64>> = Default::default();
+    let mut rows = st.query(params![project_id, branch, limit])?;
+    while let Some(r) = rows.next()? {
+        out.entry(r.get(0)?).or_default().push(r.get(2)?);
+    }
+    Ok(out)
 }

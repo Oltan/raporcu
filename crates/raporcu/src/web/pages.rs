@@ -105,15 +105,103 @@ struct Dashboard {
     window: usize,
     page: i64,
     filter_qs: String,
+    charts: Option<DashCharts>,
+}
+
+/// Dashboard grafikleri: kapsam (proje + branch) için son biten koşum ve gidişat.
+pub struct DashCharts {
+    pub scope: String,
+    pub last: RunRow,
+    pub donut: String,
+    pub legend: Vec<LegendItem>,
+    pub line: String,
+    pub columns: String,
+    pub trend_n: usize,
+    pub features: Vec<DashFeature>,
+}
+
+pub struct DashFeature {
+    pub anchor: String,
+    pub f: queries::FeatureRow,
+    pub bar: String,
+    pub spark: String,
+    pub last_pct: i64,
+    pub first_pct: i64,
+}
+
+impl DashFeature {
+    /// Gidişat yönü: son koşum, penceredeki ilk koşuma göre
+    pub fn change(&self) -> i64 {
+        self.last_pct - self.first_pct
+    }
+}
+
+const TREND_RUNS: i64 = 20;
+const FEATURE_TREND_RUNS: i64 = 10;
+
+fn dash_charts(c: &rusqlite::Connection, project_id: i64, branch: &str) -> anyhow::Result<Option<DashCharts>> {
+    let trend = queries::trend(c, project_id, branch, TREND_RUNS)?;
+    let Some(last) = trend.last().cloned() else { return Ok(None) };
+    let fmt_day = |s: &str| {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .map(|t| t.with_timezone(&chrono::Local).format("%d.%m").to_string())
+            .unwrap_or_default()
+    };
+    let points: Vec<crate::charts::Point> = trend
+        .iter()
+        .map(|r| crate::charts::Point {
+            label: format!("#{}", r.id),
+            href: format!("/runs/{}", r.id),
+            value: crate::charts::pct(r.passed, r.total) as f64,
+            detail: format!(
+                "{} · {} senaryo, {} geçti, {} kaldı",
+                fmt_day(&r.started_at),
+                r.total,
+                r.passed,
+                r.failures()
+            ),
+        })
+        .collect();
+    let columns: Vec<crate::charts::Column> = trend
+        .iter()
+        .map(|r| crate::charts::Column {
+            label: format!("#{}", r.id),
+            href: Some(format!("/runs/{}", r.id)),
+            title: format!("Koşum #{} ({})", r.id, fmt_day(&r.started_at)),
+            parts: run_slices(r),
+        })
+        .collect();
+    let ftrends = queries::feature_trends(c, project_id, branch, FEATURE_TREND_RUNS)?;
+    let features = queries::run_features(c, last.id)?
+        .into_iter()
+        .map(|f| {
+            let vals = ftrends.get(&f.feature).cloned().unwrap_or_default();
+            let bar = crate::charts::thin_bar(&crate::charts::status_slices(f.passed, f.failed, f.broken, f.other));
+            DashFeature {
+                anchor: feature_anchor(&f.feature),
+                spark: crate::charts::sparkline(&vals, &format!("{} geçme oranı gidişatı", f.feature)),
+                last_pct: vals.last().copied().unwrap_or(0.0).round() as i64,
+                first_pct: vals.first().copied().unwrap_or(0.0).round() as i64,
+                bar,
+                f,
+            }
+        })
+        .collect();
+    Ok(Some(DashCharts {
+        scope: format!("{} · {}", last.project_path, last.branch),
+        donut: run_donut(&last),
+        legend: legend(&run_slices(&last)),
+        line: crate::charts::line_pct(&points, "Koşum başına geçme oranı"),
+        columns: crate::charts::stacked_columns(&columns, "Koşum başına senaryo durumları"),
+        trend_n: trend.len(),
+        features,
+        last,
+    }))
 }
 
 impl Dashboard {
     fn project_selected(&self, id: &i64) -> bool {
         self.project == Some(*id)
-    }
-    /// Sayaçlar için en son biten koşum (çalışan koşum yarım sonuç verir).
-    fn last_finished(&self) -> Option<&RunRow> {
-        self.runs.iter().find(|r| r.status != "running")
     }
 }
 
@@ -124,7 +212,7 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
     let page = q.page.unwrap_or(1).max(1);
     let window = st.cfg.flaky_window;
     let (b2, p2) = (branch.clone(), project);
-    let (projects, runs, pipelines, flaky) = st
+    let (projects, runs, pipelines, flaky, charts) = st
         .db
         .read(move |c| {
             let projects = queries::projects(c)?;
@@ -134,8 +222,13 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
             let mut flaky = Vec::new();
             let scope = match (p2, &b2) {
                 (Some(p), Some(b)) => Some((p, b.clone())),
-                _ => runs.iter().find(|r| r.status != "running").or(runs.first()).map(|r| (r.project_id, r.branch.clone())),
+                _ => runs
+                    .iter()
+                    .find(|r| r.status != "running")
+                    .or(runs.first())
+                    .map(|r| (r.project_id, r.branch.clone())),
             };
+            let mut charts = None;
             if let Some((p, b)) = scope {
                 let keys = crate::history::flaky_keys(c, p, &b, window)?;
                 for k in keys.iter().take(50) {
@@ -143,8 +236,9 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
                         flaky.push(s);
                     }
                 }
+                charts = dash_charts(c, p, &b)?;
             }
-            Ok((projects, runs, pipelines, flaky))
+            Ok((projects, runs, pipelines, flaky, charts))
         })
         .await?;
     let branches = projects
@@ -173,6 +267,7 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
         window,
         page,
         filter_qs,
+        charts,
     }))
 }
 
@@ -194,9 +289,136 @@ pub struct RunScenario {
 struct RunPage {
     l: Layout,
     run: RunRow,
-    rows: Vec<RunScenario>,
+    groups: Vec<FeatureGroup>,
+    donut: String,
+    legend: Vec<LegendItem>,
     fixes: Vec<FixRow>,
     notice: Option<String>,
+}
+
+/// Koşum raporunda bir feature: özet satırı + senaryoları (SW-4.1: koşum → feature → senaryo → adım).
+pub struct FeatureGroup {
+    pub f: queries::FeatureRow,
+    pub bar: String,
+    pub rows: Vec<RunScenario>,
+    pub anchor: String,
+}
+
+/// Grafik lejantı: renk sınıfı, ad, sayı, yüzde (değerler metinde, renk yalnızca işarette).
+pub struct LegendItem {
+    pub class: &'static str,
+    pub name: &'static str,
+    pub value: i64,
+    pub pct: i64,
+}
+
+/// Feature için sayfa içi bağlantı adı (`#f-giris-ekrani`).
+pub fn feature_anchor(name: &str) -> String {
+    let mut out = String::from("f-");
+    for ch in name.to_lowercase().chars() {
+        let c = match ch {
+            'ç' => 'c',
+            'ğ' => 'g',
+            'ı' | 'i' => 'i',
+            'ö' => 'o',
+            'ş' => 's',
+            'ü' => 'u',
+            c if c.is_ascii_alphanumeric() => c,
+            _ => '-',
+        };
+        if !(c == '-' && out.ends_with('-')) {
+            out.push(c);
+        }
+    }
+    out.trim_end_matches('-').to_string()
+}
+
+pub fn legend(slices: &[crate::charts::Slice]) -> Vec<LegendItem> {
+    let total: i64 = slices.iter().map(|s| s.value).sum();
+    slices
+        .iter()
+        .map(|s| LegendItem {
+            class: s.class,
+            name: s.name,
+            value: s.value,
+            pct: crate::charts::pct(s.value, total),
+        })
+        .collect()
+}
+
+pub fn run_slices(run: &RunRow) -> Vec<crate::charts::Slice> {
+    crate::charts::status_slices(run.passed, run.failed, run.broken, run.unknown + run.skipped)
+}
+
+pub fn run_donut(run: &RunRow) -> String {
+    let center = if run.status == "running" {
+        run.progress()
+    } else {
+        run.total.to_string()
+    };
+    crate::charts::donut(
+        &run_slices(run),
+        &center,
+        &format!("%{} geçti", run.pass_pct()),
+        &format!("Koşum #{} durum dağılımı", run.id),
+    )
+}
+
+/// Senaryoları feature'a göre gruplar; sorunlu feature'lar önce.
+pub fn group_by_feature(rows: Vec<RunScenario>) -> Vec<FeatureGroup> {
+    let mut order: Vec<String> = Vec::new();
+    let mut map: std::collections::HashMap<String, Vec<RunScenario>> = Default::default();
+    for r in rows {
+        let f = r.s.feature.clone().unwrap_or_else(|| "(feature yok)".into());
+        if !map.contains_key(&f) {
+            order.push(f.clone());
+        }
+        map.entry(f).or_default().push(r);
+    }
+    let mut groups: Vec<FeatureGroup> = order
+        .into_iter()
+        .map(|name| {
+            let rows = map.remove(&name).unwrap_or_default();
+            let mut f = queries::FeatureRow {
+                feature: name,
+                ..Default::default()
+            };
+            for r in &rows {
+                f.total += 1;
+                f.duration_ms += r.s.duration_ms.unwrap_or(0);
+                f.feature_file = f.feature_file.take().or_else(|| r.s.feature_file.clone());
+                match r.s.status.as_str() {
+                    "passed" => f.passed += 1,
+                    "failed" => f.failed += 1,
+                    "broken" => f.broken += 1,
+                    _ => f.other += 1,
+                }
+            }
+            let bar = crate::charts::thin_bar(&crate::charts::status_slices(f.passed, f.failed, f.broken, f.other));
+            FeatureGroup {
+                anchor: feature_anchor(&f.feature),
+                f,
+                bar,
+                rows,
+            }
+        })
+        .collect();
+    groups.sort_by(|a, b| b.f.failures().cmp(&a.f.failures()).then(a.f.feature.cmp(&b.f.feature)));
+    groups
+}
+
+impl RunPage {
+    fn new(l: Layout, run: RunRow, rows: Vec<RunScenario>, fixes: Vec<FixRow>, notice: Option<String>) -> RunPage {
+        RunPage {
+            donut: run_donut(&run),
+            legend: legend(&run_slices(&run)),
+            groups: group_by_feature(rows),
+            l,
+            run,
+            fixes,
+            notice,
+        }
+    }
 }
 
 pub fn load_run(
@@ -273,13 +495,7 @@ pub async fn run_page(
         }
         _ => None,
     };
-    Ok(render(&RunPage {
-        l,
-        run,
-        rows,
-        fixes,
-        notice,
-    }))
+    Ok(render(&RunPage::new(l, run, rows, fixes, notice)))
 }
 
 fn html_escape(s: &str) -> String {
@@ -665,13 +881,7 @@ pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -
         return Err(AppError::not_found());
     };
     sanitize_run(&st, &mut run, &mut rows);
-    Ok(render(&RunPage {
-        l: share_layout(&token),
-        run,
-        rows,
-        fixes: vec![],
-        notice: None,
-    }))
+    Ok(render(&RunPage::new(share_layout(&token), run, rows, vec![], None)))
 }
 
 pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path<(String, i64)>) -> Result<Response, AppError> {
@@ -865,6 +1075,7 @@ struct HealingPage {
     l: Layout,
     days: Vec<Day>,
     totals: (i64, i64, i64, i64),
+    chart: String,
 }
 
 pub fn healing_days(c: &rusqlite::Connection, today: chrono::NaiveDate) -> anyhow::Result<Vec<Day>> {
@@ -914,7 +1125,39 @@ pub async fn healing_page(State(st): State<AppState>, headers: HeaderMap) -> Res
     let totals = days.iter().fold((0, 0, 0, 0), |t, d| {
         (t.0 + d.attempts, t.1 + d.mrs, t.2 + d.merged, t.3 + d.rejected)
     });
-    Ok(render(&HealingPage { l, days, totals }))
+    use crate::charts::{Column, Slice};
+    let cols: Vec<Column> = days
+        .iter()
+        .map(|d| Column {
+            label: format!("{}.{}", d.day.get(8..10).unwrap_or(""), d.day.get(5..7).unwrap_or("")),
+            href: None,
+            title: d.day.clone(),
+            parts: vec![
+                Slice {
+                    class: "gecti",
+                    name: "Birleştirilen",
+                    value: d.merged,
+                },
+                Slice {
+                    class: "kaldi",
+                    name: "Reddedilen",
+                    value: d.rejected,
+                },
+                Slice {
+                    class: "diger",
+                    name: "Açık MR",
+                    value: (d.mrs - d.merged - d.rejected).max(0),
+                },
+                Slice {
+                    class: "bos",
+                    name: "MR'sız deneme",
+                    value: (d.attempts - d.mrs).max(0),
+                },
+            ],
+        })
+        .collect();
+    let chart = crate::charts::stacked_columns(&cols, "Gece bazında OpenCode denemeleri");
+    Ok(render(&HealingPage { l, days, totals, chart }))
 }
 
 // ---------------------------------------------------------------------------------------------

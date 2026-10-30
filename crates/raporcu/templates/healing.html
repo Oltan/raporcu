@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Self-healing{% endblock %}
+{% block title %}Self-healing<script src="/static/charts.js" defer></script>
+{% endblock %}
 {% block content %}
 <div class="baslik"><div><h1>Self-healing ölçümü</h1><div class="alt">Son 30 gecenin OpenCode denemeleri, açılan, birleştirilen ve reddedilen MR'lar</div></div></div>
 <div class="sayaclar">
@@ -10,20 +11,17 @@
 </div>
 <section class="kart">
   <h2>Gece bazında</h2>
-  <div class="cubuk-grafik" aria-label="Gece bazında deneme sayıları">
-    {% for d in days %}
-    <div class="gun" title="{{ d.day }}: {{ d.attempts }} deneme, {{ d.mrs }} MR, {{ d.merged }} birleşti, {{ d.rejected }} reddedildi">
-      <span style="height: {{ d.h_merged }}px; background: var(--passed)"></span>
-      <span style="height: {{ d.h_rejected }}px; background: var(--failed)"></span>
-      <span style="height: {{ d.h_open }}px; background: var(--running)"></span>
-      <span style="height: {{ d.h_other }}px; background: var(--skipped)"></span>
-    </div>
-    {% endfor %}
+  <div class="baslik-satir" style="margin-bottom:6px">
+    <span class="alt">Son 30 gece; sütunun üzerine gelince sayılar görünür.</span>
+    <ul class="lejant-yatay">
+      <li><i class="sw m-gecti"></i>Birleştirilen</li><li><i class="sw m-kaldi"></i>Reddedilen</li><li><i class="sw m-diger"></i>Açık MR</li><li><i class="sw m-bos"></i>MR'sız deneme</li>
+    </ul>
   </div>
-  <div class="lejant"><span><i style="background: var(--passed)"></i>Birleştirilen</span><span><i style="background: var(--failed)"></i>Reddedilen</span><span><i style="background: var(--running)"></i>Açık MR</span><span><i style="background: var(--skipped)"></i>MR'sız deneme</span></div>
+  <div class="grafik-kap">{{ chart|safe }}</div>
   <div class="tablo" style="margin-top:14px"><table>
     <tr><th>Gece</th><th class="num">Deneme</th><th class="num">MR</th><th class="num">Birleştirilen</th><th class="num">Reddedilen</th></tr>
     {% for d in days %}{% if d.attempts > 0 %}<tr><td>{{ d.day }}</td><td class="num">{{ d.attempts }}</td><td class="num">{{ d.mrs }}</td><td class="num">{{ d.merged }}</td><td class="num">{{ d.rejected }}</td></tr>{% endif %}{% endfor %}
   </table></div>
 </section>
+<script src="/static/charts.js" defer></script>
 {% endblock %}

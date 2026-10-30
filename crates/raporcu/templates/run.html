@@ -36,12 +36,32 @@
 </div>
 {% if let Some(m) = notice %}<div class="kart">{{ m|safe }}</div>{% endif %}
 
-<div class="sayaclar">
-  <div class="sayac"><div class="e">Senaryo</div><div class="n">{{ run.progress() }}</div></div>
-  <div class="sayac passed"><div class="e">Geçti</div><div class="n">{{ run.passed }}</div></div>
-  <div class="sayac failed"><div class="e">Kaldı (failed)</div><div class="n">{{ run.failed }}</div></div>
-  <div class="sayac broken"><div class="e">Broken</div><div class="n">{{ run.broken }}</div></div>
-  <div class="sayac unknown"><div class="e">Bilinmiyor / atlandı</div><div class="n">{{ run.unknown + run.skipped }}</div></div>
+<div class="izgara-ozet">
+  <section class="kart ozet-donut">
+    <h2>Durum dağılımı</h2>
+    <div class="donut-satir">
+      {{ donut|safe }}
+      {% include "_lejant.html" %}
+    </div>
+  </section>
+  <section class="kart">
+    <h2>Feature'lar</h2>
+    <p class="alt">Yazılımın bölümlerine göre durum. Satıra tıklayınca senaryolar açılır.</p>
+    <div class="tablo"><table class="feature-ozet">
+      <tr><th>Feature</th><th>Durum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Diğer</th><th class="num">Geçme</th></tr>
+      {% for g in groups %}
+      <tr>
+        <td><a href="#{{ g.anchor }}" class="feature-adi"><span class="durum-nokta {{ g.f.state() }}" aria-hidden="true"></span>{{ g.f.feature }}</a></td>
+        <td class="cubuk-hucre">{{ g.bar|safe }}</td>
+        <td class="num">{{ g.f.passed }}</td>
+        <td class="num">{% if g.f.failed > 0 %}<b>{{ g.f.failed }}</b>{% else %}0{% endif %}</td>
+        <td class="num">{% if g.f.broken > 0 %}<b>{{ g.f.broken }}</b>{% else %}0{% endif %}</td>
+        <td class="num">{{ g.f.other }}</td>
+        <td class="num">%{{ g.f.pass_pct() }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </section>
 </div>
 
 {% if l.share.is_none() && !fixes.is_empty() %}
@@ -61,32 +81,44 @@
 {% endif %}
 
 <section class="kart">
-  <h2>Senaryolar</h2>
-  {% if rows.is_empty() %}<div class="bos">Henüz sonuç gelmedi.</div>{% else %}
-  <div class="tablo"><table>
-    <tr><th>Durum</th><th>Senaryo</th><th>Feature</th><th>Triage</th><th class="num">Süre</th><th></th></tr>
-    {% for r in rows %}
-    <tr>
-      <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
-      <td>
-        <a href="{{ l.scenario_url(r.s.id) }}">{{ r.s.name }}</a>
-        {% if r.attempts > 1 %}<span class="rozet" title="Aynı koşumda {{ r.attempts }} deneme">{{ r.attempts }} deneme</span>{% endif %}
-        {% if r.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
-        {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
-        <div>
-          {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
-          {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
-          {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
-        </div>
-        {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
-      </td>
-      <td class="kucuk">{{ r.s.feature.as_deref().unwrap_or("") }}<div class="mono">{{ r.s.location() }}</div></td>
-      <td>{% if let Some(t) = r.triage %}<span class="rozet triage" title="{{ t.reason }}">{{ t.label() }}</span><div class="kucuk">{{ t.source_label() }}</div>{% endif %}</td>
-      <td class="num kucuk">{{ r.s.duration() }}</td>
-      <td>{% if let Some(id) = r.shot %}<a href="{{ l.scenario_url(r.s.id) }}"><img class="kucuk-resim" loading="lazy" src="{{ l.file_url(*id) }}" alt="ekran görüntüsü"></a>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table></div>
-  {% endif %}
+  <h2>Senaryolar (feature bazında)</h2>
+  {% if groups.is_empty() %}<div class="bos">Henüz sonuç gelmedi.</div>{% endif %}
+  {% for g in groups %}
+  <details class="feature-grup" id="{{ g.anchor }}" {% if g.f.failures() > 0 %}open{% endif %}>
+    <summary>
+      <span class="durum-nokta {{ g.f.state() }}" aria-hidden="true"></span>
+      <span class="fg-ad">{{ g.f.feature }}</span>
+      {% if let Some(ff) = g.f.feature_file %}<span class="mono kucuk">{{ ff }}</span>{% endif %}
+      <span class="fg-sag">
+        <span class="fg-cubuk">{{ g.bar|safe }}</span>
+        <span class="kucuk">{{ g.f.passed }}/{{ g.f.total }} geçti · {{ g.f.duration() }}</span>
+      </span>
+    </summary>
+    <div class="tablo"><table>
+      <tr><th>Durum</th><th>Senaryo</th><th>Triage</th><th class="num">Süre</th><th></th></tr>
+      {% for r in g.rows %}
+      <tr>
+        <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
+        <td>
+          <a href="{{ l.scenario_url(r.s.id) }}">{{ r.s.name }}</a> <span class="mono kucuk">{{ r.s.location() }}</span>
+          {% if r.attempts > 1 %}<span class="rozet" title="Aynı koşumda {{ r.attempts }} deneme">{{ r.attempts }} deneme</span>{% endif %}
+          {% if r.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
+          {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
+          <div>
+            {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+            {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
+            {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
+          </div>
+          {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
+        </td>
+        <td>{% if let Some(t) = r.triage %}<span class="rozet triage" title="{{ t.reason }}">{{ t.label() }}</span><div class="kucuk">{{ t.source_label() }}</div>{% endif %}</td>
+        <td class="num kucuk">{{ r.s.duration() }}</td>
+        <td>{% if let Some(id) = r.shot %}<a href="{{ l.scenario_url(r.s.id) }}"><img class="kucuk-resim" loading="lazy" src="{{ l.file_url(*id) }}" alt="ekran görüntüsü"></a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </details>
+  {% endfor %}
 </section>
+<script src="/static/charts.js" defer></script>
 {% endblock %}

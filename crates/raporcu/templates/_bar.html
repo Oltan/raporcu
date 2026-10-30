@@ -1,5 +1,6 @@
-<div class="bar" title="{{ r.passed }} geçti, {{ r.failed }} kaldı, {{ r.broken }} broken, {{ r.unknown }} bilinmiyor, {{ r.skipped }} atlandı">
-{% if r.total > 0 %}
-<span class="p" style="width: {{ r.passed * 100 / r.total }}%"></span><span class="f" style="width: {{ r.failed * 100 / r.total }}%"></span><span class="b" style="width: {{ r.broken * 100 / r.total }}%"></span><span class="u" style="width: {{ r.unknown * 100 / r.total }}%"></span><span class="s" style="width: {{ r.skipped * 100 / r.total }}%"></span>
-{% endif %}
+<div class="ince-cubuk" role="img" aria-label="{{ r.passed }} geçti, {{ r.failed }} kaldı, {{ r.broken }} broken, {{ r.unknown + r.skipped }} bilinmiyor/atlandı">
+{% if r.passed > 0 %}<span class="m-gecti" style="flex-grow:{{ r.passed }}" tabindex="0" data-tip="Geçti: {{ r.passed }}"></span>{% endif %}
+{% if r.failed > 0 %}<span class="m-kaldi" style="flex-grow:{{ r.failed }}" tabindex="0" data-tip="Kaldı: {{ r.failed }}"></span>{% endif %}
+{% if r.broken > 0 %}<span class="m-broken" style="flex-grow:{{ r.broken }}" tabindex="0" data-tip="Broken: {{ r.broken }}"></span>{% endif %}
+{% if r.unknown + r.skipped > 0 %}<span class="m-diger" style="flex-grow:{{ r.unknown + r.skipped }}" tabindex="0" data-tip="Bilinmiyor / atlandı: {{ r.unknown + r.skipped }}"></span>{% endif %}
 </div>

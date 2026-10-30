@@ -475,3 +475,35 @@ async fn test_sw_10_8_images_deleted_after_videos_when_still_full() {
         .unwrap();
     assert_eq!(rep.deleted_files, 0);
 }
+
+#[tokio::test]
+async fn test_sw_4_1_run_grouped_by_feature_with_charts() {
+    let app = app();
+    let id = upload_sample(&app, Q).await;
+    let (_, html) = app.get(&format!("/runs/{id}")).await;
+    // koşum → feature (durum çubuğu, sayılar) → senaryolar
+    assert!(html.contains("class=\"donut\""), "durum dağılımı halka grafiği");
+    assert!(html.contains("Feature'lar"));
+    assert!(
+        html.contains("<details class=\"feature-grup\" id=\"f-giris-ekrani\" open>"),
+        "kalanı olan feature açık gelir"
+    );
+    assert!(html.contains("4/7 geçti"));
+    assert!(html.contains("href=\"#f-giris-ekrani\""));
+    // dashboard: halka, gidişat çizgisi, sütunlar, feature tablosu
+    upload_sample(&app, Q).await;
+    let (_, d) = app.get("/?project=1&branch=main").await;
+    for needle in [
+        "class=\"donut\"",
+        "class=\"cizgi-grafik\"",
+        "class=\"sutun-grafik\"",
+        "Feature bazında",
+        "class=\"mini-cizgi\"",
+        "/static/charts.js",
+    ] {
+        assert!(d.contains(needle), "{needle}");
+    }
+    let (st, js) = app.get("/static/charts.js").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(js.contains("textContent"));
+}

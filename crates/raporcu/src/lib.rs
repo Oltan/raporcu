@@ -1,6 +1,7 @@
 //! raporcu: test sonuç merkezi.
 
 pub mod auth;
+pub mod charts;
 pub mod config;
 pub mod db;
 pub mod disk;
