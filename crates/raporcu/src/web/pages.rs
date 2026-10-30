@@ -111,6 +111,10 @@ impl Dashboard {
     fn project_selected(&self, id: &i64) -> bool {
         self.project == Some(*id)
     }
+    /// Sayaçlar için en son biten koşum (çalışan koşum yarım sonuç verir).
+    fn last_finished(&self) -> Option<&RunRow> {
+        self.runs.iter().find(|r| r.status != "running")
+    }
 }
 
 pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q): Query<DashQuery>) -> Result<Response, AppError> {
@@ -130,7 +134,7 @@ pub async fn dashboard(State(st): State<AppState>, headers: HeaderMap, Query(q):
             let mut flaky = Vec::new();
             let scope = match (p2, &b2) {
                 (Some(p), Some(b)) => Some((p, b.clone())),
-                _ => runs.first().map(|r| (r.project_id, r.branch.clone())),
+                _ => runs.iter().find(|r| r.status != "running").or(runs.first()).map(|r| (r.project_id, r.branch.clone())),
             };
             if let Some((p, b)) = scope {
                 let keys = crate::history::flaky_keys(c, p, &b, window)?;

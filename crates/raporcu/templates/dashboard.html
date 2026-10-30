@@ -23,9 +23,9 @@
   </form>
 </div>
 
-{% if let Some(r) = runs.first() %}
+{% if let Some(r) = self.last_finished() %}
 <div class="sayaclar">
-  <div class="sayac"><div class="e">Son koşum</div><div class="n"><a href="/runs/{{ r.id }}">#{{ r.id }}</a></div></div>
+  <div class="sayac"><div class="e">Son biten koşum</div><div class="n"><a href="/runs/{{ r.id }}">#{{ r.id }}</a></div></div>
   <div class="sayac passed"><div class="e">Geçti</div><div class="n">{{ r.passed }}</div></div>
   <div class="sayac failed"><div class="e">Kaldı</div><div class="n">{{ r.failures() }}</div></div>
   <div class="sayac"><div class="e">Başarı</div><div class="n">%{{ r.pass_pct() }}</div></div>
