@@ -22,10 +22,14 @@ pub fn exe(name: &str) -> PathBuf {
 }
 
 pub fn build_binaries() -> Result<()> {
+    // Windows ikilileri Wine altında koşarken cargo çağrılamaz; önceden derlenmiş olmalı.
+    if std::env::var("STAJ_SKIP_BUILD").is_ok() {
+        return Ok(());
+    }
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
     let release = bin_dir().ends_with("release");
     let mut cmd = Command::new(cargo);
-    cmd.args(["build", "-q", "-p", "stajproje", "-p", "stajci"])
+    cmd.args(["build", "-q", "-p", "raporcu", "-p", "stajci"])
         .current_dir(workspace_root());
     if release {
         cmd.arg("--release");
@@ -63,7 +67,7 @@ impl Server {
     }
 
     pub fn start(&mut self) -> Result<()> {
-        let mut cmd = Command::new(exe("stajproje"));
+        let mut cmd = Command::new(exe("raporcu"));
         cmd.env("DATA_DIR", &self.data_dir)
             .env("BIND_ADDR", format!("127.0.0.1:{}", self.port))
             .env("PUBLIC_URL", self.url())
@@ -80,7 +84,7 @@ impl Server {
             cmd.env(k, v);
         }
         std::fs::create_dir_all(&self.data_dir)?;
-        self.child = Some(cmd.spawn().context("stajproje başlatılamadı")?);
+        self.child = Some(cmd.spawn().context("raporcu başlatılamadı")?);
         let deadline = Instant::now() + Duration::from_secs(20);
         while Instant::now() < deadline {
             if let Ok(r) = get(&format!("{}/api/health", self.url())) {

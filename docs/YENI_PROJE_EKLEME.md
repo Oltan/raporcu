@@ -1,6 +1,6 @@
 # Yeni test projesi ekleme (SW-10.4)
 
-Bir Cucumber + TestFX (JavaFX) test projesini stajproje'ye bağlamak için. Hazır örnek:
+Bir Cucumber + TestFX (JavaFX) test projesini raporcu'ye bağlamak için. Hazır örnek:
 `ornek-test-projesi/`.
 
 **1. Allure adaptörü (`pom.xml`)** — `ornek-test-projesi/pom.xml` içinden kopyalayın:
@@ -22,7 +22,7 @@ senaryolar proje kökündeki `features.txt` dosyasında (her satır bir tag ifad
 
 ```yaml
 include:
-  - project: 'ekip/stajproje'
+  - project: 'ekip/raporcu'
     ref: main
     file: '/ci/gitlab/template/.gitlab-ci.yml'
 variables:

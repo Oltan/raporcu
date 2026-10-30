@@ -1,6 +1,6 @@
 # AGENTS.md — <PROJE ADI> test projesi
 
-Bu dosya OpenCode (ve diğer kod ajanları) için projeyi tanıtır. stajproje self-healing akışı
+Bu dosya OpenCode (ve diğer kod ajanları) için projeyi tanıtır. raporcu self-healing akışı
 (`stajci fix`) bu dosyayı ve `.opencode/agent/fix.md` ajanını kullanır.
 
 ## Proje

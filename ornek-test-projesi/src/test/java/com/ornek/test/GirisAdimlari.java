@@ -24,11 +24,14 @@ public class GirisAdimlari {
 
     @When("kullanıcı adı {string} ve şifre {string} girilirse")
     public void bilgileriGir(String kullanici, String sifre) {
-        robot.clickOn("#kullaniciAdi");
-        if (!kullanici.isEmpty()) {
-            robot.write(kullanici);
-        }
-        robot.clickOn("#sifre").write(sifre);
+        // Allure alt adımları: raporda Gherkin adımının altında iç içe görünür
+        Allure.step("Kullanıcı adı alanı #kullaniciAdi dolduruluyor", () -> {
+            robot.clickOn("#kullaniciAdi");
+            if (!kullanici.isEmpty()) {
+                robot.write(kullanici);
+            }
+        });
+        Allure.step("Şifre alanı #sifre dolduruluyor", () -> robot.clickOn("#sifre").write(sifre));
         // Adım içinde ek örneği: Allure adım ekleri result.json içinde steps[].attachments altına düşer
         Allure.addAttachment("Girilen kullanıcı", "text/plain", kullanici.isEmpty() ? "(boş)" : kullanici);
     }

@@ -8,7 +8,7 @@ use anyhow::Result;
 use rehearse::*;
 
 fn main() -> Result<()> {
-    println!("== stajproje uçtan uca smoke (SW-10.2) ==");
+    println!("== raporcu uçtan uca smoke (SW-10.2) ==");
     build_binaries()?;
     let tmp = tempfile::tempdir()?;
     let root = tmp.path();
@@ -21,7 +21,7 @@ fn main() -> Result<()> {
             // SW-9.5: admin şifresi set-admin-password ile .env'e yazılır
             std::fs::create_dir_all(&server.data_dir)?;
             let envf = server.data_dir.join(".env");
-            let st = std::process::Command::new(exe("stajproje"))
+            let st = std::process::Command::new(exe("raporcu"))
                 .arg("set-admin-password")
                 .env("ENV_FILE", &envf)
                 .env("STAJ_NEW_ADMIN_PASSWORD", admin_pw)
@@ -209,7 +209,7 @@ fn main() -> Result<()> {
             "",
         );
         // yedek
-        let st = std::process::Command::new(exe("stajproje"))
+        let st = std::process::Command::new(exe("raporcu"))
             .arg("backup")
             .env("DATA_DIR", &server.data_dir)
             .output()?;

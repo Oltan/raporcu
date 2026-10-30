@@ -1354,6 +1354,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
+name = "raporcu"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "askama",
+ "axum",
+ "chrono",
+ "common",
+ "dotenvy",
+ "fs4",
+ "futures-util",
+ "hex",
+ "http-body-util",
+ "mime_guess",
+ "rpassword",
+ "rusqlite",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "ureq",
+ "urlencoding",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1760,45 +1799,6 @@ dependencies = [
  "sha2",
  "tempfile",
  "ureq",
- "uuid",
- "zip",
-]
-
-[[package]]
-name = "stajproje"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "argon2",
- "askama",
- "axum",
- "chrono",
- "common",
- "dotenvy",
- "fs4",
- "futures-util",
- "hex",
- "http-body-util",
- "mime_guess",
- "rpassword",
- "rusqlite",
- "rust-embed",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-tungstenite 0.30.0",
- "tokio-util",
- "tower",
- "tower-http",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "ureq",
- "urlencoding",
  "uuid",
  "zip",
 ]

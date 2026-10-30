@@ -1,4 +1,4 @@
-//! stajproje sunucusuna HTTP istemcisi: CI_API_TOKEN ve sürüm başlığı her istekte gider.
+//! raporcu sunucusuna HTTP istemcisi: CI_API_TOKEN ve sürüm başlığı her istekte gider.
 
 use anyhow::{bail, Context, Result};
 use std::io::Read;

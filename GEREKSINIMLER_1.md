@@ -1,10 +1,10 @@
-# stajproje Gereksinimleri
+# raporcu Gereksinimleri
 
 ## Bağlam
 
-stajproje sıfırdan yazılacak bir "test sonuç merkezi". Testleri stajproje koşmaz, GitLab runner koşar. stajproje sonuçları alır; canlı durum, rapor, paylaşım, triage, Jira/DOORS ve self-healing sağlar.
+raporcu sıfırdan yazılacak bir "test sonuç merkezi". Testleri raporcu koşmaz, GitLab runner koşar. raporcu sonuçları alır; canlı durum, rapor, paylaşım, triage, Jira/DOORS ve self-healing sağlar.
 
-- **stajproje**: bu raporlama projesi. Henüz hiçbir kodu yok.
+- **raporcu**: bu raporlama projesi. Henüz hiçbir kodu yok.
 - **test projesi**: JavaFX uygulamasının Cucumber + TestFX test reposu (GitLab). Testler Allure raporu üretir.
 - **Teknoloji**: Rust. Sunucu ve CI araçları Rust ile yazılır; bellek kullanımı en düşük seçenek olduğu ve dış çalışma ortamı gerektirmediği için seçildi.
   - Sunucu: `axum` + `tokio`; sayfalar `askama` şablonları + htmx; canlı ekran için axum WebSocket. Şablonlar derlemede ikiliye girer, statik dosyalar `rust-embed` ile gömülür.
@@ -12,7 +12,7 @@ stajproje sıfırdan yazılacak bir "test sonuç merkezi". Testleri stajproje ko
   - Dosyalar (ekran görüntüsü, video, Allure dosyaları) diskte `DATA_DIR` altında; veritabanında yalnızca yolları tutulur.
   - CI araçları tek bir yardımcı ikili: `stajci` (alt komutlar: `preflight`, `start`, `watch`, `upload`, `finish`, `fix`).
   - Derleme: Linux için `x86_64-unknown-linux-gnu`, Windows için `x86_64-pc-windows-gnu` (Linux'ta mingw ile) ya da Windows'ta `x86_64-pc-windows-msvc`.
-- **İşletim sistemi**: Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. stajproje sunucusu runner ile aynı makinede çalışır; her iki işletim sisteminde de çalışabilmelidir.
+- **İşletim sistemi**: Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. raporcu sunucusu runner ile aynı makinede çalışır; her iki işletim sisteminde de çalışabilmelidir.
 
 Kısaltmalar:
 
@@ -42,7 +42,7 @@ Toplam 58 yazılım gereksinimi var: 34 MEVCUT, 23 KISMEN, 1 YAPILACAK. KISMEN o
 
 ## SYS-1: Test koşumu GitLab CI'da yapılır
 
-Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya Windows sanal makinedeki runner'da koşar. Test projesi hangi işletim sisteminde koşacağını runner etiketiyle (`linux` / `windows`) seçer.
+Testler raporcu'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya Windows sanal makinedeki runner'da koşar. Test projesi hangi işletim sisteminde koşacağını runner etiketiyle (`linux` / `windows`) seçer.
 
 ### SW-1.1 [KISMEN] CI şablonu test → report → fix aşamalarını içerir
 - Dosya: `ci/gitlab/template/.gitlab-ci.yml`
@@ -64,12 +64,12 @@ Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya 
 - Not: `stajci start` testleri `xvfb-run -a` ile koşar; gerçek JavaFX/TestFX koşusu Xvfb'de doğrulandı, `rehearse` iki eşzamanlı işin farklı ekran aldığını doğrular. GitLab gece koşumu pilotta.
 
 ### SW-1.3 [KISMEN] Gece zamanlaması GitLab schedule ile çalışır
-- Kabul: Pipeline 02:00'de kendiliğinden başlar, rapor sabah stajproje'de hazır olur.
+- Kabul: Pipeline 02:00'de kendiliğinden başlar, rapor sabah raporcu'de hazır olur.
 - Test: U, M
 - Not: Şablon schedule pipeline'ını destekler, e-posta schedule kaynağında gider. Schedule GitLab'da kurulmalı (docs/GITLAB_CI_KURULUMU.md §5).
 
 ### SW-1.4 [KISMEN] Merkezi şablon
-- Test projeleri yalnızca bir `include` satırı ekler; betikler stajproje reposundan çekilir.
+- Test projeleri yalnızca bir `include` satırı ekler; betikler raporcu reposundan çekilir.
 - Kabul: Merkezdeki bir betik değişince ertesi koşumda tüm projeler yeni sürümü kullanır.
 - Test: U
 - Not: `include` ile tek satır; stajci her koşumda sunucudan indirilir. GitLab'da U testi bekliyor.
@@ -112,7 +112,7 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 - Allure sonuç zip'ini alır, ayrıştırır ve bir koşum olarak kaydeder.
 - Kabul: Koşum listede görünür; rapor, triage ve CSV dışa aktarma bu koşum için çalışır; zip güvenliği sağlanır (boyut sınırı, `..` içeren yollar reddedilir).
 - Test: B
-- Doğrulama: `test_sw_2_1_*` (common, stajproje, stajci), e2esmoke
+- Doğrulama: `test_sw_2_1_*` (common, raporcu, stajci), e2esmoke
 
 ### SW-2.2 [MEVCUT] @After hook ekleri (container dosyası) senaryoya bağlanır
 - Ekran görüntüsü yalnızca başarısız senaryoda alınır; başarılı senaryolarda görüntü yoktur.
@@ -132,7 +132,7 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 - Doğrulama: `test_sw_2_4_all_paths_under_data_dir`
 
 ### SW-2.5 [MEVCUT] Veritabanı: kurulumsuz SQLite
-- Veritabanı `DATA_DIR/stajproje.db` dosyasıdır. Sunucu ilk açılışta dosyayı kendisi oluşturur; ayrı kurulum, kullanıcı veya şifre yoktur.
+- Veritabanı `DATA_DIR/raporcu.db` dosyasıdır. Sunucu ilk açılışta dosyayı kendisi oluşturur; ayrı kurulum, kullanıcı veya şifre yoktur.
 - Şema değişiklikleri numaralı migration dosyalarıyla yapılır (`migrations/0001_ilk.sql`, ...). Migration'lar ikiliye gömülür ve sunucu açılırken sırayla uygulanır; uygulananlar veritabanında kayıtlıdır.
 - Açılışta ayarlar: `journal_mode=WAL` (okuma ve yazma birbirini beklemez), `busy_timeout`, `foreign_keys=ON`.
 - Yazmalar tek bir yazıcı bağlantısından, okumalar küçük bir bağlantı havuzundan yapılır.
@@ -172,7 +172,7 @@ Testler koşarken hangi senaryonun geçtiği, hangisinin kaldığı anlık gör�
 
 ### SW-3.2 [KISMEN] CI izleyicisi (`stajci watch`)
 - Her yeni sonuç dosyasını ve eklerini anında gönderir; test işiyle paralel çalışır.
-- stajproje runner ile aynı makinede çalıştığı için izleyici sonuçları yerel adrese (localhost) gönderir.
+- raporcu runner ile aynı makinede çalıştığı için izleyici sonuçları yerel adrese (localhost) gönderir.
 - Kabul: Senaryo bittikten en geç 5 sn sonra panelde görünür; izleyici çökerse test işi etkilenmez.
 - Test: P
 - Doğrulama: rehearse SW-3.2
@@ -235,7 +235,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Kategoriler: `flaky`, `test kodu hatası` (bizden), `ürün hatası`, `ortam sorunu`, `bilinmiyor`.
 - Karar üç kaynaktan gelir ve her kararın kaynağı kayıtlıdır:
   1. Kural: flaky geçmişi (SW-4.2), Allure durumu (`broken` → test kodu, `failed` → ürün), bilinen ortam hata kalıpları (zaman aşımı, bağlantı hatası, ekran bulunamadı).
-  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde (SW-7.2) çalışır, sonucu stajproje'ye bildirir.
+  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde (SW-7.2) çalışır, sonucu raporcu'ye bildirir.
   3. Admin: kararı onaylar ya da değiştirir. Admin kararı diğerlerinin üstündedir.
 - Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → atlanır, ortam sorunu → bildirim.
 - Ayrıntılar netleşmedi (açık soru 3); bu gereksinime başlamadan önce sor.
@@ -355,7 +355,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Doğrulama: rehearse SW-7.2 adımları, `test_sw_7_2_command_template`
 - Not: Sahte OpenCode + sahte GitLab + yerel git ile prova geçer; gerçek OpenCode, vLLM, TestFX MCP, GitLab MR ile U bekliyor.
 
-### SW-7.3 [MEVCUT] Sonuç stajproje'ye bildirilir (fix-result) ve raporda görünür
+### SW-7.3 [MEVCUT] Sonuç raporcu'ye bildirilir (fix-result) ve raporda görünür
 - Test: B, P
 - Doğrulama: `test_sw_7_3_and_4_4_*`, rehearse SW-7.3
 
@@ -371,14 +371,14 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Doğrulama: `test_sw_7_5_healing_panel_counts_with_mr_webhook`
 
 ### SW-7.6 [KISMEN] Test projesi için AGENTS.md, fix ajanı ve `opencode.json` (vLLM, TESTFX_MCP_JAR)
-- Önce stajproje reposunda şablonlar hazırlanır, sonra test projesine özel AGENTS.md yazılır.
+- Önce raporcu reposunda şablonlar hazırlanır, sonra test projesine özel AGENTS.md yazılır.
 - Test: U
-- Not: Şablonlar ci/opencode/template ve ornek-test-projesi altında; opencode.ai belgelerine bu ortamdan erişilemedi, kurulu OpenCode sürümüyle doğrulanmalı.
+- Not: Şablonlar ci/opencode/template, ci/claude/template (Claude Code seçeneği, `STAJ_FIX_AGENT=claude`) ve ornek-test-projesi altında; opencode.ai belgelerine bu ortamdan erişilemedi, kurulu OpenCode / Claude Code ve vLLM ağ geçidiyle doğrulanmalı (docs/KOD_AJANI_VLLM.md).
 
 ### SW-7.7 [MEVCUT] Geçmişteki başarılı düzeltmeler OpenCode'a örnek olarak verilir
 - Kabul: İstek metninde benzer bir senaryonun önceki düzeltmesi yer alır.
 - Test: B
-- Doğrulama: `test_sw_7_7_*` (stajproje, stajci)
+- Doğrulama: `test_sw_7_7_*` (raporcu, stajci)
 
 ---
 
@@ -408,7 +408,7 @@ Tokenlar korunur, dışarıdan gelen istekler doğrulanır, OpenCode sınırlan�
 - Not: İzinli yol, assertion uyarısı ve veri bloğu; birim + prova Linux'ta geçer. Windows doğrulaması bekliyor.
 
 ### SW-9.5 [MEVCUT] Admin girişi
-- Şimdilik tek kullanıcı vardır: admin. Şifre `.env` içinde düz değil, hash olarak (argon2) tutulur; `stajproje set-admin-password` komutuyla belirlenir.
+- Şimdilik tek kullanıcı vardır: admin. Şifre `.env` içinde düz değil, hash olarak (argon2) tutulur; `raporcu set-admin-password` komutuyla belirlenir.
 - Giriş sonrası oturum çerezi kullanılır (HttpOnly, SameSite=Strict); başarısız denemeler yavaşlatılır.
 - Raporları görmek giriş gerektirmez (kapalı ağ). Admin işlemleri giriş ister: link iptali, triage kararı değiştirme, "OpenCode ile düzelt", Jira'ya bug açma, ayarlar.
 - Şirkette Active Directory / LDAP var; ileride giriş buna bağlanabilsin diye giriş kontrolü tek bir arayüz arkasında yazılır. Şimdilik AD/LDAP bağlantısı yapılmaz.
@@ -425,7 +425,7 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 ### SW-10.1 [KISMEN] VM, runner, token ve zamanlama rehberi (`docs/GITLAB_CI_KURULUMU.md`)
 - Ubuntu için: gereken paketler (Xvfb, ffmpeg, Java ve JavaFX bağımlılıkları), GitLab runner'ın shell executor ile hizmet olarak kurulması ve SW-1.2'deki Xvfb ayarı.
 - Windows için: gereken programlar (ffmpeg, Java), otomatik oturum açma, kilit ve uykunun kapatılması, runner'ın oturumda başlatılması (SW-1.6) ve RDP'den `tscon` ile çıkış.
-- stajproje sunucusunun her iki sistemde hizmet olarak kurulması.
+- raporcu sunucusunun her iki sistemde hizmet olarak kurulması.
 - Kabul: Rehberle sıfırdan kurulum yapılabilir.
 - Test: M
 - Not: Rehber yazıldı (docs/GITLAB_CI_KURULUMU.md); sıfırdan kurulumla M kontrolü bekliyor.
@@ -435,9 +435,9 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 - Kabul: Her ikisi de tüm adımlarıyla hem Ubuntu'da hem Windows'ta geçer; her yeni CI adımı provaya eklenir.
 - Test: P, U
 - Doğrulama: `cargo run -p rehearse`, `cargo run -p e2esmoke`
-- Not: `rehearse` (43 adım) ve `e2esmoke` (18 adım) Linux'ta geçer; Windows'ta koşturulmadı.
+- Not: `rehearse` (43 adım) ve `e2esmoke` (18 adım) Linux'ta geçer. Windows ikilileri Wine altında: `cargo test --target x86_64-pc-windows-gnu` 96/96 (yalnızca Linux /proc kullanan bellek ölçüm testi hariç), rehearse 31/31 (Xvfb ve git adımları atlandı), e2esmoke 18/18. Gerçek Windows VM'de koşturulmadı.
 
-### SW-10.3 [YAPILACAK] stajproje reposu şirket GitLab'ında açılır
+### SW-10.3 [YAPILACAK] raporcu reposu şirket GitLab'ında açılır
 - Push kapalıysa `git bundle` ile aktarılır.
 - Kabul: Repo GitLab'da; ilk commit'ten itibaren kod orada.
 - Test: M
@@ -449,7 +449,7 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 - Not: Rehber yazıldı (docs/YENI_PROJE_EKLEME.md); bir ekiple M kontrolü bekliyor.
 
 ### SW-10.5 [MEVCUT] Proje iskeleti
-- Cargo workspace; `stajproje` (sunucu) ve `stajci` (CI aracı) crate'leri, ortak kod için `common` crate'i; yapılandırma ortam değişkenleri ve `.env` dosyasından; temel sağlık ucu (`GET /api/health`).
+- Cargo workspace; `raporcu` (sunucu) ve `stajci` (CI aracı) crate'leri, ortak kod için `common` crate'i; yapılandırma ortam değişkenleri ve `.env` dosyasından; temel sağlık ucu (`GET /api/health`).
 - Kabul: Sunucu açılır, sağlık ucu 200 döner, `cargo test` geçer, Linux ve Windows ikilileri derlenir.
 - Test: B
 - Doğrulama: `test_sw_10_5_*`
@@ -497,7 +497,7 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 - Doğrulama: `test_sw_10_8_*`
 
 ### SW-10.9 [KISMEN] `stajci` dağıtımı ve sürüm uyumu
-- stajproje sunucusu Linux ve Windows için `stajci` ikilisini `GET /api/tools/stajci?os=linux|windows` ucundan sunar; CI şablonu aracı buradan indirir.
+- raporcu sunucusu Linux ve Windows için `stajci` ikilisini `GET /api/tools/stajci?os=linux|windows` ucundan sunar; CI şablonu aracı buradan indirir.
 - `stajci` her istekte kendi sürümünü gönderir; sunucu uyumsuz sürümü açık bir mesajla reddeder.
 - Kabul: Sunucu güncellenince ertesi koşumda runner'lar yeni `stajci`'yi kullanır; eski sürüm "stajci sürümü uyumsuz" mesajıyla düşer.
 - Test: B, P
@@ -522,8 +522,8 @@ Bu sıra, her adımın bir öncekinin üzerine kurulacağı şekilde dizildi.
 
 ## Kararlar (ortam)
 
-1. GitLab sunucusu stajproje makinesine erişebiliyor. Pipeline durumu webhook ile alınır (SW-3.6).
-2. GitLab runner ve stajproje sunucusu aynı makinede çalışır. CI işleri stajproje'ye yerel adresten ulaşır (SW-3.2 ve diğer CI yüklemeleri).
+1. GitLab sunucusu raporcu makinesine erişebiliyor. Pipeline durumu webhook ile alınır (SW-3.6).
+2. GitLab runner ve raporcu sunucusu aynı makinede çalışır. CI işleri raporcu'ye yerel adresten ulaşır (SW-3.2 ve diğer CI yüklemeleri).
 3. Raporlar yalnızca şirket içinde, kapalı yerel ağda paylaşılır. Paylaşım linklerinde süre sınırı yoktur; rapor diskte yer olduğu sürece saklanır (SW-5.1, 5.2).
 4. vLLM modeli görsel destekli. Ekran görüntüleri OpenCode'a verilir (SW-7.2).
 5. Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. Ubuntu'da sanal ekran Xvfb'dir (SW-1.2); Windows'ta açık masaüstü oturumu kullanılır (SW-1.6). Monocle ve headless çalışma kullanılmaz.
@@ -537,6 +537,6 @@ Bu sıra, her adımın bir öncekinin üzerine kurulacağı şekilde dizildi.
 
 Bu sorular yanıtlanmadan ilgili gereksinime başlama; bunun yerine soruyu sor.
 
-1. stajproje'ye pipeline tetikleme ve okuma yetkisi olan bir GitLab token verilebilir mi? (SW-7.4, 7.5)
-2. Ubuntu ve Windows runner'ları ayrı makinelerdeyse her makinede ayrı bir stajproje sunucusu mu çalışacak, yoksa tek bir merkezi sunucu mu olacak? Ayrı sunucular raporları ve geçmişi ikiye böler. (SW-3.2, SW-3.6, SW-4.2)
+1. raporcu'ye pipeline tetikleme ve okuma yetkisi olan bir GitLab token verilebilir mi? (SW-7.4, 7.5)
+2. Ubuntu ve Windows runner'ları ayrı makinelerdeyse her makinede ayrı bir raporcu sunucusu mu çalışacak, yoksa tek bir merkezi sunucu mu olacak? Ayrı sunucular raporları ve geçmişi ikiye böler. (SW-3.2, SW-3.6, SW-4.2)
 3. Triage nasıl çalışacak? Kategoriler doğru mu, OpenCode'un kararı kendiliğinden mi geçerli olsun yoksa admin onayı mı beklesin, düşük güvenli kararlar ne olsun? (SW-4.5)

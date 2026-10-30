@@ -1,8 +1,8 @@
-# stajproje — test sonuç merkezi
+# raporcu — test sonuç merkezi
 
 GitLab CI'da koşan JavaFX (Cucumber + TestFX) e2e testlerinin Allure sonuçlarını alır; canlı
 durum, rapor, paylaşım, triage, Jira/DOORS ve OpenCode ile self-healing sağlar. Rust ile yazıldı:
-tek ikili sunucu (`stajproje`, ~6 MB, ~30 MB RAM) + tek ikili CI aracı (`stajci`), SQLite,
+tek ikili sunucu (`raporcu`, ~6 MB, ~30 MB RAM) + tek ikili CI aracı (`stajci`), SQLite,
 Ubuntu ve Windows.
 
 ![Koşum raporu](docs/img/kosum-raporu.png)
@@ -16,7 +16,7 @@ test projesi pipeline'ı (GitLab runner, aynı makine)
   fix    : stajci fix                        (OpenCode → auto-fix branch → MR)
                     │ localhost
                     ▼
-stajproje: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOORS · self-healing paneli
+raporcu: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOORS · self-healing paneli
 ```
 
 ## Hızlı başlangıç
@@ -24,8 +24,8 @@ stajproje: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DO
 ```bash
 cargo build --release
 cp .env.example .env          # CI_API_TOKEN, PUBLIC_URL, ...
-./target/release/stajproje set-admin-password
-./target/release/stajproje    # http://127.0.0.1:8080
+./target/release/raporcu set-admin-password
+./target/release/raporcu    # http://127.0.0.1:8080
 ```
 
 Örnek sonuçları yüklemek için:
@@ -43,14 +43,17 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
    (kalan senaryonun videosu) ve `features.txt` kendi projene kopyalanacak parçalardır.
    Ayrıntı: [`ornek-test-projesi/README.md`](ornek-test-projesi/README.md).
 2. `.gitlab-ci.yml`'e tek `include` satırı: [`docs/YENI_PROJE_EKLEME.md`](docs/YENI_PROJE_EKLEME.md).
-3. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
+3. Test projesinde neler olmalı (adımlar, ekler, tag'ler, triage için hata türleri):
+   [`docs/TEST_PROJESI_GEREKSINIMLERI.md`](docs/TEST_PROJESI_GEREKSINIMLERI.md).
+4. Self-healing için OpenCode ya da Claude Code + vLLM: [`docs/KOD_AJANI_VLLM.md`](docs/KOD_AJANI_VLLM.md).
+5. Makine kurulumu (Ubuntu Xvfb / Windows masaüstü oturumu, runner, tokenlar, gece zamanlaması):
    [`docs/GITLAB_CI_KURULUMU.md`](docs/GITLAB_CI_KURULUMU.md).
 
 ## Depo yapısı
 
 | Yol | İçerik |
 |-----|--------|
-| `crates/stajproje` | sunucu: axum + askama/htmx + WebSocket, SQLite (`rusqlite` bundled) |
+| `crates/raporcu` | sunucu: axum + askama/htmx + WebSocket, SQLite (`rusqlite` bundled) |
 | `crates/stajci` | CI aracı: `preflight`, `start`, `watch`, `upload`, `finish`, `fix` |
 | `crates/common` | Allure modeli/ayrıştırıcı, API tipleri, sürüm uyumu |
 | `crates/rehearse` | prova: CI akışını yerelde benzetir (`cargo run -p rehearse`) |
@@ -58,6 +61,7 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 | `migrations/` | numaralı SQL migration'ları (ikiliye gömülü) |
 | `ci/gitlab/template/.gitlab-ci.yml` | merkezi CI şablonu |
 | `ci/opencode/template/` | `opencode.json`, `fix` ajanı, `AGENTS.md` şablonu |
+| `ci/claude/template/` | Claude Code: `CLAUDE.md`, `.claude/settings.json`, `.mcp.json` |
 | `ornek-test-projesi/` | örnek Java test projesi |
 | `testdata/allure/` | gerçek `allure-results` örnekleri (testler bunları kullanır) |
 | `deploy/` | systemd servisi, Windows kurulum betikleri |
@@ -67,10 +71,10 @@ curl -H "Authorization: Bearer $CI_API_TOKEN" --data-binary @/tmp/s.zip \
 
 ```bash
 cargo clippy --all-targets -- -D warnings
-cargo test                 # 95 test
+cargo test                 # 97 test (Wine varsa: --target x86_64-pc-windows-gnu)
 cargo run -p rehearse      # 43 prova adımı (sunucu + stajci gerçek süreç olarak)
 cargo run -p e2esmoke      # 18 uçtan uca kontrol
-cargo build --release --target x86_64-pc-windows-gnu -p stajproje -p stajci
+cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci
 ```
 
 Gereksinimlerin durumu: [`GEREKSINIMLER_1.md`](GEREKSINIMLER_1.md). Plan: [`docs/PLAN.md`](docs/PLAN.md).

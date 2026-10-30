@@ -5,7 +5,7 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 
 ## Açık soru 1 — GitLab token yetkisi (SW-7.4, 7.5)
 
-- Varsayım: stajproje'ye `api` kapsamlı bir token verilebilir (`GITLAB_TOKEN`). "OpenCode ile
+- Varsayım: raporcu'ye `api` kapsamlı bir token verilebilir (`GITLAB_TOKEN`). "OpenCode ile
   düzelt" düğmesi `POST /projects/:id/pipeline` ile `STAJ_FIX_ONLY=true` ve `STAJ_RUN_ID`
   değişkenli pipeline başlatır; şablonda test ve report işleri bu durumda koşmaz.
 - SW-7.5 (birleştirilen/reddedilen) GitLab API sorgusu yerine **Merge request webhook**'uyla
@@ -14,7 +14,7 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 
 ## Açık soru 2 — Ubuntu ve Windows runner'ları ayrı makinedeyse (SW-3.2, 3.6, 4.2)
 
-- Varsayım: her makinede kendi stajproje sunucusu çalışır (gereksinimdeki "aynı makine" kararı).
+- Varsayım: her makinede kendi raporcu sunucusu çalışır (gereksinimdeki "aynı makine" kararı).
 - Tek merkezi sunucuya geçmek kod değişikliği gerektirmez: CI değişkeni `STAJ_SERVER` merkezi
   adrese çevrilir, sunucu `BIND_ADDR=0.0.0.0:8080` ile dinler. Geçmiş ve flaky tespiti zaten
   proje + branch bazındadır; işletim sistemi koşumda `os` alanı olarak tutulur.
@@ -49,3 +49,16 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   `DATA_DIR/outbox/` altına yazılır.
 - **CSV ayırıcı (SW-4.8):** varsayılan virgül; Türkçe Excel için noktalı virgül seçeneği var.
 - **Clippy:** `clippy.toml` içinde `type-complexity-threshold` yükseltildi (SQL satırı tuple'ları).
+
+## Ad değişikliği ve ajan seçimi (2. tur)
+
+- Sunucunun adı `stajproje` yerine **`raporcu`** oldu (crate, ikili `raporcu`/`raporcu.exe`,
+  veritabanı `DATA_DIR/raporcu.db`, log dosyaları `raporcu.*.log`, systemd `raporcu.service`).
+  CI aracının adı (`stajci`) ve `STAJ_*` CI değişkenleri gereksinim belgesindeki gibi kaldı.
+- Self-healing ajanı `STAJ_FIX_AGENT` ile seçilir: `opencode` (varsayılan) ya da `claude`
+  (Claude Code). İkisi de aynı istemi, ekran görüntüsünü ve sahne ağacını alır; stajci'nin yol
+  denetimi ve assertion uyarısı ajandan bağımsızdır.
+- Kalan senaryoda ekran görüntüsüne ek olarak **TestFX sahne ağacı** (metin) alınır; ajan
+  seçicileri gerçek `#fxId`'lerden seçer.
+- `rust-embed` debug derlemede de statik dosyaları gömer (`debug-embed`); Wine altında Windows
+  testinde bulunan bir sorun buydu.

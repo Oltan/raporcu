@@ -1,6 +1,6 @@
 # Örnek test projesi: JavaFX + Cucumber + TestFX + Allure
 
-stajproje ile çalışan, gerçekten koşan küçük bir referans proje. `testdata/allure/ornek-giris/`
+raporcu ile çalışan, gerçekten koşan küçük bir referans proje. `testdata/allure/ornek-giris/`
 altındaki örnek sonuçlar bu projenin Xvfb altındaki gerçek koşusundan alındı. Kendi test
 projene Allure'u eklerken buradaki parçaları kopyala.
 
@@ -25,7 +25,7 @@ CI'da bunu `stajci start` yapar (Xvfb, bellek sınırları, features.txt tag'ler
 | Yavaş açılan karşılama mesajı | `@DOORS-1005 @flaky` | failed → **passed** | rerun: aynı `historyId` ile iki sonuç |
 | Beni hatırla seçeneği | `@DOORS-1006 @wip` | (status yok) | tanımsız adım: `status` alanı hiç yazılmaz |
 
-Çıktıda dikkat edilecekler (stajproje ayrıştırıcısı bunlara göre yazıldı):
+Çıktıda dikkat edilecekler (raporcu ayrıştırıcısı bunlara göre yazıldı):
 
 - `*-result.json` her deneme için ayrı; rerun'da `historyId` aynı kalır.
 - `@After` hook'unda `scenario.attach(...)` ile eklenen ekran görüntüsü ve video **result

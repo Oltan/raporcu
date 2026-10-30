@@ -1,8 +1,8 @@
 # GitLab CI kurulum rehberi (SW-10.1)
 
-Bu rehber bir test sanal makinesini (Ubuntu ya da Windows) sıfırdan hazırlar: stajproje sunucusu,
+Bu rehber bir test sanal makinesini (Ubuntu ya da Windows) sıfırdan hazırlar: raporcu sunucusu,
 GitLab runner, tokenlar ve gece zamanlaması. Sunucu ve runner **aynı makinede** çalışır; CI işleri
-stajproje'ye `http://127.0.0.1:8080` adresinden ulaşır.
+raporcu'ye `http://127.0.0.1:8080` adresinden ulaşır.
 
 İçindekiler:
 
@@ -22,17 +22,17 @@ Geliştirme makinesinde (Linux):
 ```bash
 rustup target add x86_64-pc-windows-gnu
 sudo apt-get install -y gcc-mingw-w64-x86-64
-cargo build --release -p stajproje -p stajci
-cargo build --release --target x86_64-pc-windows-gnu -p stajproje -p stajci
+cargo build --release -p raporcu -p stajci
+cargo build --release --target x86_64-pc-windows-gnu -p raporcu -p stajci
 ```
 
 Çıktılar:
 
 | Dosya | Nereye |
 |-------|--------|
-| `target/release/stajproje` | Ubuntu sunucu |
+| `target/release/raporcu` | Ubuntu sunucu |
 | `target/release/stajci` | sunucuda `tools/stajci-linux` |
-| `target/x86_64-pc-windows-gnu/release/stajproje.exe` | Windows sunucu |
+| `target/x86_64-pc-windows-gnu/release/raporcu.exe` | Windows sunucu |
 | `target/x86_64-pc-windows-gnu/release/stajci.exe` | sunucuda `tools/stajci-windows.exe` |
 
 Her iki `stajci` ikilisi her sunucunun `DATA_DIR/tools/` (ya da `STAJCI_DIR`) klasörüne konur.
@@ -53,24 +53,24 @@ sudo apt-get install -y xvfb xauth ffmpeg openjdk-21-jdk maven git curl \
 - `ffmpeg`: başarısız senaryoların videosu (`x11grab`).
 - GTK/GL kütüphaneleri: JavaFX'in X11'de açılması için.
 
-### 2.2 stajproje sunucusu (hizmet)
+### 2.2 raporcu sunucusu (hizmet)
 
 ```bash
-sudo useradd --system --home /var/lib/stajproje --shell /usr/sbin/nologin stajproje
-sudo mkdir -p /opt/stajproje /var/lib/stajproje/tools
-sudo cp stajproje /opt/stajproje/
-sudo cp stajci /var/lib/stajproje/tools/stajci-linux
-sudo cp stajci.exe /var/lib/stajproje/tools/stajci-windows.exe
-sudo cp .env.example /opt/stajproje/.env    # düzenleyin: CI_API_TOKEN, GITLAB_WEBHOOK_TOKEN, PUBLIC_URL...
-cd /opt/stajproje && sudo ./stajproje set-admin-password   # admin şifresi .env'e argon2 hash olarak yazılır
-sudo chown -R stajproje:stajproje /opt/stajproje /var/lib/stajproje
-sudo cp deploy/linux/stajproje.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now stajproje
+sudo useradd --system --home /var/lib/raporcu --shell /usr/sbin/nologin raporcu
+sudo mkdir -p /opt/raporcu /var/lib/raporcu/tools
+sudo cp raporcu /opt/raporcu/
+sudo cp stajci /var/lib/raporcu/tools/stajci-linux
+sudo cp stajci.exe /var/lib/raporcu/tools/stajci-windows.exe
+sudo cp .env.example /opt/raporcu/.env    # düzenleyin: CI_API_TOKEN, GITLAB_WEBHOOK_TOKEN, PUBLIC_URL...
+cd /opt/raporcu && sudo ./raporcu set-admin-password   # admin şifresi .env'e argon2 hash olarak yazılır
+sudo chown -R raporcu:raporcu /opt/raporcu /var/lib/raporcu
+sudo cp deploy/linux/raporcu.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now raporcu
 curl http://127.0.0.1:8080/api/health
 ```
 
-`stajproje.service` içinde `MemoryMax=150M` sert bellek sınırıdır (SW-10.6). Veritabanı ilk
-açılışta `DATA_DIR/stajproje.db` olarak kendiliğinden oluşur; ayrı kurulum yoktur (SW-2.5).
+`raporcu.service` içinde `MemoryMax=150M` sert bellek sınırıdır (SW-10.6). Veritabanı ilk
+açılışta `DATA_DIR/raporcu.db` olarak kendiliğinden oluşur; ayrı kurulum yoktur (SW-2.5).
 
 ### 2.3 GitLab runner (shell executor, hizmet olarak)
 
@@ -79,7 +79,7 @@ curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/s
 sudo apt-get install -y gitlab-runner
 sudo gitlab-runner register --non-interactive \
   --url https://gitlab.sirket.local/ --token glrt-XXXX \
-  --executor shell --description stajproje-linux
+  --executor shell --description raporcu-linux
 ```
 
 `/etc/gitlab-runner/config.toml` içinde `concurrent = 1` olmalı (SW-1.7), örnek:
@@ -108,7 +108,7 @@ Monocle kullanılmaz.
 Yönetici PowerShell'de:
 
 ```powershell
-.\deploy\windows\kurulum.ps1 -Kullanici testrunner -RunnerDir C:\GitLab-Runner -StajDir C:\stajproje
+.\deploy\windows\kurulum.ps1 -Kullanici testrunner -RunnerDir C:\GitLab-Runner -StajDir C:\raporcu
 ```
 
 Betik şunları yapar:
@@ -116,7 +116,7 @@ Betik şunları yapar:
 - uyku, ekran kapanması, hazırda bekleme kapalı (`powercfg`);
 - ekran koruyucu ve kilit ekranı kapalı;
 - **GitLab runner**: oturum açılınca başlayan zamanlanmış görev (`gitlab-runner run`), hizmet değil;
-- **stajproje sunucusu**: makine açılınca SYSTEM olarak başlayan zamanlanmış görev (oturum gerekmez).
+- **raporcu sunucusu**: makine açılınca SYSTEM olarak başlayan zamanlanmış görev (oturum gerekmez).
 
 Elle yapılacaklar:
 
@@ -126,8 +126,8 @@ Elle yapılacaklar:
    çözünürlüğü de aynı olmalı.
 3. Runner kaydı: `gitlab-runner.exe register --executor shell --shell powershell ...`, etiket
    **`windows`**, `config.toml` içinde `concurrent = 1`.
-4. `C:\stajproje\` altına `stajproje.exe`, `.env` ve `tools\stajci-linux`, `tools\stajci-windows.exe`.
-   `.\stajproje.exe set-admin-password` ile admin şifresi.
+4. `C:\raporcu\` altına `raporcu.exe`, `.env` ve `tools\stajci-linux`, `tools\stajci-windows.exe`.
+   `.\raporcu.exe set-admin-password` ile admin şifresi.
 
 ### 3.3 Uzak Masaüstü (RDP) ile bağlanırken
 
@@ -142,13 +142,15 @@ açık bir mesajla düşürür.
 
 | Değer | Nerede | Ne için |
 |-------|--------|---------|
-| `CI_API_TOKEN` | stajproje `.env` + test projesinde (ya da grupta) masked CI değişkeni | CI uçları (SW-9.1) |
-| `GITLAB_WEBHOOK_TOKEN` | stajproje `.env` + GitLab webhook "Secret token" | webhook doğrulama (SW-9.3) |
-| `GITLAB_URL`, `GITLAB_TOKEN` | yalnızca stajproje `.env` | "OpenCode ile düzelt" düğmesi pipeline tetikler (SW-7.4) |
+| `CI_API_TOKEN` | raporcu `.env` + test projesinde (ya da grupta) masked CI değişkeni | CI uçları (SW-9.1) |
+| `GITLAB_WEBHOOK_TOKEN` | raporcu `.env` + GitLab webhook "Secret token" | webhook doğrulama (SW-9.3) |
+| `GITLAB_URL`, `GITLAB_TOKEN` | yalnızca raporcu `.env` | "OpenCode ile düzelt" düğmesi pipeline tetikler (SW-7.4) |
 | `STAJ_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `stajci fix`: auto-fix branch push + MR (SW-7.2) |
-| `VLLM_BASE_URL`, `VLLM_API_KEY`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode (SW-7.6) |
+| `STAJ_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
+| `VLLM_BASE_URL`, `VLLM_API_KEY`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode + vLLM (SW-7.6) |
+| `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` | runner ortamı ya da CI değişkeni | Claude Code + vLLM (ağ geçidi üzerinden), `docs/KOD_AJANI_VLLM.md` |
 
-Webhook: test projesi → Settings → Webhooks → URL `http://<stajproje-makinesi>:8080/api/gitlab/webhook`,
+Webhook: test projesi → Settings → Webhooks → URL `http://<raporcu-makinesi>:8080/api/gitlab/webhook`,
 Secret token = `GITLAB_WEBHOOK_TOKEN`, tetikler: **Pipeline events** ve **Merge request events**.
 
 GitLab token yalnızca `.env` içinde durur; loglara ve hata mesajlarına yazılmaz (SW-9.2).
@@ -161,10 +163,23 @@ Test projesi → Build → Pipeline schedules → New schedule:
 - Target branch: `main`
 - Değişken (isteğe bağlı): `STAJ_TAGS` = gece koşulacak tag ifadesi
 
-Schedule ile başlayan pipeline bitince stajproje pipeline başına tek özet e-posta gönderir
-(`MAIL_TO`, SW-5.3). Rapor sabah stajproje dashboard'unda hazırdır.
+Schedule ile başlayan pipeline bitince raporcu pipeline başına tek özet e-posta gönderir
+(`MAIL_TO`, SW-5.3). Rapor sabah raporcu dashboard'unda hazırdır.
 
 ## 6. Doğrulama
+
+Windows ikilileri Linux'ta Wine ile de denenebilir (`.cargo/config.toml` içinde `runner = "wine"`):
+
+```bash
+sudo apt-get install -y wine64
+cargo test --target x86_64-pc-windows-gnu
+cargo build --target x86_64-pc-windows-gnu -p raporcu -p stajci -p rehearse -p e2esmoke
+cd target/x86_64-pc-windows-gnu/debug && STAJ_SKIP_BUILD=1 wine rehearse.exe && STAJ_SKIP_BUILD=1 wine e2esmoke.exe
+```
+
+Wine gerçek Windows masaüstü oturumunun yerini tutmaz: JavaFX/TestFX'in Windows'ta gerçek
+ekranda koşması ve otomatik oturum/RDP davranışı pilot VM'de doğrulanmalıdır.
+
 
 Geliştirme makinesinde:
 

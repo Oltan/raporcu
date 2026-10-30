@@ -3,7 +3,7 @@ concurrent = 1
 check_interval = 0
 
 [[runners]]
-  name = "stajproje-linux"          # Windows için: stajproje-windows
+  name = "raporcu-linux"          # Windows için: raporcu-windows
   url = "https://gitlab.sirket.local/"
   token = "glrt-..."                # runner kayıt token'ı
   executor = "shell"

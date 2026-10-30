@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit(src/test/**)",
+      "Write(src/test/**)"
+    ],
+    "deny": [
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "Edit(src/main/**)",
+      "Write(src/main/**)",
+      "Edit(pom.xml)",
+      "Write(pom.xml)",
+      "Edit(.gitlab-ci.yml)",
+      "Read(.env)",
+      "Read(.env.*)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "env": {
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_AUTOUPDATER": "1"
+  }
+}

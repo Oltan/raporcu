@@ -7,7 +7,7 @@
 //! 3. Koruma: yalnızca izinli yollarda (varsayılan `src/test/`) değişiklik kabul edilir; dışına
 //!    dokunan düzeltme geri alınır ve reddedilir. Assertion değiştiren düzeltmede MR'a uyarı eklenir.
 //! 4. Doğrulama koşusu; geçmezse Draft MR.
-//! 5. Push + GitLab MR (açıklamada rapor linki), sonuç stajproje'ye bildirilir (SW-7.3).
+//! 5. Push + GitLab MR (açıklamada rapor linki), sonuç raporcu'ye bildirilir (SW-7.3).
 
 use crate::ctx::{env, env_or, say, Ctx};
 use anyhow::{bail, Context, Result};
@@ -92,7 +92,10 @@ pub fn build_prompt(c: &FixCandidate, test_root: &str, screenshot: Option<&Path>
     }
     p.push_str(&format!("Allure durumu: {}\nRapor: {report_url}\n", c.status));
     if let Some(s) = screenshot {
-        p.push_str(&format!("Ekran görüntüsü (hata anı): {}\n", s.display()));
+        p.push_str(&format!(
+            "Ekran görüntüsü (hata anı): {} — dosyayı aç ve uygulamanın o anki ekranını incele.\n",
+            s.display()
+        ));
     }
     p.push_str(&format!("\nAdımlar:\n<<<{b}>>>\n"));
     for s in &c.steps {
@@ -104,6 +107,14 @@ pub fn build_prompt(c: &FixCandidate, test_root: &str, screenshot: Option<&Path>
     p.push('\n');
     p.push_str(&as_data(c.trace.as_deref().unwrap_or(""), &b));
     p.push_str(&format!("\n<<<{b}-SON>>>\n"));
+    for t in &c.texts {
+        // örn. "Sahne ağacı (TestFX)": ekrandaki gerçek düğümler ve fx:id'ler
+        p.push_str(&format!(
+            "\nEk: {}\n<<<{b}>>>\n{}\n<<<{b}-SON>>>\n",
+            as_data(&t.name, &b),
+            as_data(&t.content, &b)
+        ));
+    }
     if !c.examples.is_empty() {
         p.push_str("\nBu projede benzer hatalar için daha önce birleştirilmiş düzeltmeler (örnek):\n");
         for e in &c.examples {
@@ -243,6 +254,23 @@ fn report(c: &Ctx, run_id: i64, r: &FixResult) {
     }
 }
 
+/// Kod ajanı: `STAJ_FIX_AGENT=opencode` (varsayılan) ya da `claude` (Claude Code).
+/// Komutun tamamı `STAJ_FIX_CMD` (eski adı `STAJ_OPENCODE_CMD`) ile ezilebilir.
+/// Yer tutucular: `{istem}` istem metni, `{ekran}` ekran görüntüsü yolu, `{istem_dosyasi}`.
+pub fn agent_command() -> String {
+    if let Some(c) = env("STAJ_FIX_CMD").or_else(|| env("STAJ_OPENCODE_CMD")) {
+        return c;
+    }
+    match env_or("STAJ_FIX_AGENT", "opencode").as_str() {
+        // Claude Code: ekran görüntüsü istemde yol olarak verilir, Read aracıyla açılır.
+        // İzinler .claude/settings.json ile src/test/** düzenlemeye sınırlanır; Bash kapalı.
+        "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep \
+                     --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text"
+            .into(),
+        _ => "opencode run --agent fix --file {ekran} {istem}".into(),
+    }
+}
+
 fn subst(template: &str, prompt_file: &Path, prompt: &str, shot: Option<&Path>) -> Vec<String> {
     let mut parts = crate::ctx::split_command(template);
     let mut out = Vec::new();
@@ -332,7 +360,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
         );
         let prompt_file = work.join("istem.md");
         std::fs::write(&prompt_file, &prompt)?;
-        let tmpl = env_or("STAJ_OPENCODE_CMD", "opencode run --agent fix --file {ekran} {istem}");
+        let tmpl = agent_command();
         let argv = subst(&tmpl, &prompt_file, &prompt, shot.as_deref());
         let mut cmd = Command::new(&argv[0]);
         cmd.args(&argv[1..]).current_dir(dir).env("STAJ_FIX_PROMPT_FILE", &prompt_file);
@@ -403,9 +431,9 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                 dir,
                 &[
                     "-c",
-                    "user.name=stajproje-opencode",
+                    "user.name=raporcu-opencode",
                     "-c",
-                    "user.email=opencode@stajproje.local",
+                    "user.email=opencode@raporcu.local",
                     "commit",
                     "-q",
                     "-m",
@@ -512,6 +540,21 @@ mod tests {
     }
 
     #[test]
+    fn test_sw_7_2_text_attachments_in_prompt_as_data() {
+        let c = FixCandidate {
+            name: "S".into(),
+            texts: vec![common::api::FixText {
+                name: "Sahne ağacı (TestFX)".into(),
+                content: "Button #girisButonu \"Giriş yap\"".into(),
+            }],
+            ..Default::default()
+        };
+        let p = build_prompt(&c, "src/test/resources/", None, "http://r");
+        let i = p.find("Ek: Sahne ağacı").unwrap();
+        assert!(p[i..].find("<<<VERI-").unwrap() < p[i..].find("#girisButonu").unwrap());
+    }
+
+    #[test]
     fn test_sw_7_7_examples_in_prompt() {
         let c = FixCandidate {
             name: "S".into(),
@@ -524,6 +567,25 @@ mod tests {
         };
         let p = build_prompt(&c, "src/test/resources/", None, "http://r");
         assert!(p.contains("daha önce birleştirilmiş düzeltmeler") && p.contains("#yeni"));
+    }
+
+    #[test]
+    fn test_sw_7_2_claude_code_agent_command() {
+        // ortam değişkenleri süreç geneli: yalnızca bu testte değiştirilir
+        unsafe {
+            std::env::remove_var("STAJ_FIX_CMD");
+            std::env::remove_var("STAJ_OPENCODE_CMD");
+            std::env::set_var("STAJ_FIX_AGENT", "claude");
+        }
+        let cmd = agent_command();
+        unsafe { std::env::remove_var("STAJ_FIX_AGENT") };
+        let a = subst(&cmd, Path::new("/t/p.md"), "İSTEM", Some(Path::new("/t/e.png")));
+        assert_eq!(&a[..3], &["claude", "-p", "İSTEM"]);
+        assert!(a.contains(&"--disallowedTools".to_string()) && a.contains(&"Bash,WebFetch,WebSearch".to_string()));
+        assert!(
+            !a.iter().any(|x| x.contains("e.png")),
+            "Claude Code'da görüntü istemdeki yoldan okunur"
+        );
     }
 
     #[test]

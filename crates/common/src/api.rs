@@ -1,4 +1,4 @@
-//! stajci ↔ stajproje istek/yanıt tipleri.
+//! stajci ↔ raporcu istek/yanıt tipleri.
 
 use serde::{Deserialize, Serialize};
 
@@ -130,6 +130,15 @@ pub struct FixCandidate {
     pub tags: Vec<String>,
     /// Benzer senaryoların daha önce birleştirilmiş düzeltmeleri (SW-7.7)
     pub examples: Vec<FixExample>,
+    /// Senaryonun küçük metin ekleri (örn. TestFX sahne ağacı, uygulama logu)
+    pub texts: Vec<FixText>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct FixText {
+    pub name: String,
+    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

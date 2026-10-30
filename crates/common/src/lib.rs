@@ -1,4 +1,4 @@
-//! stajproje ve stajci'nin ortak kodu: Allure modeli, API tipleri, sürüm bilgisi.
+//! raporcu ve stajci'nin ortak kodu: Allure modeli, API tipleri, sürüm bilgisi.
 
 pub mod allure;
 pub mod api;

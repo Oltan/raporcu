@@ -231,7 +231,7 @@ fn main() -> Result<()> {
         ),
         _ => {}
     }
-    println!("== stajproje prova (SW-10.2) ==");
+    println!("== raporcu prova (SW-10.2) ==");
     build_binaries()?;
     let mut ck = Checks::default();
     let tmp = tempfile::tempdir()?;
@@ -597,6 +597,10 @@ fn sh(dir: &Path, args: &[&str]) -> Result<String> {
 /// Self-healing (SW-7.2, 9.4, 7.3, 4.4, 5.4): sahte OpenCode + sahte GitLab + yerel git deposu.
 fn extra_steps(ck: &mut Checks, server: &Server, stajci: &Path, root: &Path) -> Result<()> {
     println!("\n-- Fix işi: stajci fix (sahte OpenCode ve GitLab)");
+    if std::process::Command::new("git").arg("--version").output().is_err() {
+        println!("  [ATLANDI] SW-7.2  git bulunamadı");
+        return Ok(());
+    }
     let list = get_json(&format!("{}/api/runs", server.url()))?;
     let run_id = list["kosumlar"]
         .as_array()

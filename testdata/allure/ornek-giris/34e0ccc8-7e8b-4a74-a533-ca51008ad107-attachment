@@ -1,0 +1,6 @@
+Pencere: Örnek Giriş
+  VBox
+    TextField #kullaniciAdi değer="admin"
+    PasswordField #sifre
+    Button #girisButonu "Giriş yap"
+    Label #mesaj "Hoş geldin, admin"

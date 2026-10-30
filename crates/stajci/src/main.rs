@@ -1,4 +1,4 @@
-//! stajci: stajproje CI yardımcı aracı. CI şablonu yalnızca bu alt komutları çağırır.
+//! stajci: raporcu CI yardımcı aracı. CI şablonu yalnızca bu alt komutları çağırır.
 
 mod client;
 mod ctx;
@@ -12,7 +12,7 @@ mod watch;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "stajci", version, about = "stajproje CI aracı")]
+#[command(name = "stajci", version, about = "raporcu CI aracı")]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,

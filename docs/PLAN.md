@@ -1,4 +1,4 @@
-# stajproje Uygulama Planı
+# raporcu Uygulama Planı
 
 Kaynak: `GEREKSINIMLER_1.md` (58 SW gereksinimi). Bu dosya o gereksinimlerin hangi sırayla, hangi
 modüllerle ve hangi testle kapanacağını gösterir. Durumlar `GEREKSINIMLER_1.md` içinde tutulur.
@@ -6,9 +6,9 @@ modüllerle ve hangi testle kapanacağını gösterir. Durumlar `GEREKSINIMLER_1
 ## Mimari özet
 
 ```
-GitLab pipeline (test projesi)                       stajproje makinesi (aynı makine)
+GitLab pipeline (test projesi)                       raporcu makinesi (aynı makine)
 ┌──────────────────────────────────────┐            ┌─────────────────────────────────────┐
-│ test job (linux: xvfb-run / windows: │            │ stajproje (axum + tokio)            │
+│ test job (linux: xvfb-run / windows: │            │ raporcu (axum + tokio)            │
 │ masaüstü oturumu)                    │  localhost │  /api/ci/runs/start      (SW-3.1)   │
 │  mvn test → target/allure-results ───┼──stajci───▶│  /api/ci/runs/{id}/results (3.3)    │
 │  stajci watch  (paralel)             │   watch    │  /api/ci/runs            (SW-2.1)   │
@@ -23,7 +23,7 @@ Cargo workspace:
 | crate        | görev                                                                  |
 |--------------|------------------------------------------------------------------------|
 | `common`     | Allure modeli + ayrıştırıcı, ortak API tipleri, sürüm bilgisi          |
-| `stajproje`  | Sunucu: yapılandırma, `paths.rs`, veritabanı, HTTP uçları, sayfalar    |
+| `raporcu`  | Sunucu: yapılandırma, `paths.rs`, veritabanı, HTTP uçları, sayfalar    |
 | `stajci`     | CI yardımcı ikilisi: `preflight`, `start`, `watch`, `upload`, `finish`, `fix` |
 | `rehearse`   | Prova: CI akışını yerelde benzetir (SW-10.2)                           |
 | `e2esmoke`   | Uçtan uca smoke (SW-10.2)                                              |

@@ -1,9 +1,9 @@
-# stajproje merkezi CI şablonu (SW-1.1, SW-1.4)
+# raporcu merkezi CI şablonu (SW-1.1, SW-1.4)
 #
 # Test projesi yalnızca şunu ekler:
 #
 #   include:
-#     - project: 'ekip/stajproje'
+#     - project: 'ekip/raporcu'
 #       ref: main
 #       file: '/ci/gitlab/template/.gitlab-ci.yml'
 #   variables:
@@ -16,7 +16,7 @@
 
 variables:
   STAJ_OS: "linux"
-  # stajproje sunucusu runner ile aynı makinede (SW-3.2)
+  # raporcu sunucusu runner ile aynı makinede (SW-3.2)
   STAJ_SERVER: "http://127.0.0.1:8080"
   STAJ_RESULTS_DIR: "target/allure-results"
   # SW-1.7: bellek sınırları (CI değişkeniyle değiştirilebilir)

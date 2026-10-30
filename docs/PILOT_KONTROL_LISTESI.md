@@ -37,5 +37,5 @@ Bu ortamda (Linux, GitLab'sız) doğrulanamayan kabul kriterleri. Her madde biti
 ## Kurulum
 
 - [ ] SW-10.1 Rehberle sıfırdan Ubuntu ve Windows kurulumu yapıldı.
-- [ ] SW-10.3 Repo şirket GitLab'ında (push kapalıysa `git bundle create stajproje.bundle --all`).
+- [ ] SW-10.3 Repo şirket GitLab'ında (push kapalıysa `git bundle create raporcu.bundle --all`).
 - [ ] SW-10.4 Başka bir ekip rehberle kendi projesini bağladı.

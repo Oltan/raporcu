@@ -1,6 +1,6 @@
 # AGENTS.md — ornek-test-projesi
 
-OpenCode (stajproje self-healing, `stajci fix`) için proje tanıtımı.
+OpenCode (raporcu self-healing, `stajci fix`) için proje tanıtımı.
 
 ## Proje
 
