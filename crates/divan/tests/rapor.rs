@@ -356,6 +356,44 @@ async fn test_sw_3_4_live_snapshot_waiting_running_and_errors() {
 }
 
 #[tokio::test]
+async fn test_sw_3_4_canli_entry_finds_active_run_and_ignores_stale() {
+    let app = app();
+    let (st, html) = app.get("/canli").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(html.contains("/api/canli"));
+    let (_, v) = app.get("/api/canli").await;
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&v).unwrap()["run_id"],
+        serde_json::Value::Null
+    );
+
+    let (_, v) = app
+        .ci_json(
+            "/api/ci/runs/start",
+            serde_json::json!({ "project_path": "ekip/canli", "branch": "main", "total": 7 }),
+        )
+        .await;
+    let id = v["run_id"].as_i64().unwrap();
+    let (_, v) = app.get("/api/canli").await;
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&v).unwrap()["run_id"], id);
+
+    // yarım kalmış, zaman aşımını bekleyen koşum bekleme sayfasını yanlış yere götürmez
+    app.state
+        .db
+        .write(move |c| {
+            c.execute("UPDATE runs SET last_activity_at = '2020-01-01T00:00:00.000Z' WHERE id = ?1", [id])?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let (_, v) = app.get("/api/canli").await;
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&v).unwrap()["run_id"],
+        serde_json::Value::Null
+    );
+}
+
+#[tokio::test]
 async fn test_sw_3_4_websocket_pushes_updates_without_reload() {
     use futures_util::StreamExt;
     let app = app();

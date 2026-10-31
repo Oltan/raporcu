@@ -32,6 +32,7 @@ görünümünde linkler `/s/<token>/…` biçimine döner, iç linkler (admin, a
 | `history.html` | `/history?…` | bir senaryonun koşumlar boyunca geçmişi (sayfalı) |
 | `feature.html` | `/feature?project_id&name&branch` | feature özeti (ortalama süre, flaky sayısı); oran çizgisi; koşum başına durum sütunları; **senaryo × koşum matrisi** (hücre = durum, deneme sayısı, koşuma link) |
 | `search.html` | `/search` | serbest metin, tag, feature, DOORS, Jira, triage, durum, proje, branch süzgeçleri; CSV dışa aktarma formu (alan seçimi ve sırası, SW-4.8); DOORS CSV/DXL linkleri; sayfalı sonuç tablosu |
+| `canli.html` | `/canli` | "koşum bekleniyor" sayfası; saniyede bir `/api/canli` sorar, koşum çıkınca canlı ekrana geçer |
 | `live.html` | `/runs/{id}/live` | sayaçlar (ilerleme x/N, geçti, kaldı, koşuyor, bekliyor), **"şu an koşuyor" kartı** (`#simdi`: senaryo, feature:satır, geçen süre sayacı, adımlar + koşan adım; adım yoksa "Hazırlık: @Before"), senaryo tablosu (durum, ad→rapor linki, ilk hata satırı, feature, ekran görüntüsü) |
 | `ayarlar.html` | `/admin/ayarlar` | Jira bug şablonu (özet, açıklama, ek alanlar JSON, DOORS label), yer tutucu ve alan biçimi tabloları, "Jira alanlarını getir" tablosu, DOORS ayarları |
 | `jira_bug.html` | `/admin/scenarios/{id}/jira` | bug formu: özet, açıklama, Jira alanları (seçenekli → açılır liste, çoklu → çoklu liste), diğer alanlar JSON |

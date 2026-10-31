@@ -645,6 +645,17 @@ pub async fn live_page(State(st): State<AppState>, headers: HeaderMap, Path(id):
     }
 }
 
+#[derive(Template)]
+#[template(path = "canli.html")]
+struct CanliPage {
+    l: Layout,
+}
+
+/// Etkin koşum varsa onun canlı ekranına geçer, yoksa açılmasını bekler.
+pub async fn canli_page(State(st): State<AppState>, headers: HeaderMap) -> Response {
+    render(&CanliPage { l: layout(&st, &headers) })
+}
+
 // ---------------------------------------------------------------------------------------------
 // Senaryo geçmişi (SW-4.2)
 

@@ -3,6 +3,7 @@ import asyncio
 import hmac
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -187,6 +188,14 @@ def create_app(cfg: dict) -> FastAPI:
         return {"run_id": run_id, "status": run["status"], "progress": f"{done}/{run['total_expected'] or len(rows)}",
                 "passed": n("gecti"), "failed": n("kaldi"), "running": n("kosuyor"), "waiting": n("bekliyor"),
                 "current": cur, "scenarios": rows}
+
+    @app.get("/api/canli")
+    def canli_api():
+        # etkin = running ve son 120 sn içinde etkinlik; yarım kalan koşum sayılmaz
+        esik = (datetime.now(timezone.utc) - timedelta(seconds=120)).isoformat(timespec="milliseconds")
+        r = db.reader().execute("SELECT id FROM runs WHERE status = 'running' AND last_activity_at > ? "
+                                "ORDER BY id DESC LIMIT 1", (esik,)).fetchone()
+        return {"run_id": r[0] if r else None}
 
     @app.get("/api/runs/{run_id}/live")
     def live_api(run_id: int):

@@ -110,6 +110,7 @@ def test_sw_3_4_live_current_from_cucumber_events(client):
            {"name": "Hatalı girişlerde mesaj", "feature": "Giriş ekranı"}]
     rid = client.post("/api/ci/runs/start", json={"project_path": "ekip/canli-adim", "branch": "main", "expected": exp},
                       headers=H).json()["run_id"]
+    assert client.get("/api/canli").json()["run_id"] == rid
     ev = real_events()
     second = [i for i, e in enumerate(ev) if e["tur"] == "senaryo_basladi"][1]
     assert client.post(f"/api/ci/runs/{rid}/events", json=ev[:second + 4], headers=H).status_code == 204
@@ -123,6 +124,7 @@ def test_sw_3_4_live_current_from_cucumber_events(client):
         client.post(f"/api/ci/runs/{rid}/finish", json={}, headers=H)
         assert ws.receive_json()["status"] == "finished"
     assert client.get(f"/api/runs/{rid}/live").json()["current"] is None
+    assert client.get("/api/canli").json()["run_id"] is None
     assert client.post(f"/api/ci/runs/{rid}/events", json=ev[:2], headers=H).status_code == 202
 
 

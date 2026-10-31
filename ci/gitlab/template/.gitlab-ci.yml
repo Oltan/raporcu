@@ -31,6 +31,9 @@ variables:
   # SW-1.2: Xvfb ekranı (yalnızca Linux)
   ULAK_XVFB: "on"
   ULAK_SCREEN: "1920x1080"
+  # SW-2.6: GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmesin
+  GET_SOURCES_ATTEMPTS: "5"
+  ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
   # ULAK_TAGS: "@smoke"           # boşsa features.txt kullanılır
   # ULAK_FIX: "off"               # self-healing'i kapatmak için
   # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)

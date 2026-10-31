@@ -78,6 +78,17 @@ fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
     })
 }
 
+/// `/canli` için en yeni etkin koşum. Yarım kalıp zaman aşımını bekleyen `running` koşum sayılmaz.
+pub fn aktif_kosum(c: &Connection) -> Result<Option<i64>> {
+    let cutoff = (chrono::Utc::now() - chrono::Duration::seconds(120)).to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    Ok(c.query_row(
+        "SELECT id FROM runs WHERE status = 'running' AND last_activity_at > ?1 ORDER BY id DESC LIMIT 1",
+        [cutoff],
+        |r| r.get(0),
+    )
+    .optional()?)
+}
+
 pub fn run(c: &Connection, id: i64) -> Result<Option<RunRow>> {
     Ok(c.query_row(
         &format!("SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1"),

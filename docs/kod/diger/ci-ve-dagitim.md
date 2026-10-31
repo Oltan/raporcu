@@ -16,8 +16,9 @@ Somut işler: `ulak-{test,report,fix}-{linux,windows}`, `ULAK_OS`'a göre `rules
 `ULAK_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
 Windows işlerinde `ULAK_XVFB=off`. Değişkenler: `ULAK_SERVER=http://127.0.0.1:8080` (aynı makine),
 `ULAK_RESULTS_DIR`, `ULAK_MAVEN_XMX=512m`, `ULAK_TEST_XMX=768m`, `ULAK_VIDEO_FPS=5`,
-`ULAK_XVFB=on`, `ULAK_SCREEN=1920x1080`, isteğe bağlı `ULAK_TAGS`, `ULAK_FIX`; `CI_API_TOKEN`
-masked proje/grup değişkeni.
+`ULAK_XVFB=on`, `ULAK_SCREEN=1920x1080`, `GET_SOURCES_ATTEMPTS=5`, `ARTIFACT_DOWNLOAD_ATTEMPTS=5`
+(GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmez), isteğe bağlı `ULAK_TAGS`,
+`ULAK_FIX`; `CI_API_TOKEN` masked proje/grup değişkeni.
 
 ## ci/gitlab/runner/config.toml.example
 `concurrent = 1` (aynı makinede tek test işi, SW-1.7), shell executor örneği.

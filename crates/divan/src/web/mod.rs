@@ -19,6 +19,7 @@ pub fn routes() -> Router<AppState> {
         .route("/", get(pages::dashboard))
         .route("/runs/{id}", get(pages::run_page))
         .route("/runs/{id}/live", get(pages::live_page))
+        .route("/canli", get(pages::canli_page))
         .route("/runs/{id}/doors.csv", get(pages::doors_csv))
         .route("/runs/{id}/doors.dxl", get(pages::doors_dxl))
         .route("/ws/runs/{id}", get(crate::live::ws))
@@ -49,6 +50,7 @@ pub fn routes() -> Router<AppState> {
         .route("/static/{*path}", get(static_file))
         .route("/files/{id}", get(files::attachment))
         .route("/api/tools/ulak", get(tools::ulak))
+        .route("/api/canli", get(api::canli))
         .route("/api/runs", get(api::runs))
         .route("/api/runs/{id}", get(api::run))
         .route("/api/runs/{id}/live", get(api::live))
@@ -161,6 +163,12 @@ pub mod api {
             .await?
             .ok_or_else(AppError::not_found)?;
         Ok(Json(v))
+    }
+
+    /// `/canli` bekleme sayfası: şu an etkin koşum (yoksa `run_id: null`).
+    pub async fn canli(State(st): State<AppState>) -> Result<Json<Value>, AppError> {
+        let id = st.db.read(queries::aktif_kosum).await?;
+        Ok(Json(json!({ "run_id": id })))
     }
 
     /// Canlı ekranın gördüğü anlık görüntü (WebSocket'teki ile aynı JSON).

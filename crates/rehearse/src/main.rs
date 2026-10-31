@@ -273,6 +273,12 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             .is_some_and(|p| p.iter().any(|x| x.as_str() == Some(".ulak/queue/"))),
         "",
     );
+    ck.check(
+        "SW-2.6",
+        "GitLab bağlantısı koparsa kod ve artifact alma yeniden denenir",
+        y["variables"]["GET_SOURCES_ATTEMPTS"].is_string() && y["variables"]["ARTIFACT_DOWNLOAD_ATTEMPTS"].is_string(),
+        "",
+    );
     Ok(())
 }
 

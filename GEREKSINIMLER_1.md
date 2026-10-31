@@ -148,7 +148,7 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 - Kabul: Sunucu koşum sırasında kapatılıp açılınca hiçbir sonuç eksik ya da çift sayılmaz (SW-3.3 ile).
 - Test: B, P
 - Doğrulama: rehearse SW-2.6 adımları
-- Not: Kuyruk, artan aralıklı deneme, artifact ve `--resume`; sunucu kapatılıp açılınca eksik/çift yok (prova, Linux). Windows doğrulaması bekliyor.
+- Not: Kuyruk, artan aralıklı deneme, artifact ve `--resume`; sunucu kapatılıp açılınca eksik/çift yok (prova, Linux ve Windows). GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmesin diye şablonda `GET_SOURCES_ATTEMPTS` ve `ARTIFACT_DOWNLOAD_ATTEMPTS` var; gerçek kopmada yeniden deneme henüz gözlenmedi.
 
 ### SW-2.7 [KISMEN] Gerçek Allure örnekleri test verisi olarak kullanılır
 - Test projesi Allure ile ayarlandıktan sonra, ondan alınan `allure-results` örnekleri `testdata/` altına konur: geçen, kalan, broken, rerun edilmiş ve ekli senaryolar.
@@ -188,8 +188,8 @@ Testler koşarken hangi senaryonun geçtiği, hangisinin kaldığı anlık gör�
 - Senaryo listesi (geçti, kaldı, koşuyor, bekliyor), sayaçlar, hata ve ekran görüntüsü; güncellemeler WebSocket ile gelir.
 - Kabul: Sayfa yenilenmeden güncellenir; hata, koşum bitmeden görünür.
 - Test: B, P, M
-- Doğrulama: `test_sw_3_4_live_snapshot_waiting_running_and_errors`, `test_sw_3_4_websocket_pushes_updates_without_reload`
-- Not: WebSocket testi ve ekran görüntüsüyle kontrol edildi.
+- Doğrulama: `test_sw_3_4_live_snapshot_waiting_running_and_errors`, `test_sw_3_4_websocket_pushes_updates_without_reload`, `test_sw_3_4_canli_entry_finds_active_run_and_ignores_stale`
+- Not: WebSocket testi ve ekran görüntüsüyle kontrol edildi. `/canli` koşum açılmadan açılabilen giriştir; etkin koşum çıkınca canlı ekrana geçer.
 
 ### SW-3.5 [MEVCUT] POST /api/ci/runs/{id}/finish ve zaman aşımı
 - Yarıda kesilen koşum "interrupted" olur.

@@ -7,6 +7,7 @@
 |-----|----------|-----|
 | `GET /` | pages::dashboard | `?project=&branch=&page=` |
 | `GET /runs/{id}`, `/runs/{id}/live` | rapor, canlı ekran | |
+| `GET /canli` | etkin koşumu bekleyen canlı giriş sayfası | |
 | `GET /runs/{id}/doors.csv`, `.dxl` | DOORS dışa aktarma | |
 | `GET /ws/runs/{id}` | live::ws | WebSocket |
 | `GET /scenarios/{id}` | senaryo detayı | |
@@ -20,7 +21,7 @@
 | `GET /static/{yol}` | ikiliye gömülü dosyalar (`static/`), MIME tahmini, 1 saat önbellek | |
 | `GET /files/{id}` | ek dosyası (range destekli) | |
 | `GET /api/tools/ulak?os=linux\|windows` | ulak dağıtımı | |
-| `GET /api/runs`, `/api/runs/{id}`, `/api/runs/{id}/live`, `/api/scenarios/{id}` | JSON | |
+| `GET /api/canli`, `/api/runs`, `/api/runs/{id}`, `/api/runs/{id}/live`, `/api/scenarios/{id}` | JSON | |
 | `GET /api/health` | `{"durum":"ok","surum":"0.1.0"}` | |
 
 ## JSON API biçimi
@@ -28,6 +29,7 @@
 - `/api/runs/{id}` → `{"kosum":RunRow,"senaryolar":[{"senaryo":ScenarioRow,"ekler":[…],"deneme_sayisi":n}]}`.
 - `/api/scenarios/{id}` → `{"senaryo","adimlar","ekler","denemeler"}`.
 - `/api/runs/{id}/live` → canlı anlık görüntü (`live.md`).
+- `/api/canli` → `{"run_id":n}`, etkin koşum yoksa `{"run_id":null}` (`pages.md`).
 
 ## Yardımcılar
 - `AppError(durum, mesaj)`: kullanıcıya kısa mesaj; `anyhow` hataları 500 "Sunucu hatası" + ERROR log.

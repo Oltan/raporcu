@@ -17,6 +17,7 @@ gerektirmez; admin işlemleri `Admin` çıkarıcısıyla korunur.
 | **Koşum** `/runs/{id}` | Başlık: proje, branch, commit linki, repo, pipeline, iş, OS, tarih, durum. Halka + lejant; feature özet tablosu; OpenCode düzeltmeleri kutusu; **feature grupları** (`<details>`, kalanı olan açık): senaryo, `dosya:satır`, deneme rozeti, flaky, OpenCode !MR, DOORS/Jira/tag rozetleri, hata ilk satırı, triage + kaynak, süre, ekran görüntüsü küçük resmi. Admin: paylaşım linki, OpenCode ile düzelt |
 | **Senaryo** `/scenarios/{id}` | Hata + yığın izi, ekler (görüntü, video, ≤8 KB metin önizleme, silinmişse neden), adımlar (derinliğe göre girintili, durum, süre, hata), triage (geçerli + admin formu + geçmiş), Jira (bağlantılar + admin "bug aç"), OpenCode denemeleri, aynı koşumdaki denemeler |
 | **Canlı** `/runs/{id}/live` | Sayaçlar, şu an koşan senaryo kartı, senaryo listesi; WebSocket ile güncellenir (`live.md`) |
+| **Canlı giriş** `/canli` | Sabit bekleme sayfası: saniyede bir `/api/canli` sorar, etkin koşum çıkınca `/runs/{id}/live` adresine geçer. Etkin = `running` ve son 120 sn içinde etkinlik; yarım kalıp zaman aşımını bekleyen koşum sayılmaz |
 | **Geçmiş** `/history` | Senaryonun koşumlardaki son denemeleri, 50'lik |
 | **Feature** `/feature` | Son 30 biten koşum: özet kutuları, geçme oranı çizgisi, durum sütunları, senaryo × koşum matrisi (hücre linki senaryoya) |
 | **Arama** `/search` | Filtreler + 50'lik sonuç + CSV alan seçimi formu |
