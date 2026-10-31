@@ -1,6 +1,26 @@
 //! SW-5.1: iç bilgileri gizlenmiş salt okunur paylaşım. Token, Jira anahtarı ve ham ek linki
 //! görünmez; ekler paylaşım tokeni üzerinden sunulur.
 
+/// Genel rapordaki sınıf. Link açan yalnızca doğrulanan ve ürün hatası olan senaryoları görür;
+/// test kodu, ortam, flaky ve tekrar denemesi gibi iç konular adsız "inceleniyor" sayısına girer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GenelSinif {
+    Dogrulandi,
+    UrunHatasi,
+    Inceleniyor,
+}
+
+pub fn genel_sinif(status: &str, attempts: i64, flaky: bool, triage: Option<&str>) -> GenelSinif {
+    if flaky {
+        return GenelSinif::Inceleniyor;
+    }
+    match status {
+        "passed" if attempts == 1 => GenelSinif::Dogrulandi,
+        "failed" | "broken" if triage == Some("urun") => GenelSinif::UrunHatasi,
+        _ => GenelSinif::Inceleniyor,
+    }
+}
+
 /// Metinden gizli değerleri ve Jira anahtarı biçimindeki kelimeleri çıkarır.
 pub fn sanitize_text(s: &str, secrets: &[String]) -> String {
     let s = crate::config::redact(s, secrets);
@@ -59,6 +79,21 @@ pub fn visible_tag(t: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_5_1_genel_sinif() {
+        assert_eq!(genel_sinif("passed", 1, false, None), GenelSinif::Dogrulandi);
+        // tekrar denemede geçen ve flaky olan doğrulanmış sayılmaz
+        assert_eq!(genel_sinif("passed", 2, false, None), GenelSinif::Inceleniyor);
+        assert_eq!(genel_sinif("passed", 1, true, None), GenelSinif::Inceleniyor);
+        // iki denemede de kalan ürün hatası görünür kalır
+        assert_eq!(genel_sinif("failed", 2, false, Some("urun")), GenelSinif::UrunHatasi);
+        assert_eq!(genel_sinif("failed", 2, true, Some("urun")), GenelSinif::Inceleniyor);
+        for t in [Some("test_kodu"), Some("ortam"), Some("bilinmiyor"), None] {
+            assert_eq!(genel_sinif("broken", 1, false, t), GenelSinif::Inceleniyor);
+        }
+        assert_eq!(genel_sinif("skipped", 1, false, None), GenelSinif::Inceleniyor);
+    }
 
     #[test]
     fn test_sw_5_1_text_sanitized() {

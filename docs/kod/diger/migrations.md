@@ -1,6 +1,6 @@
 # migrations/ — SQLite şeması
 
-`0001_ilk.sql`, `0002_triage_kolonu.sql`, `0003_ayarlar.sql`, `0004_bug_taslaklari.sql`. Dosyalar ikiliye gömülüdür; sunucu açılışta
+`0001_ilk.sql`, `0002_triage_kolonu.sql`, `0003_ayarlar.sql`, `0004_bug_taslaklari.sql`, `0005_paylasim_gorunumu.sql`. Dosyalar ikiliye gömülüdür; sunucu açılışta
 `schema_migrations` tablosunda adı olmayanları sırayla uygular (`db.md`); veritabanı `DATA_DIR/divan.db`, WAL kipinde. Koşum,
 senaryo, adım ve triage kayıtları **hiç silinmez** (SW-10.8); yalnızca ek dosyaları silinip
 `deleted_at` işaretlenir. Python'a geçişte aynı SQL dosyaları `sqlite3` ile aynen kullanılır
@@ -20,7 +20,7 @@ Zamanlar ISO-8601 metin (`TEXT`), süreler milisaniye tamsayı.
 | `triage_decisions` | triage kararı (geçmişiyle) | `category` (`flaky`/`test_kodu`/`urun`/`ortam`/`bilinmiyor`), `source` (`kural`/`opencode`/`admin`), `confidence` |
 | `bug_links` | senaryo ↔ Jira bug | `source` (`tag`/`eslesme`/`otomatik`/`admin`), `fingerprint` (hata parmak izi) |
 | `jira_actions` | Jira otomasyonu kaydı | `action` (`acilacakti` gözlem modu, `acildi`, `eslesti`, `hata`) |
-| `share_links` | salt okunur paylaşım | `token` (tekil, tahmin edilemez), `revoked_at` |
+| `share_links` | salt okunur paylaşım | `token` (tekil, tahmin edilemez), `revoked_at`, `gorunum` (`ekip`/`genel`, 0005) |
 | `fix_attempts` | self-healing denemesi | `outcome` (`mr_opened`/`draft_mr`/`no_change`/`rejected`/`error`), MR bilgisi, `mr_state` (webhook ile `merged/closed`), `validation_passed`, `diff`, `warnings` |
 | `pipelines` | pipeline durumu (webhook) | `(project_id, pipeline_id)` tekil |
 | `emails` | gönderilen özet e-posta | `pipeline_key` tekil → pipeline başına bir e-posta |

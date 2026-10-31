@@ -164,7 +164,8 @@ fn main() -> Result<()> {
             st == 303 && cookie.starts_with("divan_oturum="),
             "",
         );
-        let (st, hs, _) = post(&format!("{url}/admin/runs/{run_id}/share"), &[("Cookie", &cookie)], b"")?;
+        let form = ("Content-Type", "application/x-www-form-urlencoded");
+        let (st, hs, _) = post(&format!("{url}/admin/runs/{run_id}/share"), &[("Cookie", &cookie), form], b"")?;
         let loc = hs.iter().find(|(k, _)| k == "location").map(|(_, v)| v.clone()).unwrap_or_default();
         let share = loc.split("share:").nth(1).unwrap_or("").to_string();
         let (st2, sh) = get(&format!("{url}/s/{share}"))?;

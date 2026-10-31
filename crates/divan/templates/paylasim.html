@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Test raporu{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <h1>Test raporu · {{ proje }}</h1>
+    <div class="meta">
+      <span>{{ run.started_at|zaman }}</span>
+      {% if run.commit_sha.is_some() %}<span>Sürüm <b class="mono">{{ run.short_commit() }}</b></span>{% endif %}
+      {% if let Some(os) = run.os %}<span>{{ os }}</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="genel-sonuc {{ sonuc_sinif }}">{{ sonuc }}</div>
+
+<div class="genel-sayilar">
+  <div class="kart"><b class="passed">{{ dogrulanan }}</b><span>Doğrulandı</span></div>
+  <div class="kart"><b class="failed">{{ hatalar.len() }}</b><span>Ürün hatası</span></div>
+  <div class="kart"><b>{{ inceleniyor }}</b><span>İnceleniyor</span></div>
+</div>
+{% if inceleniyor > 0 %}<p class="alt">İnceleniyor: sonucu henüz kesinleşmemiş senaryolar. Kesinleşene kadar doğrulanmış sayılmaz.</p>{% endif %}
+
+{% if !hatalar.is_empty() %}
+<section class="kart">
+  <h2>Ürün hataları</h2>
+  {% for r in hatalar %}
+  <div class="genel-hata">
+    <div>
+      <a href="{{ l.scenario_url(r.s.id) }}">{{ r.s.name }}</a>
+      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+      {% if let Some(f) = r.s.feature %}<div class="kucuk">{{ f }}</div>{% endif %}
+      <div class="hata-ozet">{{ r.s.short_message() }}</div>
+    </div>
+    {% if let Some(id) = r.shot %}<a href="{{ l.scenario_url(r.s.id) }}"><img class="kucuk-resim" loading="lazy" src="{{ l.file_url(*id) }}" alt="ekran görüntüsü"></a>{% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Doğrulanan senaryolar</h2>
+  {% if gruplar.is_empty() %}<div class="bos">Henüz doğrulanan senaryo yok.</div>{% endif %}
+  {% for g in gruplar %}
+  <h3>{{ g.ad }} <span class="kucuk">{{ g.adet }} senaryo</span></h3>
+  <ul class="genel-liste">
+    {% for s in g.satirlar %}
+    <li>{{ s.ad }}{% if s.adet > 1 %} <span class="kucuk">({{ s.adet }} örnek)</span>{% endif %}
+      {% for d in s.doors %}<span class="rozet doors">{{ d }}</span>{% endfor %}</li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</section>
+{% endblock %}

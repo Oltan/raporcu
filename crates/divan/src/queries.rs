@@ -500,11 +500,12 @@ pub struct ShareRow {
     pub branch: String,
     pub created_at: String,
     pub revoked_at: Option<String>,
+    pub gorunum: String,
 }
 
 pub fn share_links(c: &Connection, limit: i64) -> Result<Vec<ShareRow>> {
     let mut st = c.prepare(
-        "SELECT sl.id, sl.token, sl.run_id, p.path, r.branch, sl.created_at, sl.revoked_at
+        "SELECT sl.id, sl.token, sl.run_id, p.path, r.branch, sl.created_at, sl.revoked_at, sl.gorunum
          FROM share_links sl JOIN runs r ON r.id = sl.run_id JOIN projects p ON p.id = r.project_id
          ORDER BY sl.id DESC LIMIT ?1",
     )?;
@@ -517,17 +518,18 @@ pub fn share_links(c: &Connection, limit: i64) -> Result<Vec<ShareRow>> {
             branch: r.get(4)?,
             created_at: r.get(5)?,
             revoked_at: r.get(6)?,
+            gorunum: r.get(7)?,
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
-/// Geçerli (iptal edilmemiş) paylaşım linkinin koşumu.
-pub fn share_run(c: &Connection, token: &str) -> Result<Option<i64>> {
+/// Geçerli (iptal edilmemiş) paylaşım linkinin koşumu ve görünümü.
+pub fn share_run(c: &Connection, token: &str) -> Result<Option<(i64, String)>> {
     Ok(c.query_row(
-        "SELECT run_id FROM share_links WHERE token = ?1 AND revoked_at IS NULL",
+        "SELECT run_id, gorunum FROM share_links WHERE token = ?1 AND revoked_at IS NULL",
         [token],
-        |r| r.get(0),
+        |r| Ok((r.get(0)?, r.get(1)?)),
     )
     .optional()?)
 }

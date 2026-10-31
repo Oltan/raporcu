@@ -282,6 +282,7 @@ Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 - Kabul: Token, Jira anahtarı ve ham ek linki görünmez.
 - Test: B
 - Doğrulama: `test_sw_5_1_*`, e2esmoke
+- Ek: Link iki görünümle oluşturulur. "Ekip linki" ayrıntılı raporu açar. "Genel rapor linki" yalnızca doğrulanan senaryoları ve ürün hatalarını gösterir; flaky, tekrar denemesinde geçen, test kodu, ortam ve atlanan senaryolar adsız "İnceleniyor" sayısına girer ve ayrıntıları açılmaz. Doğrulama: `test_sw_5_1_genel_rapor_shows_only_product_results`.
 
 ### SW-5.2 [MEVCUT] Paylaşım linkinin iptali
 - Bağlam: Raporlar yalnızca şirket içindeki kapalı yerel ağda paylaşılır, dışarıya açılmaz. Bu yüzden önceliği düşük.

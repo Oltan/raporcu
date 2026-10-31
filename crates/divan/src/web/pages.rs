@@ -911,9 +911,160 @@ fn sanitize_run(st: &AppState, run: &mut RunRow, rows: &mut [RunScenario]) {
     }
 }
 
-async fn share_run_id(st: &AppState, token: &str) -> Result<Option<i64>, AppError> {
+async fn share_run_id(st: &AppState, token: &str) -> Result<Option<(i64, String)>, AppError> {
     let t = token.to_string();
     Ok(st.db.read(move |c| queries::share_run(c, &t)).await?)
+}
+
+// Genel rapor (SW-5.1): ekibin ayrıntılı raporundan ayrı, yalnızca ürün sonucu
+
+#[derive(Template)]
+#[template(path = "paylasim.html")]
+struct GenelRaporPage {
+    l: Layout,
+    run: RunRow,
+    proje: String,
+    sonuc: String,
+    sonuc_sinif: &'static str,
+    dogrulanan: usize,
+    inceleniyor: usize,
+    hatalar: Vec<RunScenario>,
+    gruplar: Vec<GenelGrup>,
+}
+
+pub struct GenelGrup {
+    pub ad: String,
+    pub adet: usize,
+    pub satirlar: Vec<GenelSatir>,
+}
+
+/// Aynı adlı senaryo taslağı satırları tek satırda toplanır.
+pub struct GenelSatir {
+    pub ad: String,
+    pub doors: Vec<String>,
+    pub adet: usize,
+}
+
+#[derive(Template)]
+#[template(path = "paylasim_senaryo.html")]
+struct GenelSenaryoPage {
+    l: Layout,
+    s: ScenarioRow,
+    steps: Vec<StepRow>,
+    atts: Vec<AttachmentRow>,
+}
+
+fn genel_sonuc(run: &RunRow, urun: usize, inceleniyor: usize, dogrulanan: usize) -> (String, &'static str) {
+    match run.status.as_str() {
+        "running" => ("Testler sürüyor, sonuçlar henüz kesin değil".into(), "running"),
+        "interrupted" => ("Koşum yarıda kesildi, sonuçlar eksik".into(), "broken"),
+        _ if urun > 0 => (format!("{urun} ürün hatası bulundu"), "failed"),
+        _ if inceleniyor > 0 => (format!("Şu ana kadar ürün hatası yok, {inceleniyor} senaryo inceleniyor"), "broken"),
+        _ if dogrulanan > 0 => ("Tüm senaryolar doğrulandı".into(), "passed"),
+        _ => ("Henüz sonuç gelmedi".into(), "running"),
+    }
+}
+
+async fn genel_rows(st: &AppState, run_id: i64) -> Result<Option<(RunRow, Vec<(crate::share::GenelSinif, RunScenario)>)>, AppError> {
+    let (conf, window) = (st.cfg.triage_auto_confidence, st.cfg.flaky_window);
+    let Some((mut run, mut rows, _)) = st.db.read(move |c| load_run(c, run_id, conf, window)).await? else {
+        return Ok(None);
+    };
+    sanitize_run(st, &mut run, &mut rows);
+    let rows = rows
+        .into_iter()
+        .map(|r| {
+            let triage = r.triage.as_ref().map(|t| t.category.as_str());
+            (crate::share::genel_sinif(&r.s.status, r.attempts, r.flaky, triage), r)
+        })
+        .collect();
+    Ok(Some((run, rows)))
+}
+
+async fn genel_page(st: &AppState, token: &str, run_id: i64) -> Result<Response, AppError> {
+    use crate::share::GenelSinif;
+    let Some((run, rows)) = genel_rows(st, run_id).await? else {
+        return Err(AppError::not_found());
+    };
+    let (mut hatalar, mut gruplar, mut dogrulanan, mut inceleniyor) = (Vec::new(), Vec::<GenelGrup>::new(), 0, 0);
+    for (sinif, r) in rows {
+        match sinif {
+            GenelSinif::UrunHatasi => hatalar.push(r),
+            GenelSinif::Inceleniyor => inceleniyor += 1,
+            GenelSinif::Dogrulandi => {
+                dogrulanan += 1;
+                let ad = r.s.feature.clone().unwrap_or_else(|| "Diğer".into());
+                let i = gruplar.iter().position(|g| g.ad == ad).unwrap_or_else(|| {
+                    gruplar.push(GenelGrup {
+                        ad,
+                        adet: 0,
+                        satirlar: Vec::new(),
+                    });
+                    gruplar.len() - 1
+                });
+                let g = &mut gruplar[i];
+                g.adet += 1;
+                match g.satirlar.iter_mut().find(|s| s.ad == r.s.name) {
+                    Some(s) => s.adet += 1,
+                    None => g.satirlar.push(GenelSatir {
+                        ad: r.s.name,
+                        doors: r.s.doors_ids,
+                        adet: 1,
+                    }),
+                }
+            }
+        }
+    }
+    gruplar.sort_by(|a, b| a.ad.cmp(&b.ad));
+    let (sonuc, sonuc_sinif) = genel_sonuc(&run, hatalar.len(), inceleniyor, dogrulanan);
+    Ok(render(&GenelRaporPage {
+        l: share_layout(token),
+        proje: run.project_path.rsplit('/').next().unwrap_or_default().to_string(),
+        run,
+        sonuc,
+        sonuc_sinif,
+        dogrulanan,
+        inceleniyor,
+        hatalar,
+        gruplar,
+    }))
+}
+
+/// Genel raporda yalnızca ürün hatası senaryolarının ayrıntısı açılır.
+async fn genel_scenario(st: &AppState, token: &str, run_id: i64, sid: i64) -> Result<Response, AppError> {
+    let Some((_, rows)) = genel_rows(st, run_id).await? else {
+        return Err(AppError::not_found());
+    };
+    let Some((_, r)) = rows
+        .into_iter()
+        .find(|(sinif, r)| *sinif == crate::share::GenelSinif::UrunHatasi && r.s.id == sid)
+    else {
+        return Err(AppError::not_found());
+    };
+    let (steps, mut atts) = st
+        .db
+        .read(move |c| Ok((queries::steps(c, sid)?, queries::attachments(c, sid)?)))
+        .await?;
+    atts.retain(|a| a.is_image() && !a.is_deleted());
+    Ok(render(&GenelSenaryoPage {
+        l: share_layout(token),
+        s: r.s,
+        steps,
+        atts,
+    }))
+}
+
+/// Genel link yalnızca ürün hatası senaryolarının ekran görüntülerini açar (video, log, metin yok).
+async fn genel_ek_acik(st: &AppState, run_id: i64, att: &AttachmentRow) -> Result<bool, AppError> {
+    let Some(sid) = att.scenario_id.filter(|_| att.is_image() && !att.is_deleted()) else {
+        return Ok(false);
+    };
+    let Some((_, rows)) = genel_rows(st, run_id).await? else {
+        return Ok(false);
+    };
+    Ok(rows
+        .iter()
+        .any(|(sinif, r)| *sinif == crate::share::GenelSinif::UrunHatasi && r.s.id == sid))
 }
 
 fn share_layout(token: &str) -> Layout {
@@ -926,7 +1077,7 @@ fn share_layout(token: &str) -> Layout {
 }
 
 pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -> Result<Response, AppError> {
-    let Some(id) = share_run_id(&st, &token).await? else {
+    let Some((id, gorunum)) = share_run_id(&st, &token).await? else {
         return Ok(message(
             share_layout(&token),
             StatusCode::NOT_FOUND,
@@ -934,6 +1085,9 @@ pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -
             "Bu paylaşım linki iptal edilmiş ya da hiç yok.",
         ));
     };
+    if gorunum == "genel" {
+        return genel_page(&st, &token, id).await;
+    }
     let (conf, window) = (st.cfg.triage_auto_confidence, st.cfg.flaky_window);
     let Some((mut run, mut rows, _)) = st.db.read(move |c| load_run(c, id, conf, window)).await? else {
         return Err(AppError::not_found());
@@ -943,9 +1097,12 @@ pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -
 }
 
 pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path<(String, i64)>) -> Result<Response, AppError> {
-    let Some(run_id) = share_run_id(&st, &token).await? else {
+    let Some((run_id, gorunum)) = share_run_id(&st, &token).await? else {
         return Err(AppError::not_found());
     };
+    if gorunum == "genel" {
+        return genel_scenario(&st, &token, run_id, sid).await;
+    }
     let conf = st.cfg.triage_auto_confidence;
     let paths = st.paths.clone();
     let Some(mut p) = st.db.read(move |c| load_scenario(c, &paths, sid, conf)).await? else {
@@ -976,31 +1133,42 @@ pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path
 }
 
 pub async fn share_file(State(st): State<AppState>, Path((token, aid)): Path<(String, i64)>, req: Request) -> Result<Response, AppError> {
-    let Some(run_id) = share_run_id(&st, &token).await? else {
+    let Some((run_id, gorunum)) = share_run_id(&st, &token).await? else {
         return Err(AppError::not_found());
     };
     let Some(att) = st.db.read(move |c| queries::attachment(c, aid)).await? else {
         return Err(AppError::not_found());
     };
-    if att.run_id != run_id {
+    if att.run_id != run_id || (gorunum == "genel" && !genel_ek_acik(&st, run_id, &att).await?) {
         return Err(AppError::not_found());
     }
     Ok(crate::web::files::serve_attachment_file(&st, &att, req).await)
 }
 
-pub async fn create_share(State(st): State<AppState>, _a: Admin, Path(id): Path<i64>) -> Result<Response, AppError> {
+#[derive(Deserialize, Default)]
+pub struct ShareForm {
+    gorunum: Option<String>,
+}
+
+pub async fn create_share(
+    State(st): State<AppState>,
+    _a: Admin,
+    Path(id): Path<i64>,
+    Form(f): Form<ShareForm>,
+) -> Result<Response, AppError> {
     let token = auth::random_token();
     let t2 = token.clone();
+    let gorunum = if f.gorunum.as_deref() == Some("genel") { "genel" } else { "ekip" };
     st.db
         .write(move |c| {
             c.execute(
-                "INSERT INTO share_links (token, run_id, created_at) VALUES (?1, ?2, ?3)",
-                rusqlite::params![t2, id, crate::db::now()],
+                "INSERT INTO share_links (token, run_id, created_at, gorunum) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![t2, id, crate::db::now(), gorunum],
             )?;
             Ok(())
         })
         .await?;
-    tracing::info!(run_id = id, "paylaşım linki oluşturuldu");
+    tracing::info!(run_id = id, gorunum, "paylaşım linki oluşturuldu");
     Ok(Redirect::to(&format!("/runs/{id}?notice=share:{token}")).into_response())
 }
 

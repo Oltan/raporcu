@@ -279,6 +279,87 @@ async fn test_sw_5_1_share_link_hides_internal_info() {
 }
 
 #[tokio::test]
+async fn test_sw_5_1_genel_rapor_shows_only_product_results() {
+    let app = app();
+    let id = upload_sample(&app, Q).await;
+    app.state
+        .db
+        .write(move |c| divan::triage::apply_rules(c, id, 10, 0.7).map(|_| ()))
+        .await
+        .unwrap();
+    let cookie = app.admin_cookie();
+    let r = post_form(&app, &format!("/admin/runs/{id}/share"), &cookie, "gorunum=genel").await;
+    let loc = r.headers()["location"].to_str().unwrap().to_string();
+    let token = loc.split("share:").nth(1).unwrap().to_string();
+
+    let (st, html) = app.get(&format!("/s/{token}")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(html.contains("1 ürün hatası bulundu"));
+    assert!(html.contains("Yanlış şifrede özel mesaj"));
+    assert!(html.contains("Geçerli bilgilerle giriş"));
+    for gizli in [
+        "Şifremi unuttum bağlantısı",
+        "Yavaş açılan karşılama mesajı",
+        "Beni hatırla seçeneği",
+        "flaky",
+        "deneme",
+        "Triage",
+        "Test kodu",
+        "broken",
+        "Branch",
+        "STAJ-42",
+        "giris.feature",
+        "@smoke",
+    ] {
+        assert!(!html.contains(gizli), "genel raporda görünmemeli: {gizli}");
+    }
+
+    let run = run_json(&app, id).await;
+    let urun = scenario_id(&run, "Yanlış şifrede özel mesaj");
+    let (st, sp) = app.get(&format!("/s/{token}/scenarios/{urun}")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(!sp.contains("Yığın izi") && !sp.contains("STAJ-42") && !sp.contains("<video"));
+    let shot = sp
+        .split(&format!("/s/{token}/files/"))
+        .nth(1)
+        .expect("ürün hatasının ekran görüntüsü")
+        .split('"')
+        .next()
+        .unwrap()
+        .to_string();
+    let (st, _) = app.get(&format!("/s/{token}/files/{shot}")).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // gizlenen senaryolar ve ekleri adresi bilinse de açılmaz
+    let test_kodu = scenario_id(&run, "Şifremi unuttum bağlantısı");
+    let gecen = scenario_id(&run, "Geçerli bilgilerle giriş");
+    for sid in [test_kodu, gecen] {
+        let (st, _) = app.get(&format!("/s/{token}/scenarios/{sid}")).await;
+        assert_eq!(st, StatusCode::NOT_FOUND);
+    }
+    let atts = app.state.db.read(move |c| divan::queries::attachments(c, test_kodu)).await.unwrap();
+    assert!(!atts.is_empty());
+    for a in atts {
+        let (st, _) = app.get(&format!("/s/{token}/files/{}", a.id)).await;
+        assert_eq!(st, StatusCode::NOT_FOUND);
+    }
+
+    // ekip linki eski ayrıntılı görünümde kalır
+    let r = post_form(&app, &format!("/admin/runs/{id}/share"), &cookie, "").await;
+    let ekip = r.headers()["location"]
+        .to_str()
+        .unwrap()
+        .split("share:")
+        .nth(1)
+        .unwrap()
+        .to_string();
+    let (_, html) = app.get(&format!("/s/{ekip}")).await;
+    assert!(html.contains("Şifremi unuttum bağlantısı"));
+    let (_, admin) = app.get_admin("/admin").await;
+    assert!(admin.contains("<td>Genel</td>") && admin.contains("<td>Ekip</td>"));
+}
+
+#[tokio::test]
 async fn test_sw_5_2_revoked_share_link_does_not_open() {
     let app = app();
     let id = upload_sample(&app, Q).await;

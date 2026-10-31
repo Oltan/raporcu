@@ -237,6 +237,23 @@ label.yatay { flex-direction: row; align-items: center; gap: 6px; color: var(--t
 label.yatay input { min-width: 0; }
 .hata-kutu { border-left: 3px solid var(--failed); padding: 8px 12px; white-space: pre-wrap; }
 .kart.bilgi { border-left: 3px solid var(--accent); }
+
+/* Genel rapor (paylaşım) */
+.genel-sonuc { padding: 14px 16px; border-radius: var(--radius); font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+.genel-sonuc.passed { background: var(--passed-bg); color: var(--passed); }
+.genel-sonuc.failed { background: var(--failed-bg); color: var(--failed); }
+.genel-sonuc.broken { background: var(--broken-bg); color: var(--broken); }
+.genel-sonuc.running { background: var(--running-bg); color: var(--running); }
+.genel-sayilar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 8px; }
+.genel-sayilar .kart { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+.genel-sayilar b { display: block; font-size: 28px; font-weight: 600; color: var(--text); }
+.genel-sayilar b.passed { color: var(--passed); }
+.genel-sayilar b.failed { color: var(--failed); }
+.genel-sayilar + .alt { margin: 0 0 16px; }
+.genel-hata { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.genel-hata:first-of-type { border-top: 0; }
+.genel-liste { margin: 4px 0 14px; padding-left: 18px; }
+.genel-liste li { padding: 2px 0; }
 textarea.mono, input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 select[multiple] { min-height: 80px; }
 label.alan { min-width: 180px; }

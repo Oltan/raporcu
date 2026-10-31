@@ -7,12 +7,13 @@
 
 <section class="kart">
   <h2>Paylaşım linkleri</h2>
-  {% if shares.is_empty() %}<p class="kucuk">Henüz link yok. Koşum sayfasından "Paylaşım linki" ile oluşturun.</p>{% else %}
+  {% if shares.is_empty() %}<p class="kucuk">Henüz link yok. Koşum sayfasından "Genel rapor linki" ya da "Ekip linki" ile oluşturun.</p>{% else %}
   <div class="tablo"><table>
-    <tr><th>Koşum</th><th>Link</th><th>Oluşturuldu</th><th>Durum</th><th></th></tr>
+    <tr><th>Koşum</th><th>Görünüm</th><th>Link</th><th>Oluşturuldu</th><th>Durum</th><th></th></tr>
     {% for s in shares %}
     <tr>
       <td><a href="/runs/{{ s.run_id }}">#{{ s.run_id }}</a> <span class="kucuk">{{ s.project_path }} / {{ s.branch }}</span></td>
+      <td>{% if s.gorunum == "genel" %}Genel{% else %}Ekip{% endif %}</td>
       <td class="mono kucuk">{% if s.revoked_at.is_none() %}<a href="/s/{{ s.token }}">{{ public_url }}/s/{{ s.token }}</a>{% else %}—{% endif %}</td>
       <td class="kucuk">{{ s.created_at|zaman }}</td>
       <td>{% if let Some(r) = s.revoked_at %}<span class="durum skipped">iptal {{ r|zaman }}</span>{% else %}<span class="durum passed">açık</span>{% endif %}</td>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }}{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <div class="alt"><a href="{{ l.run_url(s.run_id) }}">← Test raporu</a> · {{ s.feature.as_deref().unwrap_or("") }}</div>
+    <h1>{{ s.name }}</h1>
+    <div class="meta"><span class="durum failed">Ürün hatası</span></div>
+    <div style="margin-top:6px">{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}</div>
+  </div>
+</div>
+
+<section class="kart">
+  <h2>Beklenen ve görülen</h2>
+  <div class="hata-ozet">{{ s.short_message() }}</div>
+</section>
+
+{% if !atts.is_empty() %}
+<section class="kart">
+  <h2>Ekran görüntüleri</h2>
+  <div class="ekler">
+    {% for a in atts %}
+    <div class="ek"><a href="{{ l.file_url(a.id) }}"><img loading="lazy" src="{{ l.file_url(a.id) }}" alt="{{ a.title() }}"></a></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="kart">
+  <h2>Adımlar</h2>
+  {% if steps.is_empty() %}<div class="bos">Adım yok</div>{% else %}
+  <ul class="adimlar">
+    {% for st in steps %}
+    <li style="padding-left: {{ st.depth * 18 }}px"><span class="adim-isaret {{ st.status }}"></span><span class="ad">{{ st.name }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}
