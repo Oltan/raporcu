@@ -129,8 +129,27 @@ pub fn build_prompt(c: &FixCandidate, test_root: &str, screenshot: Option<&Path>
     p
 }
 
+/// Son işaret satırı. Ajan hata verirken istemi tekrar basabilir; şablon satırı (`<...>`) sonuç değildir.
 fn parse_marker<'a>(out: &'a str, marker: &str) -> Option<&'a str> {
-    out.lines().rev().find_map(|l| l.trim().strip_prefix(marker)).map(str::trim)
+    out.lines()
+        .rev()
+        .filter_map(|l| l.trim().strip_prefix(marker))
+        .map(str::trim)
+        .find(|v| !v.starts_with('<') && !v.contains("test_kodu|urun"))
+}
+
+/// Ajan çıktısı log ve dosya için: tokenlar maskelenir (SW-9.2).
+fn mask_secrets(out: &str) -> String {
+    ["ULAK_FIX_TOKEN", "CI_API_TOKEN"]
+        .iter()
+        .filter_map(|k| env(k))
+        .fold(out.to_string(), |s, t| s.replace(&t, "***"))
+}
+
+/// Ajan başarısız olunca işin logunda görünen son satırlar.
+fn tail_lines(s: &str, n: usize) -> String {
+    let lines: Vec<&str> = s.lines().collect();
+    lines[lines.len().saturating_sub(n)..].join("\n")
 }
 
 fn run_with_timeout(mut cmd: Command, timeout: Duration) -> Result<(i32, String)> {
@@ -304,12 +323,14 @@ pub fn agent_command() -> String {
         "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill \
                      --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text"
             .into(),
-        // ajan adı: test projesindeki .opencode/agents/<ad>.md
-        _ => format!(
-            "opencode run --agent {} --file {{ekran}} {{istem}}",
-            env_or("ULAK_OPENCODE_AGENT", "fix")
-        ),
+        _ => opencode_command(&env_or("ULAK_OPENCODE_AGENT", "fix")),
     }
+}
+
+/// Ajan adı: test projesindeki .opencode/agents/<ad>.md. `--file` çok değer alır: istem ondan
+/// sonra gelirse dosya adı sanılır.
+fn opencode_command(agent: &str) -> String {
+    format!("opencode run --agent {agent} {{istem}} --file {{ekran}}")
 }
 
 fn subst(template: &str, prompt_file: &Path, prompt: &str, shot: Option<&Path>) -> Vec<String> {
@@ -388,6 +409,8 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     if !changed_files(dir)?.is_empty() {
         bail!("çalışma klasörü temiz değil; fix başlatılmadı");
     }
+    // CI'da HEAD ayrıktır, yerel `main` eski kalmış olabilir: her aday bu commit'ten başlar
+    let start_commit = git(dir, &["rev-parse", "HEAD"])?.trim().to_string();
     let work = c.state_dir.join("fix");
     std::fs::create_dir_all(&work)?;
     let allowed = allowed_prefixes();
@@ -419,7 +442,9 @@ pub fn fix(c: &Ctx) -> Result<i32> {
         let argv = subst(&tmpl, &prompt_file, &prompt, shot.as_deref());
         let mut cmd = Command::new(&argv[0]);
         cmd.args(&argv[1..]).current_dir(dir).env("ULAK_FIX_PROMPT_FILE", &prompt_file);
-        let (code, out) = run_with_timeout(cmd, timeout).unwrap_or((-2, String::new()));
+        let (code, out) = run_with_timeout(cmd, timeout).unwrap_or_else(|e| (-2, format!("ajan başlatılamadı: {e}")));
+        let out = mask_secrets(&out);
+        let _ = std::fs::write(work.join(format!("{}-ajan.log", slug(&cand.name))), &out);
         let mut result = FixResult {
             run_id,
             scenario_key: cand.scenario_key.clone(),
@@ -443,7 +468,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                     format!("OpenCode çıkış kodu {code}")
                 }
             });
-            say(format!("OpenCode başarısız ({code})"));
+            say(format!("OpenCode başarısız ({code}), son çıktı:\n{}", tail_lines(&out, 15)));
             restore(dir);
         } else if !outside.is_empty() {
             // SW-9.4: izinli yolların dışı reddedilir
@@ -535,7 +560,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
         }
         say(format!("sonuç: {} ({} sn)", result.outcome, started.elapsed().as_secs()));
         report(c, run_id, &result);
-        let _ = git(dir, &["checkout", "-q", "-f", &base]);
+        let _ = git(dir, &["checkout", "-q", "-f", &start_commit]);
     }
     say(format!("fix bitti: {opened} MR"));
     Ok(0)
@@ -544,6 +569,15 @@ pub fn fix(c: &Ctx) -> Result<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_7_2_prompt_echo_is_not_a_result() {
+        let p = "ULAK_OZET: <tek cümlelik açıklama>\nULAK_TRIAGE: {\"category\": \"test_kodu|urun|ortam\"}\n";
+        assert_eq!(parse_marker(p, "ULAK_OZET:"), None);
+        assert_eq!(parse_marker(p, "ULAK_TRIAGE:"), None);
+        let gercek = format!("{p}ULAK_OZET: seçici düzeltildi\n");
+        assert_eq!(parse_marker(&gercek, "ULAK_OZET:"), Some("seçici düzeltildi"));
+    }
 
     #[test]
     fn test_sw_9_4_outside_allowed_paths_detected() {
@@ -634,19 +668,10 @@ mod tests {
 
     #[test]
     fn test_sw_7_2_command_template() {
-        let a = subst(
-            "opencode run --agent fix --file {ekran} {istem}",
-            Path::new("/t/p.md"),
-            "İSTEM",
-            Some(Path::new("/t/e.png")),
-        );
-        assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "--file", "/t/e.png", "İSTEM"]);
-        let a = subst(
-            "opencode run --agent fix --file {ekran} {istem}",
-            Path::new("/t/p.md"),
-            "İSTEM",
-            None,
-        );
+        let t = opencode_command("fix");
+        let a = subst(&t, Path::new("/t/p.md"), "İSTEM", Some(Path::new("/t/e.png")));
+        assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "İSTEM", "--file", "/t/e.png"]);
+        let a = subst(&t, Path::new("/t/p.md"), "İSTEM", None);
         assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "İSTEM"]);
         assert_eq!(slug("Şifremi unuttum bağlantısı"), "sifremi-unuttum-baglantisi");
         assert_eq!(regex_quote("Giriş (yanlış şifre) v1.2?"), "Giri. \\(yanl.. .ifre\\) v1\\.2\\?");

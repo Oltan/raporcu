@@ -20,11 +20,13 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       dizesi ve ```` ``` ```` etkisizleştirilir (SW-9.4).
    4. **Ajan komutu** (`agent_command`): `ULAK_FIX_CMD` / `ULAK_OPENCODE_CMD`, yoksa
       `ULAK_FIX_AGENT`'a göre:
-      - `opencode`: `opencode run --agent <ULAK_OPENCODE_AGENT, fix> --file {ekran} {istem}`
+      - `opencode`: `opencode run --agent <ULAK_OPENCODE_AGENT, fix> {istem} --file {ekran}`
       - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
       ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn).
-   5. Çıktının son satırlarından `ULAK_OZET:` ve `ULAK_TRIAGE: {json}`.
+   5. Çıktı tokenlar maskelenerek `.ulak/fix/<senaryo>-ajan.log` dosyasına yazılır; ajan başarısızsa
+      son 15 satır işin loguna da düşer. Son satırlardan `ULAK_OZET:` ve `ULAK_TRIAGE: {json}` alınır;
+      ajan istemi tekrar basarsa şablon satırları (`<...>`, `test_kodu|urun`) sonuç sayılmaz.
    6. **Koruma (SW-9.4):** `git status --porcelain --untracked-files=all` (`.ulak/`, `ulak.env`,
       `target/`, `ulak*` hariç). İzinli önekler `ULAK_FIX_ALLOWED` (`src/test/`).
       - Ajan hata verip değişiklik yoksa → `error`, geri al.

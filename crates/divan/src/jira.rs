@@ -242,11 +242,12 @@ impl Jira {
             self.project,
             parts.join(" OR ")
         );
-        let (st, v) = self.call(
-            "GET",
-            &format!("/rest/api/2/search?maxResults=1&fields=key&jql={}", urlencoding::encode(&jql)),
-            None,
-        )?;
+        let query = format!("maxResults=1&fields=key&jql={}", urlencoding::encode(&jql));
+        let (mut st, mut v) = self.call("GET", &format!("/rest/api/2/search?{query}"), None)?;
+        if st == 410 {
+            // Jira Cloud eski aramayı kaldırdı; Server/Data Center'da yeni uç yok
+            (st, v) = self.call("GET", &format!("/rest/api/2/search/jql?{query}"), None)?;
+        }
         if !(200..300).contains(&st) {
             tracing::warn!(servis = "jira", durum = st, deneme = 1, "Jira araması başarısız");
             bail!("Jira arama {st}");

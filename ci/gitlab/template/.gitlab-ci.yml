@@ -27,6 +27,8 @@ variables:
   # SW-1.7: bellek sınırları (CI değişkeniyle değiştirilebilir)
   ULAK_MAVEN_XMX: "512m"
   ULAK_TEST_XMX: "768m"
+  # Windows'ta gdigrab tüm masaüstünü kaydeder; kişisel masaüstünde "false" yapın
+  # ULAK_VIDEO: "false"
   ULAK_VIDEO_FPS: "5"
   # SW-1.2: Xvfb ekranı (yalnızca Linux)
   ULAK_XVFB: "on"

@@ -1,5 +1,10 @@
 # CI şablonu ve dağıtım dosyaları
 
+## ci/java-sablon/DivanKanit.java
+Test projesine kopyalanan yardımcı sınıf (`docs/LLM_JAVA_ENTEGRASYON.md`, adım 3). Senaryo kaldıysa
+pencere bölgesinin ekran görüntüsünü ve TestFX sahne ağacını Cucumber ekine koyar; geçen senaryoda
+hiçbir şey yapmaz. Kanıt alınamazsa yalnızca `System.err`'e yazar, senaryonun gerçek hatası değişmez.
+
 ## ci/gitlab/template/.gitlab-ci.yml (SW-1.1, 1.4)
 Test projesi `include: project/ref/file` + `ULAK_OS: linux|windows` ekler. Aşamalar
 `test → report → fix`.
@@ -16,6 +21,7 @@ Somut işler: `ulak-{test,report,fix}-{linux,windows}`, `ULAK_OS`'a göre `rules
 `ULAK_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
 Windows işlerinde `ULAK_XVFB=off`. Değişkenler: `ULAK_SERVER=http://127.0.0.1:8080` (aynı makine),
 `ULAK_RESULTS_DIR`, `ULAK_MAVEN_XMX=512m`, `ULAK_TEST_XMX=768m`, `ULAK_VIDEO_FPS=5`,
+`ULAK_VIDEO` (şablonda yorum satırı; Windows'ta gdigrab tüm masaüstünü kaydeder, kişisel masaüstünde `false`),
 `ULAK_XVFB=on`, `ULAK_SCREEN=1920x1080`, `GET_SOURCES_ATTEMPTS=5`, `ARTIFACT_DOWNLOAD_ATTEMPTS=5`
 (GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmez), isteğe bağlı `ULAK_TAGS`,
 `ULAK_FIX`; `CI_API_TOKEN` masked proje/grup değişkeni.

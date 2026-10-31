@@ -10,7 +10,8 @@
 - `attach(key, ad, bayt)`: `POST /rest/api/2/issue/<key>/attachments`, multipart, başlık
   `X-Atlassian-Token: no-check`.
 - `find_open_bug(doors[], senaryo)`: JQL `project = "<P>" AND statusCategory != Done AND (labels in
-  ("DOORS-…") OR summary ~ "\"<senaryo>\"") ORDER BY created DESC`, ilk sonuç.
+  ("DOORS-…") OR summary ~ "\"<senaryo>\"") ORDER BY created DESC`, ilk sonuç. Önce
+  `/rest/api/2/search` denenir; Jira Cloud bu ucu kaldırdığı için 410 dönerse `/rest/api/2/search/jql`.
 
 ## Bug içeriği — şablon (Admin > Ayarlar, `ayarlar.md`)
 - `vars(c, public_url, BugInput)`: yer tutucu değerleri; proje/branch/commit/tarih koşumdan okunur.

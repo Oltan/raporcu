@@ -5,11 +5,16 @@ ajanına düzelttirir. Ajan seçimi CI değişkeniyle yapılır:
 
 | `ULAK_FIX_AGENT` | Çalışan komut (varsayılan) | Proje dosyaları |
 |------------------|----------------------------|-----------------|
-| `opencode` (varsayılan) | `opencode run --agent fix --file <ekran.png> <istem>` | `opencode.json`, `.opencode/agents/fix.md`, `AGENTS.md` — şablon `ci/opencode/template/` |
+| `opencode` (varsayılan) | `opencode run --agent fix <istem> --file <ekran.png>` | `opencode.json`, `.opencode/agents/fix.md`, `AGENTS.md` — şablon `ci/opencode/template/` |
 | `claude` | `claude -p <istem> --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text` | `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` — şablon `ci/claude/template/` |
 
 Komutun tamamı `ULAK_FIX_CMD` ile değiştirilebilir. Yer tutucular: `{istem}` (istem metni),
 `{ekran}` (ekran görüntüsü yolu; yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`.
+
+OpenCode'da `--file` çok değer alır: `{istem}` ondan önce gelmelidir, yoksa istem dosya adı sanılır
+(`Error: File not found`). Windows'ta npm kurulumu yalnızca kısayol koyar; `ULAK_FIX_CMD` içinde
+gerçek `opencode.exe` yolu verilir. Görsel desteklemeyen modelde `--file {ekran}` kaldırılır;
+ekran görüntüsünün yolu zaten istemde yazar.
 
 ## OpenCode nasıl çağrılır
 
@@ -28,7 +33,7 @@ kodu değiştirecek, doğrulama koşusu yapacak ve branch push edecek olan odur.
                                             ▼                           ▼
                          runner: fix işi → ulak fix
                            GET  divan /api/ci/runs/<id>/fix-candidates   (adaylar + ekran görüntüsü + sahne ağacı)
-                           opencode run --agent fix --file <ekran.png> <istem>
+                           opencode run --agent fix <istem> --file <ekran.png>
                            yol denetimi → doğrulama koşusu → auto-fix/… branch → MR
                            POST divan /api/ci/runs/<id>/fix-result       (rapor + self-healing paneli)
 ```

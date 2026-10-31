@@ -143,6 +143,8 @@ struct JiraLog {
     auth: Vec<String>,
     /// bu alan yoksa Jira 400 döner (zorunlu özel alan benzetimi)
     require_field: Option<String>,
+    /// Jira Cloud benzetimi: eski arama ucu kaldırılmış
+    cloud: bool,
 }
 
 type JL = Arc<Mutex<JiraLog>>;
@@ -186,6 +188,14 @@ async fn fake_jira(log: JL) -> String {
             None => Json(json!({ "issues": [] })),
         }
     }
+    /// Jira Cloud: eski arama 410 döner.
+    async fn search_old(state: State<JL>, q: axum::extract::RawQuery) -> axum::response::Response {
+        use axum::response::IntoResponse;
+        if state.0.lock().unwrap().cloud {
+            return StatusCode::GONE.into_response();
+        }
+        search(state, q).await.into_response()
+    }
     async fn issuetypes() -> Json<Value> {
         Json(json!({ "values": [{ "id": "10004", "name": "Bug" }, { "id": "10001", "name": "Task" }] }))
     }
@@ -208,7 +218,8 @@ async fn fake_jira(log: JL) -> String {
             .route("/rest/api/2/issue/createmeta/{p}/issuetypes/{t}", get(fields))
             .route("/rest/api/2/issue", post(create))
             .route("/rest/api/2/issue/{key}/attachments", post(attach))
-            .route("/rest/api/2/search", get(search))
+            .route("/rest/api/2/search", get(search_old))
+            .route("/rest/api/2/search/jql", get(search))
             .with_state(log),
     )
     .await
@@ -284,6 +295,24 @@ async fn test_sw_6_1_label_rejected_bug_still_created() {
     assert_eq!(g.created.len(), 1);
     assert!(g.created[0]["fields"].get("labels").is_none());
     assert!(g.created[0]["fields"]["description"].as_str().unwrap().contains("DOORS-1003"));
+}
+
+#[tokio::test]
+async fn test_sw_6_2_jira_cloud_search_uses_new_endpoint() {
+    let log: JL = Default::default();
+    {
+        let mut g = log.lock().unwrap();
+        g.cloud = true;
+        g.search_hit = Some("STAJ-77".into());
+    }
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, divan::config::JiraMode::Observe));
+    let id = upload_zip(&app, zip_without_jira_tag()).await;
+    settle().await;
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get(&format!("/scenarios/{sid}")).await;
+    assert!(page.contains("STAJ-77"), "410 sonrası yeni uçla bağlandı");
+    assert_eq!(log.lock().unwrap().searches.len(), 1);
 }
 
 #[tokio::test]
