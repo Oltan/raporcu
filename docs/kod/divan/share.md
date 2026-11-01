@@ -15,7 +15,8 @@ ve yalnızca o koşumun ekleri sunulur; başka koşumun senaryosu 404.
 
 ## İki görünüm (`share_links.gorunum`)
 - `ekip`: yukarıdaki gibi ayrıntılı koşum raporu (`run.html`, `scenario.html`).
-- `genel`: ekip dışına verilen ayrı rapor (`paylasim.html`, `paylasim_senaryo.html`).
+- `genel`: ekip dışına verilen ayrı rapor (`paylasim.html`, `paylasim_senaryo.html`). Sayfalar ve
+  proje + branch başına genel ana sayfa `web/genel.md` içinde.
 
 `genel_sinif(durum, deneme sayısı, flaky, triage)`:
 - flaky → `Inceleniyor`;
@@ -23,12 +24,13 @@ ve yalnızca o koşumun ekleri sunulur; başka koşumun senaryosu 404.
 - `failed`/`broken` ve triage `urun` → `UrunHatasi` (iki denemede de kalması görünürlüğü etkilemez);
 - geri kalan her şey (tekrarda geçen, test kodu, ortam, bilinmiyor, atlanan) → `Inceleniyor`.
 
-Genel raporda sonuç cümlesi, üç sayı, ürün hataları ve feature'a göre doğrulanan senaryolar vardır.
-`Inceleniyor` yalnızca sayıdır: ad, neden ve yol görünmez, toplam tutarlı kalır. Branch, tag, dosya
-konumu, deneme, triage, yığın izi, süre yoktur. Yalnızca ürün hatası senaryosunun ayrıntısı ve
-ekran görüntüleri açılır; diğer senaryo ve ekler 404 (video, log ve metin ekleri dahil). Sınıf her
-istekte hesaplanır, triage değişirse açık link de değişir.
+Genel raporda sonuç cümlesi, sayılar, dağılım grafiği, bölüm tablosu, ürün hataları ve feature'a
+göre doğrulanan senaryolar vardır. `Inceleniyor` yalnızca sayıdır: ad, neden ve yol görünmez, toplam
+tutarlı kalır. Branch, tag, dosya konumu, deneme, triage ve yığın izi yoktur. Doğrulanan ve ürün
+hatası senaryoların ayrıntısı ve ekran görüntüleri açılır; inceleniyor senaryosu ve ekleri 404,
+video, log ve metin ekleri hiçbir senaryoda açılmaz. Sınıf her istekte hesaplanır, triage değişirse
+açık link de değişir. `etiket()` ve `isaret()` sayfaya iç durum adı sızdırmadan ad ve renk sınıfı verir.
 
 ## Testler
 `test_sw_5_1_text_sanitized`, `test_sw_5_1_share_link_hides_internal_info`, `test_sw_5_1_genel_sinif`,
-`test_sw_5_1_genel_rapor_shows_only_product_results`.
+`test_sw_5_1_genel_rapor_shows_only_product_results`, `test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope`.

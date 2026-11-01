@@ -4,6 +4,7 @@ pub mod admin;
 pub mod ayarlar;
 pub mod ci;
 pub mod files;
+pub mod genel;
 pub mod gitlab_hook;
 pub mod pages;
 pub mod tools;
@@ -32,9 +33,16 @@ pub fn routes() -> Router<AppState> {
         .route("/s/{token}", get(pages::share_page))
         .route("/s/{token}/scenarios/{id}", get(pages::share_scenario))
         .route("/s/{token}/files/{id}", get(pages::share_file))
+        .route("/g/{token}", get(genel::ana_sayfa))
+        .route("/g/{token}/ozellik", get(genel::ozellik_sayfasi))
+        .route("/g/{token}/runs/{id}", get(genel::portal_rapor))
+        .route("/g/{token}/runs/{id}/scenarios/{sid}", get(genel::portal_senaryo))
+        .route("/g/{token}/runs/{id}/files/{aid}", get(genel::portal_dosya))
         .route("/admin", get(pages::admin_page))
         .route("/admin/runs/{id}/share", post(pages::create_share))
+        .route("/admin/runs/{id}/portal", post(genel::portal_olustur))
         .route("/admin/shares/{id}/revoke", post(pages::revoke_share))
+        .route("/admin/portallar/{id}/revoke", post(genel::portal_iptal))
         .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
         .route("/admin/scenarios/{id}/jira", get(ayarlar::bug_form).post(ayarlar::bug_create))
         .route("/admin/taslaklar/{id}/ac", post(ayarlar::draft_open))

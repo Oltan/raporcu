@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ ad }}{% endblock %}
+{% block paylasim_ust %}{% include "_genel_ust.html" %}{% endblock %}
+{% block content %}
+{% if let Some(a) = ana %}
+<div class="baslik">
+  <div>
+    <div class="alt"><a href="{{ a }}">← Ana sayfa</a></div>
+    <h1>{{ ad }}</h1>
+    <div class="alt">Son {{ basliklar.len() }} raporda bu bölümün durumu</div>
+  </div>
+</div>
+
+{% if let Some(sayim) = son %}{% include "_genel_sayilar.html" %}{% endif %}
+
+<div class="izgara-esit">
+  <section class="kart">
+    <h2>Gidişat: doğrulanma oranı</h2>
+    <div class="grafik-kap">{{ cizgi|safe }}</div>
+  </section>
+  <section class="kart">
+    <div class="baslik-satir">
+      <h2>Rapor başına sonuçlar</h2>
+      <ul class="lejant-yatay"><li><i class="sw m-gecti"></i>Doğrulandı</li><li><i class="sw m-kaldi"></i>Ürün hatası</li><li><i class="sw m-incele"></i>İnceleniyor</li></ul>
+    </div>
+    <div class="grafik-kap">{{ sutunlar|safe }}</div>
+  </section>
+</div>
+
+<section class="kart">
+  <div class="baslik-satir">
+    <h2>Senaryo geçmişi</h2>
+    <ul class="lejant-yatay">
+      <li><i class="sw m-gecti"></i>Doğrulandı</li><li><i class="sw m-kaldi"></i>Ürün hatası</li><li><i class="sw m-incele"></i>İnceleniyor</li><li><i class="sw m-yok"></i>Koşmadı</li>
+    </ul>
+  </div>
+  <p class="alt">Kareye tıklayınca o rapordaki senaryonun adımları ve ekran görüntüleri açılır.</p>
+  {% if matris.is_empty() %}<div class="bos">Gösterilecek senaryo yok.</div>{% else %}
+  <div class="tablo"><table class="matris">
+    <thead><tr>
+      <th>Senaryo</th>
+      {% for id in basliklar %}<th class="matris-bas"><a href="{{ a }}/runs/{{ id }}">#{{ id }}</a></th>{% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for m in matris %}
+    <tr>
+      <td class="matris-ad">{{ m.ad }}</td>
+      {% for c in m.hucreler %}
+      <td class="hucre">
+        {% if let Some(u) = c.url %}<a href="{{ u }}" class="kare m-{{ c.isaret }}" tabindex="0" data-tip="Rapor #{{ c.run_id }}: {{ c.etiket }}"></a>
+        {% else %}<span class="kare m-{{ c.isaret }}" tabindex="0" data-tip="Rapor #{{ c.run_id }}: {{ c.etiket }}"></span>{% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</section>
+{% endif %}
+<script src="/static/charts.js" defer></script>
+{% endblock %}

@@ -10,6 +10,24 @@ pub enum GenelSinif {
     Inceleniyor,
 }
 
+impl GenelSinif {
+    pub fn etiket(self) -> &'static str {
+        match self {
+            GenelSinif::Dogrulandi => "Doğrulandı",
+            GenelSinif::UrunHatasi => "Ürün hatası",
+            GenelSinif::Inceleniyor => "İnceleniyor",
+        }
+    }
+    /// Grafik işareti sınıfı (`m-gecti` ...); genel sayfalara iç durum adı sızmaz.
+    pub fn isaret(self) -> &'static str {
+        match self {
+            GenelSinif::Dogrulandi => "gecti",
+            GenelSinif::UrunHatasi => "kaldi",
+            GenelSinif::Inceleniyor => "incele",
+        }
+    }
+}
+
 pub fn genel_sinif(status: &str, attempts: i64, flaky: bool, triage: Option<&str>) -> GenelSinif {
     if flaky {
         return GenelSinif::Inceleniyor;

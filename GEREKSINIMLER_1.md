@@ -283,6 +283,7 @@ Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 - Test: B
 - Doğrulama: `test_sw_5_1_*`, e2esmoke
 - Ek: Link iki görünümle oluşturulur. "Ekip linki" ayrıntılı raporu açar. "Genel rapor linki" yalnızca doğrulanan senaryoları ve ürün hatalarını gösterir; flaky, tekrar denemesinde geçen, test kodu, ortam ve atlanan senaryolar adsız "İnceleniyor" sayısına girer ve ayrıntıları açılmaz. Doğrulama: `test_sw_5_1_genel_rapor_shows_only_product_results`.
+- Ek: "Genel ana sayfa linki" proje ve branch başına kalıcı bir sayfa açar: sonuç, sayılar, dağılım ve gidişat grafikleri, bölüm tablosu ve geçmişi, rapor listesi, feature sekmeli rapor, doğrulanan ve ürün hatası senaryoların adım ve ekran görüntüsü ayrıntıları. Yalnızca o kapsamın biten koşumları açılır; aynı sınıflandırma geçerlidir. Doğrulama: `test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope`.
 
 ### SW-5.2 [MEVCUT] Paylaşım linkinin iptali
 - Bağlam: Raporlar yalnızca şirket içindeki kapalı yerel ağda paylaşılır, dışarıya açılmaz. Bu yüzden önceliği düşük.

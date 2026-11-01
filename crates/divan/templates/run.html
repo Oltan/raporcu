@@ -28,6 +28,7 @@
     <a class="btn" href="/runs/{{ run.id }}/doors.csv">DOORS CSV</a>
     {% if doors_dxl %}<a class="btn" href="/runs/{{ run.id }}/doors.dxl">DOORS DXL</a>{% endif %}
     {% if l.admin %}
+    <form method="post" action="/admin/runs/{{ run.id }}/portal"><button title="Bu proje ve branch için tüm raporları, grafikleri ve gidişatı gösteren genel sayfa; aynı kapsam için tek link üretilir">Genel ana sayfa linki</button></form>
     <form method="post" action="/admin/runs/{{ run.id }}/share"><input type="hidden" name="gorunum" value="genel"><button title="Yalnızca doğrulanan senaryolar ve ürün hataları görünür; test kodu, ortam ve flaky ayrıntıları görünmez">Genel rapor linki</button></form>
     <form method="post" action="/admin/runs/{{ run.id }}/share"><button title="Bu ayrıntılı rapor, iç linkler ve Jira bilgileri olmadan açılır">Ekip linki</button></form>
     {% if run.failures() > 0 %}<form method="post" action="/admin/runs/{{ run.id }}/fix"><button class="ana" title="GitLab'da yalnızca fix işini tetikler">OpenCode ile düzelt</button></form>{% endif %}

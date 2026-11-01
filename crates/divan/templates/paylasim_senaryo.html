@@ -1,28 +1,20 @@
 {% extends "base.html" %}
 {% block title %}{{ s.name }}{% endblock %}
+{% block paylasim_ust %}{% let proje = s.feature.as_deref().unwrap_or("Test raporu") %}{% include "_genel_ust.html" %}{% endblock %}
 {% block content %}
-<div class="baslik">
+<div class="alt genel-geri"><a href="{{ taban }}{% if let Some(f) = s.feature %}?bolum={{ f|enc }}{% endif %}">← Rapora dön</a></div>
+<div class="genel-sonuc {{ sinif.isaret() }}">
   <div>
-    <div class="alt"><a href="{{ l.run_url(s.run_id) }}">← Test raporu</a> · {{ s.feature.as_deref().unwrap_or("") }}</div>
+    <div class="genel-ust-yazi">{{ s.feature.as_deref().unwrap_or("") }} · {{ s.duration() }}</div>
     <h1>{{ s.name }}</h1>
-    <div class="meta"><span class="durum failed">Ürün hatası</span></div>
-    <div style="margin-top:6px">{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}</div>
+    <div class="genel-rozetler"><span class="genel-durum {{ sinif.isaret() }}">{{ sinif.etiket() }}</span>{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}</div>
   </div>
 </div>
 
-<section class="kart">
+{% if sinif.isaret() == "kaldi" %}
+<section class="kart genel-hatalar">
   <h2>Beklenen ve görülen</h2>
   <div class="hata-ozet">{{ s.short_message() }}</div>
-</section>
-
-{% if !atts.is_empty() %}
-<section class="kart">
-  <h2>Ekran görüntüleri</h2>
-  <div class="ekler">
-    {% for a in atts %}
-    <div class="ek"><a href="{{ l.file_url(a.id) }}"><img loading="lazy" src="{{ l.file_url(a.id) }}" alt="{{ a.title() }}"></a></div>
-    {% endfor %}
-  </div>
 </section>
 {% endif %}
 
@@ -31,9 +23,20 @@
   {% if steps.is_empty() %}<div class="bos">Adım yok</div>{% else %}
   <ul class="adimlar">
     {% for st in steps %}
-    <li style="padding-left: {{ st.depth * 18 }}px"><span class="adim-isaret {{ st.status }}"></span><span class="ad">{{ st.name }}</span></li>
+    <li style="padding-left: {{ st.depth * 18 }}px"><span class="adim-isaret {{ st.status }}"></span><span class="ad">{{ st.name }}</span><span class="kucuk">{{ self.adim_suresi(&st.duration_ms) }}</span></li>
     {% endfor %}
   </ul>
   {% endif %}
 </section>
+
+{% if !atts.is_empty() %}
+<section class="kart">
+  <h2>Ekran görüntüleri</h2>
+  <div class="ekler">
+    {% for a in atts %}
+    <div class="ek"><a href="{{ taban }}/files/{{ a.id }}"><img loading="lazy" src="{{ taban }}/files/{{ a.id }}" alt="{{ a.title() }}"></a></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

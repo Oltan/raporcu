@@ -279,6 +279,99 @@ async fn test_sw_5_1_share_link_hides_internal_info() {
 }
 
 #[tokio::test]
+async fn test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope() {
+    let app = app();
+    let id = upload_sample(&app, Q).await;
+    app.state
+        .db
+        .write(move |c| divan::triage::apply_rules(c, id, 10, 0.7).map(|_| ()))
+        .await
+        .unwrap();
+    let cookie = app.admin_cookie();
+    let yol = format!("/admin/runs/{id}/portal");
+    let r = post_form(&app, &yol, &cookie, "").await;
+    let loc = r.headers()["location"].to_str().unwrap().to_string();
+    let token = loc.split("portal:").nth(1).unwrap().to_string();
+    // aynı kapsam için ikinci link üretilmez
+    let r = post_form(&app, &yol, &cookie, "").await;
+    assert!(r.headers()["location"].to_str().unwrap().ends_with(&token));
+
+    let (st, html) = app.get(&format!("/g/{token}")).await;
+    assert_eq!(st, StatusCode::OK);
+    for var in [
+        "1 ürün hatası bulundu",
+        "class=\"donut\"",
+        "class=\"cizgi-grafik\"",
+        "class=\"sutun-grafik\"",
+        "class=\"mini-cizgi\"",
+        "Giriş ekranı",
+    ] {
+        assert!(html.contains(var), "ana sayfada olmalı: {var}");
+    }
+    let (st, ozellik) = app.get(&format!("/g/{token}/ozellik?ad=Giri%C5%9F%20ekran%C4%B1")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(ozellik.contains("Geçerli bilgilerle giriş") && ozellik.contains("class=\"matris\""));
+    for sayfa in [&html, &ozellik] {
+        for gizli in [
+            "Şifremi unuttum bağlantısı",
+            "Yavaş açılan karşılama mesajı",
+            "flaky",
+            "deneme",
+            "broken",
+            "Branch",
+            "main",
+        ] {
+            assert!(
+                !sayfa.replace("<main>", "").replace("</main>", "").contains(gizli),
+                "genel sayfada görünmemeli: {gizli}"
+            );
+        }
+    }
+
+    let run = run_json(&app, id).await;
+    let gecen = scenario_id(&run, "Geçerli bilgilerle giriş");
+    let test_kodu = scenario_id(&run, "Şifremi unuttum bağlantısı");
+    let (st, _) = app.get(&format!("/g/{token}/runs/{id}/scenarios/{gecen}")).await;
+    assert_eq!(st, StatusCode::OK);
+    let (st, _) = app.get(&format!("/g/{token}/runs/{id}/scenarios/{test_kodu}")).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+
+    // feature sekmesi: yalnızca o feature'ın senaryoları ve sayıları
+    app.state
+        .db
+        .write(move |c| {
+            c.execute("UPDATE scenarios SET feature = 'Ayarlar' WHERE id = ?1", [gecen])?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let (_, tumu) = app.get(&format!("/g/{token}/runs/{id}")).await;
+    assert!(tumu.contains("?bolum=Ayarlar") && tumu.contains("Yanlış şifrede özel mesaj"));
+    let (_, sekme) = app.get(&format!("/g/{token}/runs/{id}?bolum=Ayarlar")).await;
+    assert!(sekme.contains("Geçerli bilgilerle giriş"));
+    assert!(!sekme.contains("Yanlış şifrede özel mesaj") && !sekme.contains("ürün hatası bulundu"));
+    let (st, bilinmeyen) = app.get(&format!("/g/{token}/runs/{id}?bolum=Yok")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(bilinmeyen.contains("Yanlış şifrede özel mesaj"));
+
+    // başka proje ya da branch'in koşumu bu linkten açılmaz
+    let baska = upload_sample(&app, &Q.replace("branch=main", "branch=gizli")).await;
+    assert_ne!(baska, id);
+    let (st, _) = app.get(&format!("/g/{token}/runs/{baska}")).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+
+    let portal_id: i64 = app
+        .state
+        .db
+        .read(|c| Ok(c.query_row("SELECT id FROM genel_portallar", [], |r| r.get(0))?))
+        .await
+        .unwrap();
+    post_form(&app, &format!("/admin/portallar/{portal_id}/revoke"), &cookie, "").await;
+    let (st, _) = app.get(&format!("/g/{token}")).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn test_sw_5_1_genel_rapor_shows_only_product_results() {
     let app = app();
     let id = upload_sample(&app, Q).await;
@@ -332,11 +425,12 @@ async fn test_sw_5_1_genel_rapor_shows_only_product_results() {
 
     // gizlenen senaryolar ve ekleri adresi bilinse de açılmaz
     let test_kodu = scenario_id(&run, "Şifremi unuttum bağlantısı");
+    let (st, _) = app.get(&format!("/s/{token}/scenarios/{test_kodu}")).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
     let gecen = scenario_id(&run, "Geçerli bilgilerle giriş");
-    for sid in [test_kodu, gecen] {
-        let (st, _) = app.get(&format!("/s/{token}/scenarios/{sid}")).await;
-        assert_eq!(st, StatusCode::NOT_FOUND);
-    }
+    let (st, sp) = app.get(&format!("/s/{token}/scenarios/{gecen}")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(sp.contains("Doğrulandı") && sp.contains("Adımlar") && !sp.contains("@smoke"));
     let atts = app.state.db.read(move |c| divan::queries::attachments(c, test_kodu)).await.unwrap();
     assert!(!atts.is_empty());
     for a in atts {

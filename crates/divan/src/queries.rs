@@ -534,6 +534,45 @@ pub fn share_run(c: &Connection, token: &str) -> Result<Option<(i64, String)>> {
     .optional()?)
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct PortalRow {
+    pub id: i64,
+    pub token: String,
+    pub project_path: String,
+    pub branch: String,
+    pub created_at: String,
+    pub revoked_at: Option<String>,
+}
+
+pub fn portallar(c: &Connection, limit: i64) -> Result<Vec<PortalRow>> {
+    let mut st = c.prepare(
+        "SELECT g.id, g.token, p.path, g.branch, g.created_at, g.revoked_at
+         FROM genel_portallar g JOIN projects p ON p.id = g.project_id
+         ORDER BY g.id DESC LIMIT ?1",
+    )?;
+    let rows = st.query_map([limit], |r| {
+        Ok(PortalRow {
+            id: r.get(0)?,
+            token: r.get(1)?,
+            project_path: r.get(2)?,
+            branch: r.get(3)?,
+            created_at: r.get(4)?,
+            revoked_at: r.get(5)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+/// Geçerli (iptal edilmemiş) genel ana sayfa linkinin kapsamı: proje ve branch.
+pub fn portal(c: &Connection, token: &str) -> Result<Option<(i64, String)>> {
+    Ok(c.query_row(
+        "SELECT project_id, branch FROM genel_portallar WHERE token = ?1 AND revoked_at IS NULL",
+        [token],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )
+    .optional()?)
+}
+
 // ---------------------------------------------------------------------------------------------
 // SW-4.7 arama
 

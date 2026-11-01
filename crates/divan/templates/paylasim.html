@@ -1,39 +1,69 @@
 {% extends "base.html" %}
 {% block title %}Test raporu{% endblock %}
+{% block paylasim_ust %}{% include "_genel_ust.html" %}{% endblock %}
 {% block content %}
-<div class="baslik">
+{% if let Some(a) = ana %}<div class="alt genel-geri"><a href="{{ a }}">← Ana sayfa</a></div>{% endif %}
+<nav class="genel-sekmeler" aria-label="Bölümler">
+  <a href="{{ taban }}"{% if bolum.is_none() %} class="secili" aria-current="page"{% endif %}>Tümü <span>{{ tumu }}</span></a>
+  {% for (ad, s) in sekmeler %}
+  <a href="{{ taban }}?bolum={{ ad|enc }}"{% if bolum.as_deref() == Some(ad.as_str()) %} class="secili" aria-current="page"{% endif %}>{% if s.urun > 0 %}<i class="sw m-kaldi" title="Ürün hatası var"></i>{% endif %}{{ ad }} <span>{{ s.toplam() }}</span></a>
+  {% endfor %}
+</nav>
+<div class="genel-sonuc {{ sonuc_sinif }}">
   <div>
-    <h1>Test raporu · {{ proje }}</h1>
-    <div class="meta">
-      <span>{{ run.started_at|zaman }}</span>
-      {% if run.commit_sha.is_some() %}<span>Sürüm <b class="mono">{{ run.short_commit() }}</b></span>{% endif %}
-      {% if let Some(os) = run.os %}<span>{{ os }}</span>{% endif %}
-    </div>
+    <div class="genel-ust-yazi">{{ proje }} · {{ run.started_at|zaman }}{% if run.commit_sha.is_some() %} · Sürüm <span class="mono">{{ run.short_commit() }}</span>{% endif %}{% if let Some(os) = run.os %} · {{ os }}{% endif %}</div>
+    <h1>{{ sonuc }}</h1>
   </div>
 </div>
 
-<div class="genel-sonuc {{ sonuc_sinif }}">{{ sonuc }}</div>
+{% include "_genel_sayilar.html" %}
+{% if sayim.inceleniyor > 0 %}<p class="alt">İnceleniyor: sonucu henüz kesinleşmemiş senaryolar. Kesinleşene kadar doğrulanmış sayılmaz.</p>{% endif %}
 
-<div class="genel-sayilar">
-  <div class="kart"><b class="passed">{{ dogrulanan }}</b><span>Doğrulandı</span></div>
-  <div class="kart"><b class="failed">{{ hatalar.len() }}</b><span>Ürün hatası</span></div>
-  <div class="kart"><b>{{ inceleniyor }}</b><span>İnceleniyor</span></div>
+<div class="izgara-ozet">
+  <section class="kart ozet-donut">
+    <h2>Dağılım</h2>
+    <div class="donut-satir">
+      {{ halka|safe }}
+      <ul class="lejant-liste">
+        {% for li in lejant %}
+        <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  <section class="kart">
+    <div class="baslik-satir">
+      <h2>{% if bolum.is_some() %}Bölüm durumu{% else %}Bölümlere göre durum{% endif %}</h2>
+      {% if let Some(a) = ana %}{% if let Some(b) = bolum %}<a href="{{ a }}/ozellik?ad={{ b|enc }}">Bölüm geçmişi →</a>{% endif %}{% endif %}
+    </div>
+    <div class="tablo"><table class="feature-ozet">
+      <tr><th>Bölüm</th><th>Durum</th><th class="num">Doğrulandı</th><th class="num">Ürün hatası</th><th class="num">Oran</th></tr>
+      {% for (ad, s, cubuk) in ozellikler %}
+      <tr>
+        <td><a class="feature-adi" href="{{ taban }}?bolum={{ ad|enc }}">{{ ad }}</a></td>
+        <td class="cubuk-hucre">{{ cubuk|safe }}</td>
+        <td class="num">{{ s.dogrulanan }}</td>
+        <td class="num">{% if s.urun > 0 %}<b>{{ s.urun }}</b>{% else %}0{% endif %}</td>
+        <td class="num">%{{ s.oran() }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </section>
 </div>
-{% if inceleniyor > 0 %}<p class="alt">İnceleniyor: sonucu henüz kesinleşmemiş senaryolar. Kesinleşene kadar doğrulanmış sayılmaz.</p>{% endif %}
 
 {% if !hatalar.is_empty() %}
-<section class="kart">
+<section class="kart genel-hatalar">
   <h2>Ürün hataları</h2>
   {% for r in hatalar %}
-  <div class="genel-hata">
+  <a class="genel-hata" href="{{ taban }}/scenarios/{{ r.s.id }}">
     <div>
-      <a href="{{ l.scenario_url(r.s.id) }}">{{ r.s.name }}</a>
+      <b>{{ r.s.name }}</b>
       {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
       {% if let Some(f) = r.s.feature %}<div class="kucuk">{{ f }}</div>{% endif %}
       <div class="hata-ozet">{{ r.s.short_message() }}</div>
     </div>
-    {% if let Some(id) = r.shot %}<a href="{{ l.scenario_url(r.s.id) }}"><img class="kucuk-resim" loading="lazy" src="{{ l.file_url(*id) }}" alt="ekran görüntüsü"></a>{% endif %}
-  </div>
+    {% if let Some(id) = r.shot %}<img class="genel-resim" loading="lazy" src="{{ taban }}/files/{{ id }}" alt="ekran görüntüsü">{% endif %}
+  </a>
   {% endfor %}
 </section>
 {% endif %}
@@ -42,13 +72,18 @@
   <h2>Doğrulanan senaryolar</h2>
   {% if gruplar.is_empty() %}<div class="bos">Henüz doğrulanan senaryo yok.</div>{% endif %}
   {% for g in gruplar %}
-  <h3>{{ g.ad }} <span class="kucuk">{{ g.adet }} senaryo</span></h3>
-  <ul class="genel-liste">
-    {% for s in g.satirlar %}
-    <li>{{ s.ad }}{% if s.adet > 1 %} <span class="kucuk">({{ s.adet }} örnek)</span>{% endif %}
-      {% for d in s.doors %}<span class="rozet doors">{{ d }}</span>{% endfor %}</li>
+  <h3 id="{{ g.anchor }}">{{ g.ad }} <span class="kucuk">{{ g.satirlar.len() }} senaryo</span></h3>
+  <div class="genel-senaryolar">
+    {% for r in g.satirlar %}
+    <a class="genel-senaryo" href="{{ taban }}/scenarios/{{ r.s.id }}">
+      <span class="genel-tik" aria-hidden="true">✓</span>
+      <span class="ad">{{ r.s.name }}{% if let Some(n) = r.ornek %} <span class="kucuk">Örnek {{ n }}</span>{% endif %}</span>
+      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+      <span class="kucuk sure">{{ r.s.duration() }}</span>
+    </a>
     {% endfor %}
-  </ul>
+  </div>
   {% endfor %}
 </section>
+<script src="/static/charts.js" defer></script>
 {% endblock %}

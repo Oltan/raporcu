@@ -16,6 +16,7 @@
 | `GET /search`, `/export.csv` | arama, CSV | |
 | `GET /healing` | self-healing paneli | |
 | `GET /s/{token}`, `/s/{token}/scenarios/{id}`, `/s/{token}/files/{id}` | paylaşım | |
+| `GET /g/{token}`, `/g/{token}/ozellik`, `/g/{token}/runs/{id}`, `…/scenarios/{sid}`, `…/files/{aid}` | genel ana sayfa (`genel.md`) | |
 | `GET /admin`; `POST /admin/runs/{id}/share`, `/admin/shares/{id}/revoke`, `/admin/scenarios/{id}/triage`, `/admin/scenarios/{id}/jira`, `/admin/runs/{id}/fix` | admin (giriş ister) | |
 | `GET/POST /login`, `POST /logout`, `GET /api/admin/me` | giriş | |
 | `GET /static/{yol}` | ikiliye gömülü dosyalar (`static/`), MIME tahmini, 1 saat önbellek | |

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}divan{% endblock %} · divan</title>
-<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/app.css?v=4">
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
 <header class="ust">
   {% if l.share.is_some() %}
-  <span class="logo">divan</span><span class="alt">Salt okunur paylaşım</span>
+  {% block paylasim_ust %}<span class="logo">divan</span><span class="alt">Salt okunur paylaşım</span>{% endblock %}
   {% else %}
   <a class="logo" href="/">divan</a>
   <nav>

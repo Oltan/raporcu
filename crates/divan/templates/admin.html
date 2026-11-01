@@ -6,6 +6,24 @@
 {% if let Some(m) = notice %}<div class="kart">{{ m }}</div>{% endif %}
 
 <section class="kart">
+  <h2>Genel ana sayfalar</h2>
+  {% if portallar.is_empty() %}<p class="kucuk">Henüz link yok. Koşum sayfasından "Genel ana sayfa linki" ile oluşturun.</p>{% else %}
+  <div class="tablo"><table>
+    <tr><th>Kapsam</th><th>Link</th><th>Oluşturuldu</th><th>Durum</th><th></th></tr>
+    {% for p in portallar %}
+    <tr>
+      <td>{{ p.project_path }} <span class="kucuk">{{ p.branch }}</span></td>
+      <td class="mono kucuk">{% if p.revoked_at.is_none() %}<a href="/g/{{ p.token }}">{{ public_url }}/g/{{ p.token }}</a>{% else %}—{% endif %}</td>
+      <td class="kucuk">{{ p.created_at|zaman }}</td>
+      <td>{% if let Some(r) = p.revoked_at %}<span class="durum skipped">iptal {{ r|zaman }}</span>{% else %}<span class="durum passed">açık</span>{% endif %}</td>
+      <td>{% if p.revoked_at.is_none() %}<form method="post" action="/admin/portallar/{{ p.id }}/revoke"><button class="tehlike">İptal et</button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+</section>
+
+<section class="kart">
   <h2>Paylaşım linkleri</h2>
   {% if shares.is_empty() %}<p class="kucuk">Henüz link yok. Koşum sayfasından "Genel rapor linki" ya da "Ekip linki" ile oluşturun.</p>{% else %}
   <div class="tablo"><table>

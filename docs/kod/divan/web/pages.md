@@ -23,7 +23,7 @@ gerektirmez; admin işlemleri `Admin` çıkarıcısıyla korunur.
 | **Arama** `/search` | Filtreler + 50'lik sonuç + CSV alan seçimi formu |
 | **Self-healing** `/healing` | Son 30 gece: deneme, MR, birleştirilen, reddedilen; yığılmış sütunlar + tablo |
 | **Admin** `/admin` | Paylaşım linkleri (iptal), Jira gözlem kayıtları (son 100), son WARN/ERROR (son 200), disk %, Jira modu, sürüm |
-| **Paylaşım** `/s/{token}` | Koşum sayfası, temizlenmiş (`share.md`); iptal edilmiş/yok → 404 |
+| **Paylaşım** `/s/{token}` | Ekip linki: koşum sayfası, temizlenmiş (`share.md`); genel link: `genel.md`; iptal edilmiş/yok → 404 |
 
 `parse_filter(sorgu)`: arama/CSV sorgusunu çözer (`+` boşluk; `run=#12` kabul).
 `healing_days(c, bugün)`: son 30 günün (UTC tarih) deneme/MR/birleşen/reddedilen sayıları.

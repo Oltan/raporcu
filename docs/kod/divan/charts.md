@@ -15,6 +15,7 @@ broken `#c47f1a`). Tüm veri metni `esc()` ile HTML kaçışlanır.
 |-----------|-------|
 | `pct(parça, toplam)` | yuvarlanmış yüzde (toplam 0 → 0) |
 | `status_slices(geçti, kaldı, broken, diğer)` | 4 dilim (sınıf, ad, değer) |
+| `genel_slices(doğrulanan, ürün, inceleniyor)` | genel rapor için 3 dilim |
 | `donut(dilimler, orta_değer, orta_etiket, aria)` | 200×200 halka (r=78, kalınlık 22); dilimler arası 2px açısal boşluk; tek dilimse tam halka; ortada değer ve etiket |
 | `thin_bar(dilimler)` | 8px yüksek, uçları yuvarlak, flex oranlı HTML çubuk |
 | `line_pct(noktalar, aria)` | 720×220, y 0–100 (%), ızgara 0/25/50/75/100, en fazla ~8 x etiketi, %10 alan dolgusu, uç değer etiketi; nokta verisi `data-noktalar` JSON'unda (takip çizgisi için) |

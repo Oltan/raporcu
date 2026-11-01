@@ -24,6 +24,7 @@ koşum/senaryo ile sınırlıdır (SW-10.6).
 | `scenario`, `attempts(run, key)` | tek senaryo; aynı koşumdaki denemeler sırayla |
 | `steps`, `attachments`, `attachment`, `first_screenshot` | senaryonun adımları/ekleri; ilk silinmemiş görüntü |
 | `bug_links`, `fixes_for_run`, `fixes_for_scenario`, `pipelines`, `share_links`, `share_run(token)` | iptal edilmemiş link → koşum ve görünüm (`ekip`/`genel`) |
+| `portallar`, `portal(token)` | genel ana sayfa linkleri; iptal edilmemiş link → proje ve branch |
 | `search(filtre)` | son denemeler + toplam sayı, 50'lik sayfa |
 | `trend(proje, branch, n)` | son n **biten** koşum, eskiden yeniye |
 | `run_features(run)` | feature başına sayılar ve süre; sorunlu olanlar önce |

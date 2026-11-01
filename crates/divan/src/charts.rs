@@ -55,6 +55,27 @@ pub fn status_slices(passed: i64, failed: i64, broken: i64, other: i64) -> Vec<S
     ]
 }
 
+/// Genel rapor dilimleri: iç durum adları yerine doğrulama sınıfları.
+pub fn genel_slices(dogrulanan: i64, urun: i64, inceleniyor: i64) -> Vec<Slice> {
+    vec![
+        Slice {
+            class: "gecti",
+            name: "Doğrulandı",
+            value: dogrulanan,
+        },
+        Slice {
+            class: "kaldi",
+            name: "Ürün hatası",
+            value: urun,
+        },
+        Slice {
+            class: "incele",
+            name: "İnceleniyor",
+            value: inceleniyor,
+        },
+    ]
+}
+
 /// Halka grafik: dilimler arasında 2px boşluk, ortada toplam ve geçme oranı.
 pub fn donut(slices: &[Slice], center_value: &str, center_label: &str, aria: &str) -> String {
     let total: i64 = slices.iter().map(|s| s.value).sum();
