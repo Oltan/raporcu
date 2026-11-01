@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  *   video.fps     / ULAK_VIDEO_FPS  varsayılan 5
  *   video.crf     / ULAK_VIDEO_CRF  varsayılan 35 (büyüdükçe dosya küçülür)
  */
-final class VideoKaydi {
+public final class VideoKaydi {
 
     private final Process surec;
     private final Path dosya;
@@ -29,7 +29,7 @@ final class VideoKaydi {
         this.dosya = dosya;
     }
 
-    static VideoKaydi baslat() {
+    public static VideoKaydi baslat() {
         if (!Boolean.parseBoolean(ayar("video.enabled", "ULAK_VIDEO", "true"))) {
             return null;
         }
@@ -56,7 +56,7 @@ final class VideoKaydi {
     }
 
     /** Kaydı durdurur; sakla=true ise video baytlarını döner, değilse dosyayı siler. */
-    byte[] durdur(boolean sakla) {
+    public byte[] durdur(boolean sakla) {
         try {
             try (OutputStream girdi = surec.getOutputStream()) {
                 girdi.write('q');

@@ -47,3 +47,16 @@ RDP oturumunu `tscon <oturum> /dest:console` ile konsola geri verir; masaüstü 
 ## .cargo/config.toml, clippy.toml, rustfmt.toml
 Windows hedefi için mingw bağlayıcı ve `runner = "wine"` (Linux'ta `cargo test --target
 x86_64-pc-windows-gnu`); clippy `type-complexity-threshold = 600`; biçim ayarları.
+
+## deploy/paket-olustur.ps1, deploy/linux-derle.sh
+Çevrimdışı kurulum paketini üretir (`dist/divan-kurulum.zip`; içeriği `docs/KURULUM.md`). Windows
+ikilileri statik C çalışma zamanıyla (`+crt-static`) derlenir, yanında VC++ çalışma zamanı istemez.
+Linux ikilileri WSL'de musl hedefiyle derlenir; `musl-gcc` yoksa sudo gerektirmeyen `cargo-zigbuild`
+kullanılır. Java kaynakları `divan.destek` paketine taşınıp `ci/java-destek/pom.xml` ile jar yapılır.
+Maven deposuna iki platformun bağımlılıkları iner; depo kimliği kayıtları (`_remote.repositories`)
+silinir, yoksa başka `settings.xml` ile çevrimdışı çözümleme reddedilir.
+
+## deploy/projeye-ekle.ps1, deploy/projeye-ekle.sh
+Paketteki `test-projesi/` ve `ozel/` içeriğini test projesine kopyalar, `ULAK_OS`'u ayarlar. Var olan
+dosyayı ezmez (`-Ustune` / `ustune`). `ozel/agents/*.md` → `.opencode/agents/`, `ozel/skills/*` →
+`.claude/skills/`; `ORNEK-ajan.md` ve `ornek-skill` kopyalanmaz.

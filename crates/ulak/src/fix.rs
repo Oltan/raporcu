@@ -323,14 +323,20 @@ pub fn agent_command() -> String {
         "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill \
                      --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text"
             .into(),
-        _ => opencode_command(&env_or("ULAK_OPENCODE_AGENT", "fix")),
+        _ => opencode_command(
+            &env_or("ULAK_OPENCODE_BIN", "opencode"),
+            &env_or("ULAK_OPENCODE_AGENT", "fix"),
+            env("ULAK_OPENCODE_MODEL").as_deref(),
+        ),
     }
 }
 
 /// Ajan adı: test projesindeki .opencode/agents/<ad>.md. `--file` çok değer alır: istem ondan
-/// sonra gelirse dosya adı sanılır.
-fn opencode_command(agent: &str) -> String {
-    format!("opencode run --agent {agent} {{istem}} --file {{ekran}}")
+/// sonra gelirse dosya adı sanılır. Model (`saglayici/model`) verilirse ajandaki ve opencode.json'daki
+/// modeli ezer. Windows'ta npm yalnızca kısayol koyar; gerçek yol `ULAK_OPENCODE_BIN` ile verilir.
+fn opencode_command(bin: &str, agent: &str, model: Option<&str>) -> String {
+    let m = model.map(|m| format!(" --model {m}")).unwrap_or_default();
+    format!("{bin} run --agent {agent}{m} {{istem}} --file {{ekran}}")
 }
 
 fn subst(template: &str, prompt_file: &Path, prompt: &str, shot: Option<&Path>) -> Vec<String> {
@@ -668,11 +674,25 @@ mod tests {
 
     #[test]
     fn test_sw_7_2_command_template() {
-        let t = opencode_command("fix");
+        let t = opencode_command("opencode", "fix", None);
         let a = subst(&t, Path::new("/t/p.md"), "İSTEM", Some(Path::new("/t/e.png")));
         assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "İSTEM", "--file", "/t/e.png"]);
         let a = subst(&t, Path::new("/t/p.md"), "İSTEM", None);
         assert_eq!(a, vec!["opencode", "run", "--agent", "fix", "İSTEM"]);
+        let t = opencode_command("C:/araclar/opencode.exe", "ozel", Some("vllm/model-a"));
+        let a = subst(&t, Path::new("/t/i.md"), "İSTEM", None);
+        assert_eq!(
+            a,
+            vec![
+                "C:/araclar/opencode.exe",
+                "run",
+                "--agent",
+                "ozel",
+                "--model",
+                "vllm/model-a",
+                "İSTEM"
+            ]
+        );
         assert_eq!(slug("Şifremi unuttum bağlantısı"), "sifremi-unuttum-baglantisi");
         assert_eq!(regex_quote("Giriş (yanlış şifre) v1.2?"), "Giri. \\(yanl.. .ifre\\) v1\\.2\\?");
         assert!(regex_quote("Geçerli bilgilerle giriş").is_ascii());

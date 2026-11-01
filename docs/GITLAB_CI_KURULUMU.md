@@ -157,7 +157,9 @@ açık bir mesajla düşürür.
 | `ULAK_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
 | `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | `on`: auto-fix branch'ine push'ta da tüm e2e koşar (fix işi yine koşmaz) |
 | `ULAK_OPENCODE_AGENT` | CI değişkeni (isteğe bağlı), varsayılan `fix` | `.opencode/agents/<ad>.md` ajan adı |
-| `VLLM_BASE_URL`, `VLLM_API_KEY`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode + vLLM (SW-7.6) |
+| `ULAK_OPENCODE_MODEL` | CI değişkeni (isteğe bağlı) | `saglayici/model`; ajandaki ve `opencode.json`'daki modeli ezer |
+| `ULAK_OPENCODE_BIN` | CI değişkeni (isteğe bağlı), varsayılan `opencode` | Windows'ta gerçek `opencode.exe` yolu |
+| `VLLM_BASE_URL`, `VLLM_API_KEY`, `VLLM_MODEL`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode + vLLM (SW-7.6) |
 | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` | runner ortamı ya da CI değişkeni | Claude Code + vLLM (ağ geçidi üzerinden), `docs/KOD_AJANI_VLLM.md` |
 
 Webhook: test projesi → Settings → Webhooks → URL `http://<divan-makinesi>:8080/api/gitlab/webhook`,

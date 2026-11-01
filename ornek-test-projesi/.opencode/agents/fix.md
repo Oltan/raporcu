@@ -1,7 +1,6 @@
 ---
 description: Cucumber + TestFX test kodu hatalarını düzelten ajan (divan self-healing, ulak fix)
 mode: primary
-model: vllm/gorsel-model
 temperature: 0.1
 steps: 40
 permission:

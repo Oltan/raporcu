@@ -13,6 +13,7 @@
 | 7 | `src/test` altında en az bir senaryo | yoksa HATA |
 | 7b | `cucumber.execution.parallel.enabled=true` (properties ya da pom) | HATA (TestFX tek ekran, canlı ekran tek senaryo) |
 | 7c | `CanliOlayEklentisi` properties/java/pom içinde | yoksa UYARI (canlı ekranda adım görünmez; `docs/CANLI_EKRAN_KURULUM.md`) |
+| 7d | `ULAK_FIX` kapalı değil ve ajan OpenCode ise `.opencode/agents/<ad>.md` var, `ULAK_OZET`/`ULAK_TRIAGE` yazdırıyor, `mode: subagent` değil; `.claude/skills` ve `.opencode/skills` altında her klasörde `name` klasör adıyla aynı, `description` dolu | bozuksa UYARI |
 | 8 | `features.txt`: ayrıştırılamazsa HATA; ifadedeki her tag en az bir senaryoda olmalı (yoksa HATA); hiç senaryo seçmiyorsa HATA; dosya yoksa UYARI | |
 
 Çıktı satırları: `ön kontrol: TAMAM|UYARI|HATA  …`, sonda geçti ya da "N hata ile düştü; testler

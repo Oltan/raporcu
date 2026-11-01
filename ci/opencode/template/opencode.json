@@ -9,15 +9,15 @@
         "apiKey": "{env:VLLM_API_KEY}"
       },
       "models": {
-        "gorsel-model": {
-          "name": "vLLM görsel destekli model",
+        "{env:VLLM_MODEL}": {
+          "name": "Şirket modeli",
           "attachment": true,
           "limit": { "context": 32768, "output": 4096 }
         }
       }
     }
   },
-  "model": "vllm/gorsel-model",
+  "model": "vllm/{env:VLLM_MODEL}",
   "mcp": {
     "testfx": {
       "type": "local",

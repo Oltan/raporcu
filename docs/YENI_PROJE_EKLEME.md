@@ -1,7 +1,7 @@
 # Yeni test projesi ekleme (SW-10.4)
 
-Bir Cucumber + TestFX (JavaFX) test projesini divan'a bağlamak için. Hazır örnek:
-`ornek-test-projesi/`. Küçük bir yerel modelle adım adım yapılacaksa:
+Bir Cucumber + TestFX (JavaFX) test projesini divan'a bağlamak için. Hazır derlenmiş paketle
+kurulum: `docs/KURULUM.md`. Hazır örnek: `ornek-test-projesi/`. Küçük bir yerel modelle adım adım yapılacaksa:
 `docs/LLM_JAVA_ENTEGRASYON.md`.
 
 **1. Allure adaptörü (`pom.xml`)** — `ornek-test-projesi/pom.xml` içinden kopyalayın:

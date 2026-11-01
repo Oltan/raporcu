@@ -20,7 +20,7 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       dizesi ve ```` ``` ```` etkisizleştirilir (SW-9.4).
    4. **Ajan komutu** (`agent_command`): `ULAK_FIX_CMD` / `ULAK_OPENCODE_CMD`, yoksa
       `ULAK_FIX_AGENT`'a göre:
-      - `opencode`: `opencode run --agent <ULAK_OPENCODE_AGENT, fix> {istem} --file {ekran}`
+      - `opencode`: `<ULAK_OPENCODE_BIN, opencode> run --agent <ULAK_OPENCODE_AGENT, fix> [--model <ULAK_OPENCODE_MODEL>] {istem} --file {ekran}`
       - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
       ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn).

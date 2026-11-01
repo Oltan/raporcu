@@ -9,8 +9,9 @@
 //! 6. `features.txt` tag'leri geçerli ve en az bir senaryoda kullanılıyor
 //! 7. Cucumber paralel koşumu kapalı (TestFX tek ekran; canlı ekran tek senaryo varsayar) — hata
 //! 8. Canlı olay eklentisi (`CanliOlayEklentisi`) ekli — yoksa uyarı (canlı ekranda adım görünmez)
+//! 9. Self-healing açıksa OpenCode ajanı ve skill'ler `ulak fix` sözleşmesine uyuyor — uyarı
 
-use crate::ctx::say;
+use crate::ctx::{env, env_or, say};
 use crate::gherkin;
 use std::path::Path;
 
@@ -62,6 +63,75 @@ fn grep_lines(dir: &Path, exts: &[&str], f: &dyn Fn(&str) -> bool) -> bool {
         }
     }
     false
+}
+
+/// Skill: klasör adıyla aynı `name`, dolu `description` (OpenCode ve Claude Code aynı kuralı ister).
+fn skill_sorunu(ad: &str, metin: &str) -> Option<String> {
+    let alan = |k: &str| {
+        metin
+            .lines()
+            .take_while(|l| !l.is_empty() || l.starts_with('-'))
+            .find_map(|l| l.strip_prefix(k).and_then(|x| x.strip_prefix(':')))
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+    };
+    let uygun = !ad.is_empty()
+        && ad
+            .split('-')
+            .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+    if !uygun {
+        return Some(format!("skill klasörü `{ad}`: yalnızca küçük harf, rakam ve tek tire olmalı"));
+    }
+    if !metin.starts_with("---") {
+        return Some(format!("skill `{ad}`: SKILL.md `---` ile başlayan name/description başlığı ister"));
+    }
+    if alan("name").as_deref() != Some(ad) {
+        return Some(format!("skill `{ad}`: `name` klasör adıyla aynı olmalı"));
+    }
+    if alan("description").is_none() {
+        return Some(format!("skill `{ad}`: `description` boş; ajan skill'i buna bakarak seçer"));
+    }
+    None
+}
+
+/// Ajan dosyası ve skill'ler bozuksa `ulak fix` gece sessizce işe yaramaz; burada söylenir.
+fn kod_ajani_kontrol(project: &Path, ajan: &str, r: &mut Report) {
+    let yol = project.join(".opencode").join("agents").join(format!("{ajan}.md"));
+    match std::fs::read_to_string(&yol) {
+        Err(_) => r.warnings.push(format!(
+            "OpenCode ajanı yok: .opencode/agents/{ajan}.md. Self-healing kullanılmayacaksa ULAK_FIX=off yapın."
+        )),
+        Ok(s) => {
+            if !s.contains("ULAK_TRIAGE") || !s.contains("ULAK_OZET") {
+                r.warnings.push(format!(
+                    ".opencode/agents/{ajan}.md son satırlarda ULAK_OZET ve ULAK_TRIAGE yazdırmalı; yoksa divan ajanın kararını göremez"
+                ));
+            }
+            if s.lines().any(|l| l.replace(' ', "") == "mode:subagent") {
+                r.warnings.push(format!(
+                    ".opencode/agents/{ajan}.md `mode: subagent` olamaz; `opencode run --agent` için primary olmalı"
+                ));
+            }
+            r.ok.push(format!("OpenCode ajanı: {ajan}"));
+        }
+    }
+    let mut adet = 0;
+    for kok in [".claude", ".opencode"] {
+        let Ok(rd) = std::fs::read_dir(project.join(kok).join("skills")) else {
+            continue;
+        };
+        for e in rd.flatten().filter(|e| e.path().is_dir()) {
+            let ad = e.file_name().to_string_lossy().to_string();
+            adet += 1;
+            match std::fs::read_to_string(e.path().join("SKILL.md")) {
+                Err(_) => r.warnings.push(format!("skill `{ad}`: SKILL.md yok")),
+                Ok(s) => r.warnings.extend(skill_sorunu(&ad, &s.replace("\r\n", "\n"))),
+            }
+        }
+    }
+    if adet > 0 {
+        r.ok.push(format!("{adet} skill bulundu"));
+    }
 }
 
 pub fn check(project: &Path) -> Report {
@@ -171,6 +241,9 @@ pub fn check(project: &Path) -> Report {
             }
         }
     }
+    if env("ULAK_FIX").as_deref() != Some("off") && env_or("ULAK_FIX_AGENT", "opencode") == "opencode" {
+        kod_ajani_kontrol(project, &env_or("ULAK_OPENCODE_AGENT", "fix"), &mut r);
+    }
     r
 }
 
@@ -197,6 +270,33 @@ pub fn run(project: &Path) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_7_2_ajan_ve_skill_sozlesmesi_denetlenir() {
+        let t = tempfile::tempdir().unwrap();
+        let p = t.path();
+        let mut r = Report::default();
+        kod_ajani_kontrol(p, "ozel", &mut r);
+        assert!(r.warnings.iter().any(|w| w.contains("agents/ozel.md")));
+
+        std::fs::create_dir_all(p.join(".opencode/agents")).unwrap();
+        std::fs::write(p.join(".opencode/agents/ozel.md"), "---\nmode: subagent\n---\nDüzelt.\n").unwrap();
+        for (ad, metin) in [
+            ("iyi-skill", "---\nname: iyi-skill\ndescription: Seçici hatalarında yükle.\n---\n"),
+            ("yanlis-ad", "---\nname: baska\ndescription: x\n---\n"),
+            ("bos-aciklama", "---\nname: bos-aciklama\ndescription:\n---\n"),
+            ("Buyuk_Harf", "---\nname: Buyuk_Harf\ndescription: x\n---\n"),
+        ] {
+            std::fs::create_dir_all(p.join(".claude/skills").join(ad)).unwrap();
+            std::fs::write(p.join(".claude/skills").join(ad).join("SKILL.md"), metin).unwrap();
+        }
+        let mut r = Report::default();
+        kod_ajani_kontrol(p, "ozel", &mut r);
+        let w = r.warnings.join("\n");
+        assert!(w.contains("ULAK_TRIAGE") && w.contains("subagent"));
+        assert!(w.contains("`yanlis-ad`") && w.contains("`bos-aciklama`") && w.contains("`Buyuk_Harf`"));
+        assert!(!w.contains("iyi-skill"));
+    }
 
     fn copy_dir(src: &Path, dst: &Path) {
         std::fs::create_dir_all(dst).unwrap();

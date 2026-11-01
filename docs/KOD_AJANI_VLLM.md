@@ -13,8 +13,8 @@ Komutun tamamı `ULAK_FIX_CMD` ile değiştirilebilir. Yer tutucular: `{istem}` 
 
 OpenCode'da `--file` çok değer alır: `{istem}` ondan önce gelmelidir, yoksa istem dosya adı sanılır
 (`Error: File not found`). Windows'ta npm kurulumu yalnızca kısayol koyar; `ULAK_FIX_CMD` içinde
-gerçek `opencode.exe` yolu verilir. Görsel desteklemeyen modelde `--file {ekran}` kaldırılır;
-ekran görüntüsünün yolu zaten istemde yazar.
+gerçek `opencode.exe` yolu verilir (ya da `ULAK_OPENCODE_BIN`). Görsel desteklemeyen modelde
+`--file {ekran}` kaldırılır; ekran görüntüsünün yolu zaten istemde yazar.
 
 ## OpenCode nasıl çağrılır
 
@@ -80,7 +80,6 @@ Test projesinde **`.opencode/agents/fix.md`** (OpenCode'un güncel yolu `agents/
 ---
 description: Cucumber + TestFX test kodu hatalarını düzelten ajan (divan self-healing, ulak fix)
 mode: primary
-model: vllm/gorsel-model
 temperature: 0.1
 steps: 40
 permission:
@@ -95,7 +94,10 @@ permission:
 
 - `permission` alanları `ask` olmamalı: `opencode run` etkileşimsizdir, soru soracak kimse yok.
 - `bash: deny`: ajan komut çalıştıramaz; doğrulama koşusunu ulak kendisi yapar.
-- Model `opencode.json`'daki sağlayıcıdan (`vllm/gorsel-model`) gelir.
+- Şablonda `model:` satırı yoktur: model `opencode.json`'dan, o da `VLLM_MODEL` değişkeninden gelir.
+  Ajanın kendi modeli olacaksa `model: vllm/<ad>` eklenebilir; `ULAK_OPENCODE_MODEL` yine onu ezer.
+- `ulak preflight`, self-healing açıksa ajan dosyasını ve skill başlıklarını denetler, sorunları
+  uyarı olarak yazar.
 
 ## Skill'ler
 
@@ -171,15 +173,16 @@ vLLM OpenAI uyumlu API sunar (`/v1/chat/completions`); OpenCode buna doğrudan b
   "vllm": {
     "npm": "@ai-sdk/openai-compatible",
     "options": { "baseURL": "{env:VLLM_BASE_URL}", "apiKey": "{env:VLLM_API_KEY}" },
-    "models": { "gorsel-model": { "attachment": true } }
+    "models": { "{env:VLLM_MODEL}": { "attachment": true } }
   }
 },
-"model": "vllm/gorsel-model"
+"model": "vllm/{env:VLLM_MODEL}"
 ```
 
 Runner ortamında: `VLLM_BASE_URL=http://vllm.sirket.local:8000/v1`, `VLLM_API_KEY`,
-`TESTFX_MCP_JAR` (TestFX MCP sunucusu varsa). `gorsel-model` adını vLLM'deki
-`--served-model-name` ile aynı yapın.
+`VLLM_MODEL` (vLLM'deki `--served-model-name` ile aynı), `TESTFX_MCP_JAR` (TestFX MCP sunucusu
+varsa). OpenAI uyumlu her sunucu aynı biçimde bağlanır. Dosyayı değiştirmeden başka bir modele
+geçmek için `ULAK_OPENCODE_MODEL=<saglayici>/<model>`; model o sağlayıcıda tanımlı olmalıdır.
 
 ## Claude Code + vLLM
 
