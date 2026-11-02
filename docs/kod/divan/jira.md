@@ -4,6 +4,7 @@
 
 ## İstemci (`Jira::from_config`; URL, token, proje yoksa yok)
 - Kimlik: `JIRA_USER` varsa **Basic** (`kullanıcı:token` base64), yoksa **Bearer** (PAT).
+- Bağlantı: `gitlab::agent()` (şirket CA'sı dahil); bağlantı hatası sertifikadansa mesaja `tls::hint` eklenir.
 - `create_bug(NewBug)`: `POST /rest/api/2/issue` (`project`, `issuetype`, `summary` ≤250,
   `description`, `labels`). **400 ve hata `labels` alanındaysa** label'sız tekrar dener (WARN).
   Başarısızsa hata metni gizli değerlerden temizlenir.

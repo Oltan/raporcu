@@ -2,14 +2,14 @@
 //!
 //! Şirket içi GitLab/Jira sertifikaları çoğunlukla şirketin kendi CA'sıyla imzalıdır. Varsayılan
 //! olarak işletim sisteminin sertifika deposu kullanılır (Windows: sertifika deposu, GPO ile dağıtılan
-//! CA'lar dahil; Linux: /etc/ssl/certs). Sistem deposuna eklenemiyorsa CA'nın PEM dosyası bir ortam
-//! değişkeniyle verilir; o zaman yalnızca o dosyadaki CA'lara güvenilir. Doğrulama kapatılamaz.
+//! CA'lar dahil; Linux: /etc/ssl/certs). Sistem deposuna eklenemiyorsa CA dosyası ya da klasörü bir
+//! ortam değişkeniyle verilir; o zaman yalnızca oradaki CA'lara güvenilir. Doğrulama kapatılamaz.
 
 use std::sync::Arc;
 use ureq::tls::{Certificate, PemItem, RootCerts, TlsConfig};
 
-/// `ca_envs` içinde ilk dolu ortam değişkeninin gösterdiği PEM dosyasındaki CA'lar, hiçbiri yoksa
-/// sistem deposu. Dosya okunamaz ya da içinde sertifika yoksa açıklayıcı hata döner.
+/// `ca_envs` içinde ilk dolu ortam değişkeninin gösterdiği dosya ya da klasördeki CA'lar, hiçbiri yoksa
+/// sistem deposu. Okunamaz ya da içinde sertifika yoksa açıklayıcı hata döner.
 pub fn config(ca_envs: &[&str]) -> Result<TlsConfig, String> {
     let roots = match ca_file(ca_envs) {
         Some((name, path)) => RootCerts::Specific(Arc::new(load_pem(&path).map_err(|e| format!("{name}={path}: {e}"))?)),
@@ -135,7 +135,7 @@ pub fn hint(err: &str, ca_env: &str) -> String {
     if e.contains("certificate") || e.contains("unknownissuer") || e.contains("cert") {
         format!(
             " — Sunucunun HTTPS sertifikası tanınmadı (şirket CA'sı). Şirket kök sertifikasını işletim sisteminin \
-             sertifika deposuna ekleyin ya da PEM dosyasını {ca_env} ortam değişkeniyle verin."
+             sertifika deposuna ekleyin ya da sertifika dosyasını / klasörünü {ca_env} ortam değişkeniyle verin."
         )
     } else {
         String::new()

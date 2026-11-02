@@ -6,7 +6,7 @@ listesi onları tanımaz (`invalid peer certificate: UnknownIssuer`).
 
 | Fonksiyon | Davranış |
 |-----------|----------|
-| `config(ca_envs)` | listedeki ilk dolu ortam değişkeninin gösterdiği PEM dosyasındaki CA'lar (`RootCerts::Specific`), hiçbiri yoksa işletim sisteminin deposu (`RootCerts::PlatformVerifier`, ureq `platform-verifier` özelliği: Windows CryptoAPI / Linux sistem sertifikaları). Dosya okunamazsa ya da sertifika yoksa hata |
+| `config(ca_envs)` | listedeki ilk dolu ortam değişkeninin gösterdiği dosya ya da klasördeki CA'lar (`RootCerts::Specific`), hiçbiri yoksa işletim sisteminin deposu (`RootCerts::PlatformVerifier`, ureq `platform-verifier` özelliği: Windows CryptoAPI / Linux sistem sertifikaları). Dosya okunamazsa ya da sertifika yoksa hata |
 | `config_or_platform(ca_envs)` | hata olursa sistem deposuyla devam eder, hatayı döndürür (çağıran loglar) |
 | `ca_file(ca_envs)` | ilk dolu değişken ve dosya yolu (git'e `http.sslCAInfo` vermek için) |
 | `load_pem(yol)` | dosya ya da klasör. Dosya: uzantıdan bağımsız, PEM metni (birden çok sertifika) ya da tek ikili DER sertifika (`0x30 0x82` + uzunluk dosya boyuna eşit). Klasör: içindeki dosyalar ada göre, sertifika olmayanlar atlanır, alt klasörlere inilmez |

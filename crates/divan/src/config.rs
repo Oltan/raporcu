@@ -240,6 +240,20 @@ pub fn redact(text: &str, secrets: &[String]) -> String {
 mod tests {
     use super::*;
 
+    /// dotenvy tırnaksız `\` karakterini kaçış sayar; `C:\divan` satırı hata verir ve `.env`'in
+    /// geri kalanı sessizce yüklenmez. Örnekteki Windows yolu olduğu gibi açılabilmeli.
+    #[test]
+    fn test_sw_10_5_windows_ca_path_example_parses() {
+        let value = include_str!("../../../.env.example")
+            .lines()
+            .find_map(|l| l.strip_prefix("# DIVAN_CA_DOSYASI="))
+            .expect(".env.example içinde DIVAN_CA_DOSYASI örneği");
+        let env = format!("DIVAN_CA_DOSYASI={value}\nSONRAKI=1\n");
+        let parsed: Vec<(String, String)> = dotenvy::from_read_iter(env.as_bytes()).map(|r| r.unwrap()).collect();
+        assert_eq!(parsed[0].1, r"C:\divan\sirket-ca.cert");
+        assert_eq!(parsed[1].0, "SONRAKI");
+    }
+
     #[test]
     fn test_sw_9_2_secret_debug_and_redact() {
         let mut cfg = Config::for_tests("/tmp/x");

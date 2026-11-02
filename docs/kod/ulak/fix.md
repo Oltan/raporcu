@@ -23,7 +23,8 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       - `opencode`: `<ULAK_OPENCODE_BIN, opencode> run --agent <ULAK_OPENCODE_AGENT, fix> [--model <ULAK_OPENCODE_MODEL>] {istem} --file {ekran}`
       - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
-      ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn).
+      ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn). Şirket CA'sı
+      tanımlıysa ajana `NODE_EXTRA_CA_CERTS=.ulak/sirket-ca.pem` verilir (kullanıcı tanımlamadıysa).
    5. Çıktı tokenlar maskelenerek `.ulak/fix/<senaryo>-ajan.log` dosyasına yazılır; ajan başarısızsa
       son 15 satır işin loguna da düşer. Son satırlardan `ULAK_OZET:` ve `ULAK_TRIAGE: {json}` alınır;
       ajan istemi tekrar basarsa şablon satırları (`<...>`, `test_kodu|urun`) sonuç sayılmaz.
@@ -41,11 +42,14 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
       olmayan harfler `.` olur (Cucumber tam eşleşme yapar; POSIX dil ayarında Java Türkçe argümanı bozar). Geçti mi.
    9. Commit (`ulak-opencode` adına), push: `ULAK_PUSH_REMOTE` ya da
       `<CI_SERVER_URL şeması>://oauth2:<ULAK_FIX_TOKEN>@<host>/<CI_PROJECT_PATH>.git` (`-f`,
-      `HEAD:refs/heads/<branch>`). Push hatasında token mesajdan silinir.
+      `HEAD:refs/heads/<branch>`). Push hatasında token mesajdan silinir, sertifika hatasına ipucu
+      eklenir. Şirket CA'sı tanımlıysa git'e `http.sslCAInfo=.ulak/sirket-ca.pem` verilir.
    10. MR: `POST <ULAK_GITLAB_API|CI_API_V4_URL>/projects/<CI_PROJECT_ID>/merge_requests`
        (`PRIVATE-TOKEN: ULAK_FIX_TOKEN`), başlık doğrulama geçmediyse `Draft: ` önekli;
        açıklama: senaryo, **rapor linki** (SW-5.4), doğrulama, özet, uyarılar; `remove_source_branch`.
-       Sonuç `mr_opened` / `draft_mr` (MR açılamazsa `error`).
+       Sonuç `mr_opened` / `draft_mr` (MR açılamazsa `error`). İstemci `https_agent`: CA ayarı
+       `CA_ENVS` (`ULAK_CA_DOSYASI` → `DIVAN_CA_DOSYASI` → `CI_SERVER_TLS_CA_FILE`), yoksa sistem
+       deposu (`common/tls.md`).
    11. `POST fix-result` (FixResult: diff, uyarılar, triage önerisi), temel branch'e dönüş.
 
 ## Testler

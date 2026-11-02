@@ -12,7 +12,9 @@
   başlık `PRIVATE-TOKEN`, gövde `{ref, variables:[ULAK_FIX_ONLY=true, ULAK_RUN_ID=<koşum>]}`. CI
   şablonunda bu değişkenle yalnızca fix işi koşar. Hata metinleri gizli değerlerden temizlenir
   (SW-9.2), WARN log.
-- `agent()`: HTTP istemcisi, 30 sn zaman aşımı, sistem proxy'si + NO_PROXY.
+- `agent()`: HTTP istemcisi (Jira da kullanır), 30 sn zaman aşımı, sistem proxy'si + NO_PROXY.
+  Sertifikalar `CA_ENV = DIVAN_CA_DOSYASI` ya da sistem deposu (`common/tls.md`); CA dosyası okunamazsa
+  hata loglanıp sistem deposuna düşülür. Bağlantı hatası sertifikadansa mesaja `tls::hint` eklenir.
 
 ## Testler
 `tests/entegrasyon.rs`: 3.6, 7.4, 7.5, 9.2.

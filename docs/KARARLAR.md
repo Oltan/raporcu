@@ -99,5 +99,6 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   zaten doğruladı); fix işi auto-fix branch'inde hiç koşmaz; açık MR'ı olan senaryo yeniden denenmez.
   `workflow:` kuralı yerine iş kuralları kullanıldı: test projesinin kendi işleri etkilenmesin.
 - **Şirket CA'sı:** dış HTTPS (GitLab, Jira) işletim sisteminin sertifika deposuyla doğrulanır;
-  sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (PEM), ulak ayrıca runner'ın
-  `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı kapatma seçeneği bilerek yok.
+  sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da klasör; PEM ya da
+  DER), ulak ayrıca `DIVAN_CA_DOSYASI`'yı ve runner'ın `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı
+  kapatma seçeneği bilerek yok.
