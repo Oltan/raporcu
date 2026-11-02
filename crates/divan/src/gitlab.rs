@@ -70,7 +70,7 @@ pub fn apply_mr_event(c: &Connection, v: &Value) -> Result<usize> {
     Ok(n)
 }
 
-/// GitLab ve Jira için HTTPS istemcisi: sistem sertifika deposu ya da `DIVAN_CA_DOSYASI` (PEM).
+/// GitLab ve Jira için HTTPS istemcisi: sistem sertifika deposu ya da `DIVAN_CA_DOSYASI` (sertifika dosyası ya da klasörü).
 pub const CA_ENV: &str = "DIVAN_CA_DOSYASI";
 
 pub fn agent() -> ureq::Agent {

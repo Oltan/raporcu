@@ -69,6 +69,13 @@ Düğmeler admin girişi ister. Sonuç birkaç dakika içinde senaryo ve koşum 
   GitLab webhook'u kapanınca/birleşince günceller) aday olmaz, ulak "atlandı (hedef: acik-mr)" der.
   MR birleşince ertesi gece normal koşumda düzeltme sınanır.
 
+### Şirket sertifikalı HTTPS (vLLM, ağ geçidi)
+
+OpenCode ve Claude Code Node/Bun ile çalışır; şirket CA'sını `NODE_EXTRA_CA_CERTS` ile görür. ulak, fix
+işinde ajanı başlatırken `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da klasör) tanımlıysa
+sertifikaları tek PEM'e birleştirip bu değişkeni kendisi verir. Ajanı elle (CI dışında) çalıştırırken
+`NODE_EXTRA_CA_CERTS=<pem dosyası>` verin.
+
 ## Ajan tanımı (OpenCode)
 
 Test projesinde **`.opencode/agents/fix.md`** (OpenCode'un güncel yolu `agents/`; şablon:

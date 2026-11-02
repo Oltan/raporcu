@@ -36,8 +36,40 @@ pub fn config_or_platform(ca_envs: &[&str]) -> (TlsConfig, Option<String>) {
 /// CA dosyasını okur. Uzantı önemsiz (.pem, .crt, .cer, .cert): içerik PEM metni
 /// (`-----BEGIN CERTIFICATE-----`, birden çok olabilir) ya da tek bir ikili DER sertifika olabilir.
 pub fn load_pem(path: &str) -> Result<Vec<Certificate<'static>>, String> {
+    let p = std::path::Path::new(path);
+    if p.is_dir() {
+        return load_dir(p);
+    }
     let data = std::fs::read(path).map_err(|e| format!("CA dosyası okunamadı: {e}"))?;
-    let certs: Vec<Certificate<'static>> = ureq::tls::parse_pem(&data)
+    parse_certs(&data)
+}
+
+/// Klasördeki bütün sertifika dosyaları (alt klasörlere inilmez). Sertifika olmayan dosyalar atlanır;
+/// hiç sertifika yoksa hata. Kök ve ara sertifikalar ayrı dosyalarda durabilir.
+fn load_dir(dir: &std::path::Path) -> Result<Vec<Certificate<'static>>, String> {
+    let mut files: Vec<_> = std::fs::read_dir(dir)
+        .map_err(|e| format!("CA klasörü okunamadı: {e}"))?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .collect();
+    files.sort();
+    let mut certs = Vec::new();
+    for f in files {
+        if let Ok(data) = std::fs::read(&f) {
+            if let Ok(mut c) = parse_certs(&data) {
+                certs.append(&mut c);
+            }
+        }
+    }
+    if certs.is_empty() {
+        return Err("klasörde sertifika dosyası bulunamadı (.pem/.crt/.cer/.cert, PEM ya da DER)".into());
+    }
+    Ok(certs)
+}
+
+fn parse_certs(data: &[u8]) -> Result<Vec<Certificate<'static>>, String> {
+    let certs: Vec<Certificate<'static>> = ureq::tls::parse_pem(data)
         .filter_map(|i| match i {
             Ok(PemItem::Certificate(c)) => Some(c),
             _ => None,
@@ -47,8 +79,8 @@ pub fn load_pem(path: &str) -> Result<Vec<Certificate<'static>>, String> {
         return Ok(certs);
     }
     // ikili DER: X.509 sertifikası bir ASN.1 SEQUENCE ile (0x30) başlar
-    if is_der(&data) {
-        return Ok(vec![Certificate::from_der(&data).to_owned()]);
+    if is_der(data) {
+        return Ok(vec![Certificate::from_der(data).to_owned()]);
     }
     Err("dosyada sertifika bulunamadı: ne PEM metni (-----BEGIN CERTIFICATE-----) ne de ikili DER sertifika".into())
 }
@@ -61,20 +93,20 @@ fn is_der(data: &[u8]) -> bool {
     }
 }
 
-/// git `http.sslCAInfo` yalnızca PEM okur: dosya DER ise PEM'e çevrilmiş halini `dir` altına yazıp
-/// onun yolunu, PEM ise dosyanın kendisini döndürür.
-pub fn pem_path_for_git(path: &str, dir: &std::path::Path) -> Result<String, String> {
-    let data = std::fs::read(path).map_err(|e| format!("CA dosyası okunamadı: {e}"))?;
-    if !is_der(&data) {
-        return Ok(path.to_string());
+/// Git (`http.sslCAInfo`) ve Node/Bun tabanlı araçlar (OpenCode, Claude Code: `NODE_EXTRA_CA_CERTS`)
+/// yalnızca tek bir PEM dosyası okur. Dosya, DER ya da klasör ne verilmişse bütün sertifikalar tek PEM
+/// olarak `dir/sirket-ca.pem`'e yazılır ve yolu döner.
+pub fn combined_pem(path: &str, dir: &std::path::Path) -> Result<String, String> {
+    let certs = load_pem(path)?;
+    let mut pem = String::new();
+    for c in &certs {
+        pem.push_str("-----BEGIN CERTIFICATE-----\n");
+        for chunk in base64(c.der()).as_bytes().chunks(64) {
+            pem.push_str(std::str::from_utf8(chunk).unwrap_or_default());
+            pem.push('\n');
+        }
+        pem.push_str("-----END CERTIFICATE-----\n");
     }
-    let mut pem = String::from("-----BEGIN CERTIFICATE-----\n");
-    let b64 = base64(&data);
-    for chunk in b64.as_bytes().chunks(64) {
-        pem.push_str(std::str::from_utf8(chunk).unwrap_or_default());
-        pem.push('\n');
-    }
-    pem.push_str("-----END CERTIFICATE-----\n");
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let out = dir.join("sirket-ca.pem");
     std::fs::write(&out, pem).map_err(|e| e.to_string())?;
@@ -126,7 +158,7 @@ mod tests {
         let certs = load_pem(f.to_str().unwrap()).unwrap();
         assert_eq!(certs.len(), 1);
         assert_eq!(certs[0].der(), &der[..]);
-        let git = pem_path_for_git(f.to_str().unwrap(), &dir).unwrap();
+        let git = combined_pem(f.to_str().unwrap(), &dir).unwrap();
         let text = std::fs::read_to_string(&git).unwrap();
         assert!(text.starts_with("-----BEGIN CERTIFICATE-----\nMIIBAAEB"), "{text}");
         assert!(text.lines().all(|l| l.len() <= 64));
@@ -146,13 +178,18 @@ mod tests {
         let der_file = dir.join("ca.cert");
         std::fs::write(&der_file, &der).unwrap();
         assert_eq!(load_pem(der_file.to_str().unwrap()).unwrap()[0].der(), &der[..], "DER .cert okunur");
-        // PEM .cert olduğu gibi kullanılır, DER .cert PEM'e çevrilir ve OpenSSL çıktısıyla aynıdır
-        assert_eq!(
-            pem_path_for_git(pem_file.to_str().unwrap(), &dir).unwrap(),
-            pem_file.to_str().unwrap()
-        );
-        let git = pem_path_for_git(der_file.to_str().unwrap(), &dir).unwrap();
-        assert_eq!(std::fs::read_to_string(git).unwrap(), TEST_CA);
+        // DER .cert tek PEM'e çevrilir ve OpenSSL çıktısıyla aynıdır
+        let out = dir.join("cikti");
+        let git = combined_pem(der_file.to_str().unwrap(), &out).unwrap();
+        assert_eq!(std::fs::read_to_string(&git).unwrap(), TEST_CA);
+        // klasör: içindeki bütün sertifikalar (PEM + DER), sertifika olmayan dosya atlanır
+        std::fs::write(dir.join("not.txt"), "sertifika değil").unwrap();
+        assert_eq!(load_pem(dir.to_str().unwrap()).unwrap().len(), 2);
+        let both = std::fs::read_to_string(combined_pem(dir.to_str().unwrap(), &out).unwrap()).unwrap();
+        assert_eq!(both, format!("{TEST_CA}{TEST_CA}"));
+        let bos = dir.join("bos");
+        std::fs::create_dir_all(&bos).unwrap();
+        assert!(load_pem(bos.to_str().unwrap()).unwrap_err().contains("klasörde"));
         std::fs::remove_dir_all(&dir).ok();
     }
 

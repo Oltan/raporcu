@@ -332,7 +332,7 @@ yeni `ulak`'ı sonraki koşumda sunucudan indirir. Sunucu ve `ulak` sürümleri 
 
 | Görülen | Sebep | Çözüm |
 |---------|-------|-------|
-| `GitLab'a ulaşılamadı` / `Jira'ya ulaşılamadı: ... invalid peer certificate: UnknownIssuer` | GitLab/Jira'nın HTTPS sertifikası şirket CA'sıyla imzalı, divan/ulak bu CA'yı tanımıyor (yetki sorunu değil; yetki olsaydı 401/403 gelirdi) | Şirket kök sertifikasını sistem deposuna ekleyin (Windows: `certlm.msc` → Güvenilen Kök Sertifika Yetkilileri; Ubuntu: `.crt` dosyasını `/usr/local/share/ca-certificates/` altına koyup `sudo update-ca-certificates`) ya da sertifika dosyasını (`.pem`/`.crt`/`.cer`/`.cert`, PEM ya da DER) verin: divan için `.env`'de `DIVAN_CA_DOSYASI`, ulak için CI değişkeni `ULAK_CA_DOSYASI`. Aşağıdaki nota bakın |
+| `GitLab'a ulaşılamadı` / `Jira'ya ulaşılamadı: ... invalid peer certificate: UnknownIssuer` | GitLab/Jira'nın HTTPS sertifikası şirket CA'sıyla imzalı, divan/ulak bu CA'yı tanımıyor (yetki sorunu değil; yetki olsaydı 401/403 gelirdi) | Şirket kök sertifikasını sistem deposuna ekleyin (Windows: `certlm.msc` → Güvenilen Kök Sertifika Yetkilileri; Ubuntu: `.crt` dosyasını `/usr/local/share/ca-certificates/` altına koyup `sudo update-ca-certificates`) ya da makinede bir kez `DIVAN_CA_DOSYASI` sistem ortam değişkenini sertifika dosyasına ya da klasörüne ayarlayın (divan: GitLab + Jira; ulak: MR, git push, OpenCode). Aşağıdaki nota bakın |
 | `Cannot access central ... in offline mode` | Kütüphane depoda yok | Bölüm 3, önemli sınır |
 | `mvn.cmd: program not found` | Runner Maven'ı görmüyor | PATH'i düzeltip runner'ı yeniden başlatın |
 | `masaüstü oturumunda değil` | Runner Windows hizmeti | Runner'ı masaüstünde başlatın |
@@ -350,19 +350,31 @@ daha ayrıntılı sunucu kurulumu için `sunucu/GITLAB_CI_KURULUMU.md`.
 
 ### Şirket CA'sı (HTTPS sertifikası) notu
 
-divan (GitLab düğmesi, Jira) ve ulak (fix işinde MR açma, auto-fix push) GitLab ve Jira'ya bağlanırken
-sertifikayı şu sırayla doğrular:
+GitLab, Jira ya da vLLM şirket CA'sıyla imzalı HTTPS kullanıyorsa (`invalid peer certificate: UnknownIssuer`)
+iki yoldan biri yeterli:
 
-| Kim | Sıra |
-|-----|------|
-| divan | `DIVAN_CA_DOSYASI` (PEM) → işletim sisteminin sertifika deposu |
-| ulak | `ULAK_CA_DOSYASI` (PEM) → `CI_SERVER_TLS_CA_FILE` (GitLab runner'ın güvendiği zincir, runner `tls-ca-file` ile ayarlıysa kendiliğinden gelir) → sistem deposu |
+1. **Şirket kök (ve ara) sertifikasını işletim sisteminin deposuna ekleyin** (Windows: `certlm.msc` →
+   Güvenilen Kök Sertifika Yetkilileri; Ubuntu: `.crt` olarak `/usr/local/share/ca-certificates/` +
+   `sudo update-ca-certificates`). divan ve ulak sistem deposunu kendiliğinden kullanır.
+2. **Tek ortam değişkeni: `DIVAN_CA_DOSYASI`** — makinede bir kez *sistem* ortam değişkeni olarak
+   tanımlayın (Windows: Sistem Özellikleri → Ortam Değişkenleri → Sistem değişkenleri; sonra divan'ı ve
+   runner'ı yeniden başlatın). Değer bir **dosya ya da klasör** olabilir:
+   - dosya: `.pem`, `.crt`, `.cer`, `.cert`; metin (PEM, birden çok sertifika art arda) ya da ikili (DER);
+   - klasör: içindeki bütün sertifika dosyaları okunur (kök ve ara sertifika ayrı dosyalarda olabilir;
+     sertifika olmayan dosyalar atlanır, alt klasörlere inilmez).
 
-- Dosya uzantısı önemsiz (`.pem`, `.crt`, `.cer`, `.cert`). İçerik metin (PEM, `-----BEGIN CERTIFICATE-----`;
-  kök ve ara sertifikalar art arda olabilir) ya da tek bir ikili (DER) sertifika olabilir; ikisi de okunur.
-  Dosya verilince **yalnızca** o dosyadaki CA'lara güvenilir: ara sertifika varsa PEM'de kök ile birlikte koyun.
-- ulak'ın `git push`'una da aynı dosya `http.sslCAInfo` olarak verilir.
+| Bağlantı | Kim | Ayar |
+|----------|-----|------|
+| GitLab ("OpenCode ile düzelt" düğmesi) | divan | `DIVAN_CA_DOSYASI` → sistem deposu |
+| Jira (bug açma, eşleşme, alanlar) | divan | aynı |
+| GitLab API (fix işinde MR) | ulak | `ULAK_CA_DOSYASI` → `DIVAN_CA_DOSYASI` → `CI_SERVER_TLS_CA_FILE` (runner'ın güvendiği zincir) → sistem deposu |
+| `git push` (auto-fix branch'i) | ulak → git | aynı sertifikalar tek PEM'e birleştirilip `http.sslCAInfo` olarak |
+| vLLM / ağ geçidi (OpenCode, Claude Code) | ulak → ajan | aynı tek PEM `NODE_EXTRA_CA_CERTS` olarak (siz ayrıca tanımladıysanız dokunulmaz) |
+
+- Birleşik PEM test projesinin `.ulak/sirket-ca.pem` dosyasına yazılır (git'e gitmez, `.gitignore`'da).
+- Dosya/klasör verilince divan ve ulak'ın kendi bağlantılarında **yalnızca** o sertifikalara güvenilir.
 - Linux'ta `SSL_CERT_FILE` ortam değişkeni tanımlıysa sistem deposu yerine o dosya okunur.
 - Windows'ta CA sistem deposundayken iptal (revocation) denetimi hata verirse (şirket CRL'ine
-  ulaşılamıyorsa), `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` ile PEM verin; o yolda iptal denetimi yapılmaz.
+  ulaşılamıyorsa) 2. yolu kullanın; o yolda iptal denetimi yapılmaz.
+- vLLM düz HTTP ise ajan için bir şey gerekmez.
 - Doğrulama kapatılamaz (tokenlar şifresiz kanaldan gitmesin).

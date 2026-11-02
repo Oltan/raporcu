@@ -254,9 +254,30 @@ fn push_remote() -> Option<String> {
     Some(format!("{scheme}://oauth2:{token}@{host}/{path}.git"))
 }
 
-/// GitLab'ın CA'sı: önce ULAK_CA_DOSYASI, yoksa runner'ın verdiği CI_SERVER_TLS_CA_FILE (runner'ın
-/// güvendiği zincir), o da yoksa işletim sisteminin sertifika deposu.
-pub const CA_ENVS: &[&str] = &["ULAK_CA_DOSYASI", "CI_SERVER_TLS_CA_FILE"];
+/// Şirket CA'sı (dosya ya da klasör): ULAK_CA_DOSYASI, yoksa divan ile ortak DIVAN_CA_DOSYASI (makinede
+/// bir kez tanımlanır), yoksa runner'ın verdiği CI_SERVER_TLS_CA_FILE, o da yoksa sistem deposu.
+pub const CA_ENVS: &[&str] = &["ULAK_CA_DOSYASI", "DIVAN_CA_DOSYASI", "CI_SERVER_TLS_CA_FILE"];
+
+/// Tanımlı CA'nın git ve Node/Bun araçları için tek PEM hali (`.ulak/sirket-ca.pem`).
+fn ca_pem(c: &Ctx) -> Option<String> {
+    let (name, path) = common::tls::ca_file(CA_ENVS)?;
+    match common::tls::combined_pem(&path, &c.state_dir) {
+        Ok(p) => Some(p),
+        Err(e) => {
+            say(format!("UYARI: {name}={path}: {e}"));
+            None
+        }
+    }
+}
+
+/// Ajan (OpenCode / Claude Code) Node/Bun ile çalışır; vLLM ya da ağ geçidi şirket sertifikalı HTTPS
+/// ise CA'yı `NODE_EXTRA_CA_CERTS` ile görür. Kullanıcı kendisi verdiyse dokunulmaz.
+fn agent_ca_env(c: &Ctx) -> Option<(String, String)> {
+    if env("NODE_EXTRA_CA_CERTS").is_some() {
+        return None;
+    }
+    ca_pem(c).map(|p| ("NODE_EXTRA_CA_CERTS".to_string(), p))
+}
 
 fn https_agent() -> ureq::Agent {
     let (tls, err) = common::tls::config_or_platform(CA_ENVS);
@@ -467,6 +488,9 @@ pub fn fix(c: &Ctx) -> Result<i32> {
         let argv = subst(&tmpl, &prompt_file, &prompt, shot.as_deref());
         let mut cmd = Command::new(&argv[0]);
         cmd.args(&argv[1..]).current_dir(dir).env("ULAK_FIX_PROMPT_FILE", &prompt_file);
+        if let Some((k, v)) = agent_ca_env(c) {
+            cmd.env(k, v);
+        }
         let (code, out) = run_with_timeout(cmd, timeout).unwrap_or_else(|e| (-2, format!("ajan başlatılamadı: {e}")));
         let out = mask_secrets(&out);
         let _ = std::fs::write(work.join(format!("{}-ajan.log", slug(&cand.name))), &out);
@@ -539,9 +563,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                 Some(remote) => {
                     // git kendi sertifika ayarını kullanır: aynı CA dosyasını ona da ver
                     // .cert/.cer ikili (DER) ise git için PEM'e çevrilir
-                    let ca = common::tls::ca_file(CA_ENVS)
-                        .and_then(|(_, f)| common::tls::pem_path_for_git(&f, &c.state_dir).ok())
-                        .map(|f| format!("http.sslCAInfo={f}"));
+                    let ca = ca_pem(c).map(|f| format!("http.sslCAInfo={f}"));
                     let refspec = format!("HEAD:refs/heads/{branch}");
                     let mut args: Vec<&str> = Vec::new();
                     if let Some(c) = &ca {
