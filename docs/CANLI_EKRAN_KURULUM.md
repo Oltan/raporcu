@@ -1,21 +1,41 @@
 # Canlı ekran: test projesine eklenecekler
 
-divan'ın canlı ekranında **şu an koşan senaryo ve adım** görünsün diye test projenize
-eklenecek her şey burada. Toplam **1 Java dosyası + 1 satır ayar**. Başka bağımlılık, CI değişkeni
-ya da kod değişikliği gerekmez.
+divan'ın canlı ekranında **şu an koşan senaryo ve adım** görünsün diye test projenize eklenecekler.
+Eklentinin sınıf adı `CanliOlayEklentisi`; iki yoldan **yalnızca birini** kullanın, ikisini birden
+değil (projede aynı sınıftan iki tane olur).
 
-| # | Ne | Nereye |
-|---|----|--------|
-| 1 | `CanliOlayEklentisi.java` (aşağıda tamamı) | `src/test/java/<paketiniz>/CanliOlayEklentisi.java` |
-| 2 | `cucumber.plugin` satırına eklentinin adı | `src/test/resources/junit-platform.properties` |
-| 3 | (zaten var) Allure eklentisi ve CI şablonu | — |
+| Yol | Ne zaman | Yapılacak |
+|-----|----------|-----------|
+| **A. Destek jar'ı** (önerilen) | Çevrimdışı kurulum paketiyle kuruyorsanız (`docs/KURULUM.md`) | Java dosyası kopyalanmaz; jar zaten pom'a ekleniyor. Yalnızca 1 satır ayar |
+| **B. Java dosyasını kopyalama** | Paket yoksa, jar kullanmak istemiyorsanız | 1 Java dosyası + 1 satır ayar |
 
 Gereksinim: Cucumber 7 (`cucumber-java`, JUnit Platform). Java 17+ (kodda `instanceof` desen
-eşleştirmesi ve `switch ->` kullanılıyor; Java 11 ise aşağıdaki nota bakın).
+eşleştirmesi ve `switch ->` kullanılıyor; Java 11 ise sorun giderme tablosuna bakın).
 
 ---
 
-## 1. Java dosyası
+## Yol A: destek jar'ı (paketle kurulum)
+
+`docs/KURULUM.md` §4'te `java/pom-eklentisi.xml` parçaları `pom.xml`'e eklenince
+`com.divan:divan-test-destek:1.0.0` bağımlılığı gelir. Jar'ın içinde `divan.destek.CanliOlayEklentisi`,
+`divan.destek.VideoKaydi` ve `divan.destek.DivanKanit` vardır; jar ve bağımlılıklar paketteki
+`java/m2` çevrimdışı Maven deposundan çözülür (`docs/KURULUM.md` §3).
+
+Tek yapılacak: `src/test/resources/junit-platform.properties`
+
+```properties
+cucumber.plugin=pretty, io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, divan.destek.CanliOlayEklentisi
+cucumber.execution.parallel.enabled=false
+```
+
+Projenizde daha önce kopyalanmış bir `CanliOlayEklentisi.java` varsa silin. Sonra aşağıdaki
+"Yerelde doğrulama" bölümüne geçin.
+
+---
+
+## Yol B: Java dosyasını kopyalama (jarsız)
+
+### B1. Java dosyası
 
 `src/test/java/com/sirket/test/CanliOlayEklentisi.java` — **ilk satırdaki paket adını kendi test
 paketinizle değiştirin** (adım tanımlarınızın olduğu paket ya da altı; glue içinde olması şart değil).
@@ -201,7 +221,7 @@ Ne yapar:
 - Yazamazsa yalnızca `System.err`'e bir satır basar; **testin sonucunu asla etkilemez**.
 - Test kodunuza, hook'larınıza, Allure'a dokunmaz; yanlarında çalışır.
 
-## 2. junit-platform.properties
+### B2. junit-platform.properties
 
 `src/test/resources/junit-platform.properties` dosyasındaki `cucumber.plugin` satırının **sonuna**
 virgülle ekleyin:
@@ -210,14 +230,14 @@ virgülle ekleyin:
 cucumber.plugin=pretty, io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, com.sirket.test.CanliOlayEklentisi
 ```
 
-- Paket adı 1. adımdakiyle aynı olmalı.
+- Paket adı B1'deki dosyanın paketiyle aynı olmalı.
 - Satırda `AllureCucumber7Jvm` zaten olmalı (rapor ve ekler için); yoksa onu da ekleyin.
 - Eklentileri `@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "...")` ile runner
   sınıfında veriyorsanız aynı adı oraya ekleyin.
 - `cucumber.execution.parallel.enabled=true` **olmamalı**: canlı ekran aynı anda tek senaryo
   koştuğunu varsayar (TestFX zaten tek ekranda sırayla koşar).
 
-## 3. Başka bir şey gerekmiyor
+## Başka bir şey gerekmiyor (iki yol için de)
 
 CI tarafında her şey hazır: `ulak start` olay dosyasının yolunu Maven'a verir, `ulak watch`
 dosyayı saniyede bir okuyup divan'a gönderir, canlı ekran WebSocket ile güncellenir.
@@ -253,6 +273,8 @@ ya da koşum sayfasındaki **Canlı izle** düğmesi.
 
 | Belirti | Neden / çözüm |
 |---------|---------------|
+| Derleme hatası: `CanliOlayEklentisi` iki kez tanımlı / eklenti iki kez çalışıyor, olay satırları çift | İki yol birlikte uygulanmış: jar kullanıyorsanız (Yol A) projedeki kopya `CanliOlayEklentisi.java`'yı silin ve `cucumber.plugin`'de yalnızca `divan.destek.CanliOlayEklentisi` kalsın |
+| `divan.destek.CanliOlayEklentisi` bulunamıyor | Yol A: pom'a `divan-test-destek` bağımlılığı eklenmemiş ya da `java/m2` deposu Maven'a tanıtılmamış (`docs/KURULUM.md` §3–4) |
 | `olaylar.jsonl` hiç oluşmuyor | Eklenti yüklenmemiş: `cucumber.plugin` satırındaki paket.sınıf adı yanlış ya da dosya başka bir `junit-platform.properties`'te. sınıf adı yanlışsa Cucumber testler başlamadan eklentiyi yükleyemediğini söyleyen bir hatayla durur |
 | Canlı ekranda "şu an koşuyor" kartı yok, yalnızca senaryolar bitince güncelleniyor | Olaylar gelmiyor: CI'da `ulak start` kullanılıyor mu (doğrudan `mvn test` değil)? `.ulak/watch.log` dosyasına bakın |
 | Feature adı boş | Feature dosyası `Feature:` / `Özellik:` / `Ability:` / `Business Need:` ile başlamıyor (eklenti adı bu satırdan okur) |

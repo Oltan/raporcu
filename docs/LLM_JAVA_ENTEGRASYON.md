@@ -158,6 +158,12 @@ Eklentiler runner sınıfında `@ConfigurationParameter` ile veriliyorsa aynı a
 
 ## Adım 3: Hazır Java dosyalarını kopyala
 
+> **Çevrimdışı paketle kuruyorsanız bu adımı atlayın.** Paketteki destek jar'ı
+> (`divan-test-destek`, `docs/KURULUM.md` §4) aynı sınıfları `divan.destek` paketinde verir:
+> Adım 1'de `java/pom-eklentisi.xml` parçalarını ekleyin, Adım 2'de eklenti adı
+> `divan.destek.CanliOlayEklentisi`, Adım 4'te importlar `divan.destek.DivanKanit` ve
+> `divan.destek.VideoKaydi` olur. İkisini birlikte yapmayın: sınıflar iki kez tanımlanır.
+
 **Model gerekmez.** Bu dosyaları modele yazdırma, komutla kopyala.
 
 ```bash
