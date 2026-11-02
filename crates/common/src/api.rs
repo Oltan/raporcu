@@ -112,6 +112,14 @@ pub struct TriageSuggestion {
     pub confidence: f64,
 }
 
+/// ulak degerlendir → sunucu (SW-4.5)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct AgentTriage {
+    pub scenario_key: String,
+    pub triage: TriageSuggestion,
+}
+
 /// Sunucu → ulak fix (SW-7.1)
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]

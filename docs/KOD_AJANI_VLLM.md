@@ -76,6 +76,29 @@ işinde ajanı başlatırken `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da
 sertifikaları tek PEM'e birleştirip bu değişkeni kendisi verir. Ajanı elle (CI dışında) çalıştırırken
 `NODE_EXTRA_CA_CERTS=<pem dosyası>` verin.
 
+## LLM değerlendirmesi (`ulak degerlendir`)
+
+Fix işi önce `ulak degerlendir`, sonra `ulak fix` koşar. Değerlendirme her kalan senaryoyu (`failed`
+dahil; flaky, `@sample-fail` ve açık MR'ı olanlar hariç) ajana sorar, kod değiştirmez:
+
+| | `ulak degerlendir` | `ulak fix` |
+|---|---|---|
+| Senaryolar | tüm kalanlar, en fazla `ULAK_DEGERLENDIR_MAX` (20) | hedefi `opencode` olanlar, en fazla `ULAK_FIX_MAX` (3) |
+| Ajan | `degerlendir` (salt okunur) / Claude Code düzenleme araçları kapalı | `fix` |
+| Çıktı | triage kategorisi, gerekçe, güven | branch, doğrulama koşusu, MR |
+| Süre | senaryo başına yaklaşık 30-45 sn (denemede) | ajan + doğrulama koşusu |
+
+- Güven ≥ 0,70 ise karar geçerli olur ve sonraki adımı belirler: `urun` deyince düzeltmeye gitmez, Jira
+  taslağı hazırlanır; `test_kodu` deyince `failed` senaryo da düzeltmeye gider. Yanlış karar admin
+  tarafından değiştirilir; senaryo düğmesi hedeften bağımsız çalışır.
+- Test projesine `.opencode/agents/degerlendir.md` eklenir. Claude Code için ek dosya gerekmez.
+- `ULAK_DEGERLENDIR=off` kapatır. `ULAK_FIX=off` ikisini de kapatır; yalnızca değerlendirme için
+  `ULAK_FIX=off` + `ULAK_DEGERLENDIR=on`.
+- `ULAK_DEGERLENDIR_CMD` komutu tamamen değiştirir. Model `ULAK_OPENCODE_MODEL` ile seçilir. Görsel
+  desteklemeyen modelde komuttan `--file {ekran}` kaldırılır; ajan karara ekran görüntüsüz varır.
+- OpenCode `run` etkileşimsizdir: `ask` izni otomatik reddedilir ve oturumu karar yazılmadan kapatabilir.
+  Şablonda proje dışı erişim bu yüzden `external_directory: deny`; karar çıkmazsa ulak bir kez daha sorar.
+
 ## Ajan tanımı (OpenCode)
 
 Test projesinde **`.opencode/agents/fix.md`** (OpenCode'un güncel yolu `agents/`; şablon:

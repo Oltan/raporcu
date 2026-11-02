@@ -154,6 +154,7 @@ açık bir mesajla düşürür.
 | `GITLAB_WEBHOOK_TOKEN` | divan `.env` + GitLab webhook "Secret token" | webhook doğrulama (SW-9.3) |
 | `GITLAB_URL`, `GITLAB_TOKEN` | yalnızca divan `.env` | "OpenCode ile düzelt" düğmesi pipeline tetikler (SW-7.4) |
 | `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` | makinede sistem ortam değişkeni (ya da CI değişkeni), isteğe bağlı: sertifika dosyası ya da klasörü | GitLab/Jira/vLLM şirket CA'sıyla imzalıysa; divan (GitLab, Jira) ve ulak (MR, git push, OpenCode `NODE_EXTRA_CA_CERTS`) aynısını kullanır. Ayrıntı: `docs/KURULUM.md` CA notu |
+| `ULAK_DEGERLENDIR` | CI değişkeni, isteğe bağlı | LLM değerlendirmesi: `off` kapatır; `ULAK_FIX=off` iken `on` yalnızca değerlendirmeyi çalıştırır. Üst sınır `ULAK_DEGERLENDIR_MAX` (20) |
 | `ULAK_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `ulak fix`: auto-fix branch push + MR (SW-7.2) |
 | `ULAK_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
 | `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | `on`: auto-fix branch'ine push'ta da tüm e2e koşar (fix işi yine koşmaz) |

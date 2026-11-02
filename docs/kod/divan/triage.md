@@ -1,7 +1,9 @@
 # divan/src/triage.rs
 
 **Amaç:** SW-4.5 — kalan senaryonun nedenine karar. Karar kaynakları ve önceliği:
-**admin > OpenCode (güven eşiği üstü) > kural**. Hiçbir karar silinmez (`triage_decisions` geçmişi).
+**admin > LLM (güven eşiği üstü) > kural**. Hiçbir karar silinmez (`triage_decisions` geçmişi).
+LLM kararı `ulak degerlendir` (salt okunur) ya da `ulak fix` çıktısından gelir; veritabanındaki kaynak
+adı `opencode`, arayüzdeki etiketi `LLM`dir (ajan Claude Code da olabilir).
 
 ## Kategoriler
 | Kod | Etiket | Sonraki adım (fix.rs) |

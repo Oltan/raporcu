@@ -10,6 +10,7 @@ alt komutun döndürdüğüdür; beklenmeyen hata `[ulak] HATA: …` + çıkış
 | `watch` | `--run-id N` (yoksa `.ulak/run.json`) | sonuçları ve canlı olayları gönderir (`watch.md`) |
 | `upload` | `--resume`, `--queue <klasör>` | toplu zip gönderir; `--resume` kuyruktakileri (`upload.md`) |
 | `finish` | `--status finished\|interrupted` | koşumu bitirir |
+| `degerlendir` | | kalan senaryolara ajanla salt okunur karar (`degerlendir.md`) |
 | `fix` | | OpenCode / Claude Code ile düzeltme (`fix.md`) |
 | `--version` | | sürüm |
 

@@ -2,6 +2,7 @@
 
 mod client;
 mod ctx;
+mod degerlendir;
 mod fix;
 mod gherkin;
 mod preflight;
@@ -47,6 +48,8 @@ enum Cmd {
         #[arg(long, default_value = "finished")]
         status: String,
     },
+    /// Kalan senaryoların nedenini kod ajanına sorar (salt okunur); kararı divan'a yazar
+    Degerlendir,
     /// Test kodu hatalarını OpenCode ile düzeltir, MR açar
     Fix,
 }
@@ -69,6 +72,7 @@ fn main() {
             }
         }
         Cmd::Finish { status } => upload::finish(&c, &status),
+        Cmd::Degerlendir => degerlendir::degerlendir(&c),
         Cmd::Fix => fix::fix(&c),
     };
     match code {

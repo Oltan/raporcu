@@ -215,6 +215,14 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
             format!("{fix:?} {test:?}"),
         );
     }
+    ck.check(
+        "SW-4.5",
+        "şablonda LLM değerlendirmesi düzeltmeden önce koşar",
+        y[".ulak-fix"]["script"]
+            .as_sequence()
+            .is_some_and(|s| s.len() == 2 && s[0].as_str() == Some("ulak degerlendir") && s[1].as_str() == Some("ulak fix")),
+        "",
+    );
     for os in ["linux", "windows"] {
         let tag_ok = ["test", "report", "fix"].iter().all(|k| {
             let job = &y[format!("ulak-{k}-{os}").as_str()];
@@ -287,6 +295,7 @@ fn main() -> Result<()> {
     match args.first().map(String::as_str) {
         Some("fake-tests") => std::process::exit(fake_tests(&args[1..])),
         Some("fake-opencode") => std::process::exit(fake_opencode()),
+        Some("fake-degerlendir") => std::process::exit(fake_degerlendir()),
         Some("fake-validate") => std::process::exit(
             std::env::var("ULAK_FAKE_VALIDATE")
                 .map(|v| if v == "fail" { 1 } else { 0 })
@@ -625,6 +634,16 @@ fn fake_opencode() -> i32 {
     0
 }
 
+/// Sahte salt okunur ajan: karar yazar; `yaz` modunda kuralı bozup dosya değiştirir.
+fn fake_degerlendir() -> i32 {
+    if std::env::var("ULAK_FAKE_MODE").as_deref() == Ok("yaz") {
+        std::fs::write("src/test/ajan-yazdi.txt", "salt okunur değil").unwrap();
+    }
+    println!("ULAK_OZET: seçici sahne ağacında yok");
+    println!("ULAK_TRIAGE: {{\"category\": \"test_kodu\", \"reason\": \"Seçici sahne ağacında yok\", \"confidence\": 0.9}}");
+    0
+}
+
 /// Sahte GitLab MR ucu: her POST'u kaydeder, iid döner.
 fn fake_gitlab() -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
     use std::io::{BufRead, BufReader, Read, Write};
@@ -709,6 +728,8 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
     std::fs::write(proj.join(".gitignore"), "target/\n.ulak/\nulak\nulak.exe\nulak.env\n")?;
     sh(&proj, &["add", "-A"])?;
     sh(&proj, &["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "ilk"])?;
+    // MR açılınca senaryo `acik-mr` olur ve değerlendirilmez: fix adımlarından önce koşar
+    evaluation_steps(ck, server, ulak, &proj, run_id)?;
     let (gl_port, mrs) = fake_gitlab();
     let mut s = Ulak::new(ulak, &proj, &server.url());
     s.set("ULAK_RUN_ID", run_id.to_string())
@@ -833,6 +854,61 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
         o.text.contains("yalnızca seçilen senaryo")
             && o.text.contains("OpenCode denemesi: Yanlış şifrede özel mesaj")
             && !o.text.contains("OpenCode denemesi: Şifremi unuttum"),
+        &o.text,
+    );
+    Ok(())
+}
+
+/// LLM değerlendirmesi (SW-4.5): sahte salt okunur ajan; `ulak fix`in yanında tek başına da çalışır.
+fn evaluation_steps(ck: &mut Checks, server: &Server, ulak: &Path, proj: &Path, run_id: i64) -> Result<()> {
+    println!("\n-- LLM değerlendirmesi: ulak degerlendir (sahte ajan)");
+    let mut s = Ulak::new(ulak, proj, &server.url());
+    s.set("ULAK_RUN_ID", run_id.to_string()).set(
+        "ULAK_DEGERLENDIR_CMD",
+        format!("\"{}\" fake-degerlendir {{istem}}", exe("rehearse").display()),
+    );
+    s.set("ULAK_FAKE_MODE", "yaz");
+    let o = s.run(&["degerlendir"])?;
+    let dirty = sh(proj, &["status", "--porcelain"]).unwrap_or_default();
+    ck.check(
+        "SW-4.5",
+        "dosya değiştiren ajanın kararı kullanılmaz, değişiklik geri alınır",
+        o.code == 0 && o.text.contains("REDDEDİLDİ") && !o.text.contains("karar:") && !dirty.contains("ajan-yazdi"),
+        format!("{}\n{dirty}", o.text),
+    );
+    s.set("ULAK_FAKE_MODE", "normal");
+    let attempts_before = get(&format!("{}/runs/{run_id}", server.url()))?
+        .1
+        .matches("class=\"duzeltme")
+        .count();
+    let o = s.run(&["degerlendir"])?;
+    let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
+    ck.check(
+        "SW-4.5",
+        "ajan kararı rapora LLM kaynağıyla yazılır",
+        o.code == 0 && o.text.contains("karar: \"test_kodu\"") && html.contains("LLM"),
+        &o.text,
+    );
+    ck.check(
+        "SW-4.5",
+        "değerlendirme düzeltme denemesi sayılmaz",
+        html.matches("class=\"duzeltme").count() == attempts_before,
+        "",
+    );
+    s.set("ULAK_FIX", "off");
+    let o = s.run(&["degerlendir"])?;
+    ck.check(
+        "SW-4.5",
+        "ULAK_FIX=off değerlendirmeyi de kapatır",
+        o.code == 0 && o.text.contains("LLM değerlendirmesi kapalı"),
+        &o.text,
+    );
+    s.set("ULAK_DEGERLENDIR", "on");
+    let o = s.run(&["degerlendir"])?;
+    ck.check(
+        "SW-4.5",
+        "ULAK_DEGERLENDIR=on ile yalnızca değerlendirme çalışır",
+        o.code == 0 && o.text.contains("değerlendirme bitti"),
         &o.text,
     );
     Ok(())

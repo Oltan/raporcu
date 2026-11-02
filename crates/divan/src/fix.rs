@@ -2,7 +2,7 @@
 
 use crate::db::now;
 use anyhow::Result;
-use common::api::{FixCandidate, FixExample, FixResult};
+use common::api::{FixCandidate, FixExample, FixResult, TriageSuggestion};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashSet;
 
@@ -168,16 +168,31 @@ pub fn candidates(c: &Connection, paths: &crate::Paths, run_id: i64, public_url:
     Ok(out)
 }
 
+/// Koşumdaki senaryonun son denemesi.
+pub fn latest_scenario(c: &Connection, run_id: i64, scenario_key: &str) -> Result<Option<i64>> {
+    Ok(c.query_row(
+        "SELECT id FROM scenarios WHERE run_id = ?1 AND scenario_key = ?2 AND is_latest = 1",
+        params![run_id, scenario_key],
+        |x| x.get(0),
+    )
+    .optional()?)
+}
+
+/// SW-4.5: `ulak degerlendir` kararı. Düzeltme denemesi değildir, `fix_attempts`'e yazılmaz; geçerli
+/// karar değişirse sonraki `ulak fix` adayları da değişir. Senaryo yoksa `None`.
+pub fn record_triage(c: &Connection, run_id: i64, scenario_key: &str, t: &TriageSuggestion, auto_conf: f64) -> Result<Option<i64>> {
+    let Some(sid) = latest_scenario(c, run_id, scenario_key)? else {
+        return Ok(None);
+    };
+    crate::triage::add(c, sid, &t.category, "opencode", &t.reason, Some(t.confidence.clamp(0.0, 1.0)))?;
+    crate::triage::refresh(c, sid, auto_conf)?;
+    Ok(Some(sid))
+}
+
 /// SW-7.3: fix sonucu kaydedilir; OpenCode triage önerisi karar olarak eklenir.
 pub fn record(c: &Connection, run_id: i64, r: &FixResult, auto_conf: f64) -> Result<i64> {
     let (project_id,): (i64,) = c.query_row("SELECT project_id FROM runs WHERE id = ?1", [run_id], |x| Ok((x.get(0)?,)))?;
-    let sid: Option<i64> = c
-        .query_row(
-            "SELECT id FROM scenarios WHERE run_id = ?1 AND scenario_key = ?2 AND is_latest = 1",
-            params![run_id, r.scenario_key],
-            |x| x.get(0),
-        )
-        .optional()?;
+    let sid = latest_scenario(c, run_id, &r.scenario_key)?;
     let mr_state = r.mr_iid.map(|_| "opened");
     c.execute(
         "INSERT INTO fix_attempts (run_id, scenario_id, project_id, scenario_key, outcome, mr_iid, mr_url, mr_state, branch,

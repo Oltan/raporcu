@@ -17,7 +17,7 @@ gerektiren belgelerde ayrıca "Python karşılığı" notu var; genel eşleme a�
 | Web katmanı (`src/web`) | [mod](divan/web/mod.md) (yönlendirme, statik, WebSocket) · [ci](divan/web/ci.md) (CI uçları) · [files](divan/web/files.md) · [gitlab_hook](divan/web/gitlab_hook.md) · [tools](divan/web/tools.md) · [admin](divan/web/admin.md) · [ayarlar](divan/web/ayarlar.md) · [pages](divan/web/pages.md) |
 | Şablonlar ve statik | [templates](divan/templates/README.md) · [static](diger/static.md) |
 | Veritabanı şeması | [migrations](diger/migrations.md) |
-| CI aracı (`crates/ulak`) | [main](ulak/main.md) · [ctx](ulak/ctx.md) · [client](ulak/client.md) · [gherkin](ulak/gherkin.md) · [preflight](ulak/preflight.md) · [runner](ulak/runner.md) (`start`) · [watch](ulak/watch.md) · [upload](ulak/upload.md) (`upload`, `finish`) · [fix](ulak/fix.md) |
+| CI aracı (`crates/ulak`) | [main](ulak/main.md) · [ctx](ulak/ctx.md) · [client](ulak/client.md) · [gherkin](ulak/gherkin.md) · [preflight](ulak/preflight.md) · [runner](ulak/runner.md) (`start`) · [watch](ulak/watch.md) · [upload](ulak/upload.md) (`upload`, `finish`) · [degerlendir](ulak/degerlendir.md) · [fix](ulak/fix.md) |
 | Doğrulama | [tests](divan/tests/README.md) (entegrasyon testleri) · [rehearse lib](rehearse/lib.md) · [rehearse main](rehearse/main.md) (CI provası) · [e2esmoke](e2esmoke/main.md) |
 | Test projesi ve CI | [Java test projesi](diger/java-test-projesi.md) · [CI şablonu ve dağıtım](diger/ci-ve-dagitim.md) |
 

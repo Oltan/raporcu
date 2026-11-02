@@ -242,20 +242,8 @@ pub async fn fix_result(
                 return Ok(None);
             }
             let fid = crate::fix::record(c, id, &r, conf)?;
-            // OpenCode ürün hatası dediyse (güven eşiğin üstünde) Jira bug taslağı hazırlanır
-            if let Some(t) = r.triage.as_ref().filter(|t| t.category == "urun" && t.confidence >= conf) {
-                let sid: Option<i64> = c
-                    .query_row(
-                        "SELECT id FROM scenarios WHERE run_id = ?1 AND scenario_key = ?2 AND is_latest = 1",
-                        rusqlite::params![id, r.scenario_key],
-                        |x| x.get(0),
-                    )
-                    .ok();
-                if let Some(sid) = sid {
-                    if let Err(e) = crate::jira::draft_from_opencode(c, &cfg, &sablon, sid, &t.reason) {
-                        tracing::warn!(run_id = id, hata = %e, "Jira bug taslağı hazırlanamadı");
-                    }
-                }
+            if let (Some(t), Some(sid)) = (&r.triage, crate::fix::latest_scenario(c, id, &r.scenario_key)?) {
+                draft_if_product(c, &cfg, &sablon, id, sid, t, conf);
             }
             Ok(Some(fid))
         })
@@ -263,6 +251,49 @@ pub async fn fix_result(
         .ok_or_else(AppError::not_found)?;
     let _ = st.live.send(id);
     Ok(Json(serde_json::json!({ "id": fid, "report_url": report_url(&st, id) })))
+}
+
+/// Ajan ürün hatası dediyse (güven eşiğin üstünde) Jira bug taslağı hazırlanır.
+fn draft_if_product(
+    c: &rusqlite::Connection,
+    cfg: &crate::config::Config,
+    sablon: &crate::ayarlar::JiraSablon,
+    run_id: i64,
+    scenario_id: i64,
+    t: &common::api::TriageSuggestion,
+    conf: f64,
+) {
+    if t.category == "urun" && t.confidence >= conf {
+        if let Err(e) = crate::jira::draft_from_opencode(c, cfg, sablon, scenario_id, &t.reason) {
+            tracing::warn!(run_id, hata = %e, "Jira bug taslağı hazırlanamadı");
+        }
+    }
+}
+
+/// SW-4.5: `ulak degerlendir` ajan kararı (salt okunur; düzeltme denemesi sayılmaz).
+pub async fn triage(
+    State(st): State<AppState>,
+    Path(id): Path<i64>,
+    Json(r): Json<common::api::AgentTriage>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if !crate::triage::is_category(&r.triage.category) {
+        return Err(AppError::bad(format!("geçersiz kategori: {}", r.triage.category)));
+    }
+    let conf = st.cfg.triage_auto_confidence;
+    let (cfg, sablon) = (st.cfg.clone(), st.ayarlar.get().jira);
+    let sid = st
+        .db
+        .write(move |c| {
+            let sid = crate::fix::record_triage(c, id, &r.scenario_key, &r.triage, conf)?;
+            if let Some(sid) = sid {
+                draft_if_product(c, &cfg, &sablon, id, sid, &r.triage, conf);
+            }
+            Ok(sid)
+        })
+        .await?
+        .ok_or_else(AppError::not_found)?;
+    let _ = st.live.send(id);
+    Ok(Json(serde_json::json!({ "scenario_id": sid })))
 }
 
 /// SW-7.2: OpenCode isteğine eklenecek ekran görüntüsü (CI token ile).

@@ -66,7 +66,8 @@ impl Decision {
     pub fn source_label(&self) -> &'static str {
         match self.source.as_str() {
             "admin" => "Admin",
-            "opencode" => "OpenCode",
+            // kaynak kod ajanı: OpenCode ya da Claude Code (ULAK_FIX_AGENT)
+            "opencode" => "LLM",
             _ => "Kural",
         }
     }

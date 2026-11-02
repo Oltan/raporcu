@@ -48,7 +48,8 @@ Yerel sunucu: `cp .env.example .env`, `cargo run -p divan -- set-admin-password`
 `ulak preflight` → `ulak start` (beklenen senaryoları `.feature` dosyalarından kendisi sayar,
 `POST /api/ci/runs/start`, `ulak watch`'u **ayrı süreç** olarak başlatır, `mvn test`'i Xvfb içinde
 koşar) → `ulak upload` (toplu zip; sunucu yoksa `.ulak/queue/`'ya, `upload --resume`) →
-`ulak finish` → `ulak fix` (OpenCode/Claude Code ile `auto-fix/...` branch + MR). Çıkış kodları
+`ulak finish` → `ulak degerlendir` (ajan salt okunur, her kalan senaryoya karar) → `ulak fix`
+(OpenCode/Claude Code ile `auto-fix/...` branch + MR). Çıkış kodları
 anlamlıdır: 1 test/yükleme hatası, 2 sürüm uyumsuz, 3 bellek (OOM), 4 Windows hizmet oturumu.
 
 **İki canlı kanal** (`docs/ANLIK_AKTARIM.md`): (1) Java tarafındaki `CanliOlayEklentisi`

@@ -96,6 +96,11 @@ fn skill_sorunu(ad: &str, metin: &str) -> Option<String> {
 
 /// Ajan dosyası ve skill'ler bozuksa `ulak fix` gece sessizce işe yaramaz; burada söylenir.
 fn kod_ajani_kontrol(project: &Path, ajan: &str, r: &mut Report) {
+    if std::env::var("ULAK_DEGERLENDIR").as_deref() != Ok("off") && !project.join(".opencode/agents/degerlendir.md").is_file() {
+        r.warnings.push(
+            "OpenCode ajanı yok: .opencode/agents/degerlendir.md. LLM değerlendirmesi kullanılmayacaksa ULAK_DEGERLENDIR=off yapın.".into(),
+        );
+    }
     let yol = project.join(".opencode").join("agents").join(format!("{ajan}.md"));
     match std::fs::read_to_string(&yol) {
         Err(_) => r.warnings.push(format!(

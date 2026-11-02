@@ -12,6 +12,7 @@
 | `POST /runs/{id}/finish` | `{status?}` | `finished` / `interrupted` dışı 400; yeniden sayar, bitirir, `after_finish` | RunCounts |
 | `GET /runs/{id}/fix-candidates` | | `fix::candidates` | `[FixCandidate]` |
 | `POST /runs/{id}/fix-result` | `FixResult` | `fix::record`, canlı yayın | `{id, report_url}` |
+| `POST /runs/{id}/triage` | `AgentTriage` (`{scenario_key, triage:{category, reason, confidence}}`) | `fix::record_triage`, ürün hatasıysa Jira taslağı, canlı yayın; geçersiz kategori 400 | `{scenario_id}` |
 | `POST /runs/{id}/fix-started` | `{scenario_key}` | yalnızca log: `OpenCode denemesi başladı` | `{ok:true}` |
 
 Zip yollarında log: başarıda `yükleme alındı` (run_id, proje, branch, dosya sayısı, sonuç, tekrar,

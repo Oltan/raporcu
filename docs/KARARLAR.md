@@ -98,6 +98,10 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 - **auto-fix döngüsü:** auto-fix branch push'u varsayılan olarak tam e2e koşturmaz (fix işi tek senaryoyu
   zaten doğruladı); fix işi auto-fix branch'inde hiç koşmaz; açık MR'ı olan senaryo yeniden denenmez.
   `workflow:` kuralı yerine iş kuralları kullanıldı: test projesinin kendi işleri etkilenmesin.
+- **LLM değerlendirmesi:** kalan senaryolar ayrı bir LLM istemcisiyle değil, kod ajanının salt okunur
+  çalıştırılmasıyla (`ulak degerlendir`) değerlendirilir: ajan test ve uygulama kodunu okuyabilir, model
+  ayarı ve CA tek yerdedir. Koşum sonrası Jira işleri (`after_finish`) kural kararıyla çalışır; LLM kararı
+  fix işinde geldiği için otomatik Jira'yı değil, Jira taslağını ve `ulak fix` adaylarını etkiler.
 - **Şirket CA'sı:** dış HTTPS (GitLab, Jira) işletim sisteminin sertifika deposuyla doğrulanır;
   sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da klasör; PEM ya da
   DER), ulak ayrıca `DIVAN_CA_DOSYASI`'yı ve runner'ın `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı

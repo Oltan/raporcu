@@ -90,6 +90,7 @@ pub fn router(state: AppState) -> Router {
         .route("/runs/{id}/fix-candidates", get(web::ci::fix_candidates))
         .route("/runs/{id}/fix-result", post(web::ci::fix_result))
         .route("/runs/{id}/fix-started", post(web::ci::fix_started))
+        .route("/runs/{id}/triage", post(web::ci::triage))
         .layer(axum::extract::DefaultBodyLimit::max(state.cfg.max_entry_bytes as usize))
         .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth::ci_guard));
     Router::new()

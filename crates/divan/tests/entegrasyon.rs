@@ -447,7 +447,7 @@ async fn test_sw_4_5_triage_rule_opencode_admin_precedence_and_history() {
     // OpenCode yüksek güven: geçerli olur
     app.ci_json(&format!("/api/ci/runs/{id}/fix-result"), json!({ "scenario_key": key, "outcome": "no_change", "triage": { "category": "ortam", "reason": "X11 bağlantısı yok", "confidence": 0.9 } })).await;
     let (_, sp) = app.get(&format!("/scenarios/{broken}")).await;
-    assert!(sp.contains("Ortam sorunu") && sp.contains("kaynak: OpenCode"));
+    assert!(sp.contains("Ortam sorunu") && sp.contains("kaynak: LLM"));
     // admin değiştirir: geçerli olur, eskiler geçmişte kalır
     let cookie = app.admin_cookie();
     let r = post_form(
@@ -464,6 +464,54 @@ async fn test_sw_4_5_triage_rule_opencode_admin_precedence_and_history() {
     let r = post_form(&app, &format!("/admin/scenarios/{failed}/triage"), "", "category=urun&reason=x").await;
     assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
     assert!(log_lines("triage kararı").iter().any(|l| l["kaynak"] == "admin"));
+}
+
+#[tokio::test]
+async fn test_sw_4_5_agent_triage_changes_fix_target_without_fix_attempt() {
+    let app = app();
+    let id = upload_sample(&app, Q).await;
+    let run = run_json(&app, id).await;
+    let broken = scenario_id(&run, "Şifremi unuttum bağlantısı");
+    let key = run["senaryolar"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["senaryo"]["id"] == broken)
+        .unwrap()["senaryo"]["scenario_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let target = || async {
+        let r = app
+            .send(
+                axum::http::Request::get(format!("/api/ci/runs/{id}/fix-candidates"))
+                    .header("authorization", format!("Bearer {CI_TOKEN}"))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await;
+        let list: Value = serde_json::from_str(&body_string(r).await).unwrap();
+        let c = list.as_array().unwrap().iter().find(|c| c["scenario_key"] == key.as_str()).cloned();
+        c.unwrap()["target"].as_str().unwrap().to_string()
+    };
+    assert_eq!(target().await, "opencode", "kural: broken → test kodu");
+    let uri = format!("/api/ci/runs/{id}/triage");
+    // düşük güven: öneri olarak kalır
+    let body = json!({ "scenario_key": key, "triage": { "category": "urun", "reason": "emin değilim", "confidence": 0.4 } });
+    assert_eq!(app.ci_json(&uri, body).await.0, StatusCode::OK);
+    assert_eq!(target().await, "opencode");
+    // yüksek güven: geçerli olur, ürün hatası düzeltmeye gitmez
+    let body = json!({ "scenario_key": key, "triage": { "category": "urun", "reason": "Ekrandaki metin yanlış", "confidence": 0.9 } });
+    assert_eq!(app.ci_json(&uri, body).await.0, StatusCode::OK);
+    assert_eq!(target().await, "jira");
+    let (_, sp) = app.get(&format!("/scenarios/{broken}")).await;
+    assert!(sp.contains("Ürün hatası") && sp.contains("kaynak: LLM %90") && sp.contains("Ekrandaki metin yanlış"));
+    let (_, html) = app.get(&format!("/runs/{id}")).await;
+    assert!(!html.contains("class=\"duzeltme"), "değerlendirme düzeltme denemesi sayılmaz");
+    let body = json!({ "scenario_key": key, "triage": { "category": "sacma", "reason": "x", "confidence": 0.9 } });
+    assert_eq!(app.ci_json(&uri, body).await.0, StatusCode::BAD_REQUEST);
+    let body = json!({ "scenario_key": "yok", "triage": { "category": "urun", "reason": "x", "confidence": 0.9 } });
+    assert_eq!(app.ci_json(&uri, body).await.0, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

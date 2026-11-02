@@ -37,7 +37,8 @@ variables:
   GET_SOURCES_ATTEMPTS: "5"
   ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
   # ULAK_TAGS: "@smoke"           # boşsa features.txt kullanılır
-  # ULAK_FIX: "off"               # self-healing'i kapatmak için
+  # ULAK_FIX: "off"               # self-healing'i (ve LLM değerlendirmesini) kapatmak için
+  # ULAK_DEGERLENDIR: "off"       # yalnızca LLM değerlendirmesini kapatmak için; ULAK_FIX=off iken "on" yalnızca onu açar
   # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)
 
 stages:
@@ -100,10 +101,11 @@ stages:
 .ulak-fix:
   stage: fix
   script:
+    - ulak degerlendir
     - ulak fix
   allow_failure: true
   rules:
-    - if: '$ULAK_FIX == "off"'
+    - if: '$ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on"'
       when: never
     - when: always
 
@@ -175,7 +177,7 @@ ulak-fix-linux:
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
-    - if: '$ULAK_OS != "linux" || $ULAK_FIX == "off"'
+    - if: '$ULAK_OS != "linux" || ($ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on")'
       when: never
     - when: always
 
@@ -189,6 +191,6 @@ ulak-fix-windows:
       when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
-    - if: '$ULAK_OS != "windows" || $ULAK_FIX == "off"'
+    - if: '$ULAK_OS != "windows" || ($ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on")'
       when: never
     - when: always

@@ -235,7 +235,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Kategoriler: `flaky`, `test kodu hatası` (bizden), `ürün hatası`, `ortam sorunu`, `bilinmiyor`.
 - Karar üç kaynaktan gelir ve her kararın kaynağı kayıtlıdır:
   1. Kural: flaky geçmişi (SW-4.2), Allure durumu (`broken` → test kodu, `failed` → ürün), bilinen ortam hata kalıpları (zaman aşımı, bağlantı hatası, ekran bulunamadı).
-  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde (SW-7.2) çalışır, sonucu divan'a bildirir.
+  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde `ulak degerlendir` (salt okunur, her kalan senaryo) ve `ulak fix` (SW-7.2) çalışır, sonucu divan'a bildirir. Ajan OpenCode ya da Claude Code'dur.
   3. Admin: kararı onaylar ya da değiştirir. Admin kararı diğerlerinin üstündedir.
 - Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → atlanır, ortam sorunu → bildirim.
 - Ayrıntılar netleşmedi (açık soru 3); bu gereksinime başlamadan önce sor.
