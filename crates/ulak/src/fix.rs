@@ -217,7 +217,7 @@ impl Gitlab {
     }
 
     fn create_mr(&self, source: &str, target: &str, title: &str, description: &str) -> Result<(i64, String)> {
-        let agent: ureq::Agent = ureq::Agent::config_builder().http_status_as_error(false).build().into();
+        let agent = https_agent();
         let url = format!("{}/projects/{}/merge_requests", self.api.trim_end_matches('/'), self.project);
         let body = serde_json::json!({ "source_branch": source, "target_branch": target, "title": title, "description": description, "remove_source_branch": true });
         let mut r = agent
@@ -225,7 +225,10 @@ impl Gitlab {
             .header("PRIVATE-TOKEN", &self.token)
             .header("Content-Type", "application/json")
             .send(body.to_string())
-            .map_err(|e| anyhow::anyhow!("GitLab'a ulaşılamadı: {}", e.to_string().replace(&self.token, "***")))?;
+            .map_err(|e| {
+                let m = e.to_string().replace(&self.token, "***");
+                anyhow::anyhow!("GitLab'a ulaşılamadı: {m}{}", common::tls::hint(&m, CA_ENVS[0]))
+            })?;
         let st = r.status().as_u16();
         let mut s = String::new();
         r.body_mut().as_reader().read_to_string(&mut s)?;
@@ -249,6 +252,22 @@ fn push_remote() -> Option<String> {
     let path = env("CI_PROJECT_PATH")?;
     let (scheme, host) = server.split_once("://")?;
     Some(format!("{scheme}://oauth2:{token}@{host}/{path}.git"))
+}
+
+/// GitLab'ın CA'sı: önce ULAK_CA_DOSYASI, yoksa runner'ın verdiği CI_SERVER_TLS_CA_FILE (runner'ın
+/// güvendiği zincir), o da yoksa işletim sisteminin sertifika deposu.
+pub const CA_ENVS: &[&str] = &["ULAK_CA_DOSYASI", "CI_SERVER_TLS_CA_FILE"];
+
+fn https_agent() -> ureq::Agent {
+    let (tls, err) = common::tls::config_or_platform(CA_ENVS);
+    if let Some(e) = err {
+        say(format!("UYARI: {e}; sistem sertifika deposuyla devam ediliyor"));
+    }
+    ureq::Agent::config_builder()
+        .tls_config(tls)
+        .http_status_as_error(false)
+        .build()
+        .into()
 }
 
 fn download(c: &Ctx, url: &str, dest: &Path) -> Option<PathBuf> {
@@ -517,16 +536,23 @@ pub fn fix(c: &Ctx) -> Result<i32> {
             )?;
             result.diff = Some(diff);
             let pushed = match push_remote() {
-                Some(remote) => git(dir, &["push", "-q", "-f", &remote, &format!("HEAD:refs/heads/{branch}")])
-                    .map(|_| true)
-                    .unwrap_or_else(|e| {
-                        say(format!(
-                            "UYARI: push başarısız: {}",
-                            e.to_string()
-                                .replace(&env("ULAK_FIX_TOKEN").unwrap_or_else(|| "\u{0}".into()), "***")
-                        ));
+                Some(remote) => {
+                    // git kendi sertifika ayarını kullanır: aynı CA dosyasını ona da ver
+                    let ca = common::tls::ca_file(CA_ENVS).map(|(_, f)| format!("http.sslCAInfo={f}"));
+                    let refspec = format!("HEAD:refs/heads/{branch}");
+                    let mut args: Vec<&str> = Vec::new();
+                    if let Some(c) = &ca {
+                        args.extend(["-c", c.as_str()]);
+                    }
+                    args.extend(["push", "-q", "-f", remote.as_str(), refspec.as_str()]);
+                    git(dir, &args).map(|_| true).unwrap_or_else(|e| {
+                        let m = e
+                            .to_string()
+                            .replace(&env("ULAK_FIX_TOKEN").unwrap_or_else(|| "\u{0}".into()), "***");
+                        say(format!("UYARI: push başarısız: {m}{}", common::tls::hint(&m, CA_ENVS[0])));
                         false
-                    }),
+                    })
+                }
                 None => {
                     say("UYARI: push hedefi yok (ULAK_FIX_TOKEN / ULAK_PUSH_REMOTE)");
                     false

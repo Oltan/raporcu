@@ -153,6 +153,7 @@ açık bir mesajla düşürür.
 | `CI_API_TOKEN` | divan `.env` + test projesinde (ya da grupta) masked CI değişkeni | CI uçları (SW-9.1) |
 | `GITLAB_WEBHOOK_TOKEN` | divan `.env` + GitLab webhook "Secret token" | webhook doğrulama (SW-9.3) |
 | `GITLAB_URL`, `GITLAB_TOKEN` | yalnızca divan `.env` | "OpenCode ile düzelt" düğmesi pipeline tetikler (SW-7.4) |
+| `ULAK_CA_DOSYASI` | CI değişkeni ya da runner ortamı (isteğe bağlı, dosya yolu) | GitLab HTTPS sertifikası şirket CA'sıyla imzalıysa CA'nın PEM dosyası; yoksa `CI_SERVER_TLS_CA_FILE`, o da yoksa sistem deposu (`docs/KURULUM.md` CA notu) |
 | `ULAK_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `ulak fix`: auto-fix branch push + MR (SW-7.2) |
 | `ULAK_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
 | `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | `on`: auto-fix branch'ine push'ta da tüm e2e koşar (fix işi yine koşmaz) |

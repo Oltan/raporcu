@@ -9,7 +9,7 @@ gerektiren belgelerde ayrıca "Python karşılığı" notu var; genel eşleme a�
 
 | Bölüm | Belgeler |
 |-------|----------|
-| Ortak (`crates/common`) | [lib](common/lib.md) · [allure](common/allure.md) — Allure dosya ayrıştırma · [api](common/api.md) — CI API tipleri, sürüm uyumu |
+| Ortak (`crates/common`) | [lib](common/lib.md) · [allure](common/allure.md) — Allure dosya ayrıştırma · [api](common/api.md) — CI API tipleri, sürüm uyumu · [tls](common/tls.md) — şirket CA'sı, HTTPS doğrulaması |
 | Sunucu çekirdek (`crates/divan/src`) | [main](divan/main.md) · [lib](divan/lib.md) (AppState, router) · [config](divan/config.md) · [ayarlar](divan/ayarlar.md) (Jira şablonu, DOORS) · [paths](divan/paths.md) · [db](divan/db.md) · [logging](divan/logging.md) · [auth](divan/auth.md) |
 | Sonuç alma | [upload](divan/upload.md) (zip) · [defterdar](divan/defterdar.md) (Allure → veritabanı, is_latest) · [hooks](divan/hooks.md) (yükleme/bitiş sonrası işler) · [stall](divan/stall.md) (durgun koşum) · [live](divan/live.md) (canlı durum) |
 | Rapor | [queries](divan/queries.md) · [history](divan/history.md) · [charts](divan/charts.md) (SVG) · [export](divan/export.md) (CSV, DOORS) · [share](divan/share.md) · [disk](divan/disk.md) |

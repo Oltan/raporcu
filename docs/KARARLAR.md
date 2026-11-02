@@ -98,3 +98,6 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 - **auto-fix döngüsü:** auto-fix branch push'u varsayılan olarak tam e2e koşturmaz (fix işi tek senaryoyu
   zaten doğruladı); fix işi auto-fix branch'inde hiç koşmaz; açık MR'ı olan senaryo yeniden denenmez.
   `workflow:` kuralı yerine iş kuralları kullanıldı: test projesinin kendi işleri etkilenmesin.
+- **Şirket CA'sı:** dış HTTPS (GitLab, Jira) işletim sisteminin sertifika deposuyla doğrulanır;
+  sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (PEM), ulak ayrıca runner'ın
+  `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı kapatma seçeneği bilerek yok.

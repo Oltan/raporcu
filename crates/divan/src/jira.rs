@@ -99,7 +99,14 @@ impl Jira {
                 .header("Content-Type", "application/json")
                 .send(b.map(|v| v.to_string()).unwrap_or_default()),
         };
-        let mut r = res.map_err(|e| anyhow::anyhow!("Jira'ya ulaşılamadı: {}", redact(&e.to_string(), &self.secrets)))?;
+        let mut r = res.map_err(|e| {
+            let m = e.to_string();
+            anyhow::anyhow!(
+                "Jira'ya ulaşılamadı: {}{}",
+                redact(&m, &self.secrets),
+                common::tls::hint(&m, crate::gitlab::CA_ENV)
+            )
+        })?;
         let st = r.status().as_u16();
         let mut s = String::new();
         r.body_mut().as_reader().take(4 << 20).read_to_string(&mut s)?;
@@ -162,7 +169,14 @@ impl Jira {
             .header("X-Atlassian-Token", "no-check")
             .header("Content-Type", &format!("multipart/form-data; boundary={boundary}"))
             .send(&body[..])
-            .map_err(|e| anyhow::anyhow!("Jira'ya ulaşılamadı: {}", redact(&e.to_string(), &self.secrets)))?;
+            .map_err(|e| {
+                let m = e.to_string();
+                anyhow::anyhow!(
+                    "Jira'ya ulaşılamadı: {}{}",
+                    redact(&m, &self.secrets),
+                    common::tls::hint(&m, crate::gitlab::CA_ENV)
+                )
+            })?;
         let st = r.status().as_u16();
         let mut s = String::new();
         let _ = r.body_mut().as_reader().take(1 << 16).read_to_string(&mut s);

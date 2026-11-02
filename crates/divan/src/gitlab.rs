@@ -70,8 +70,16 @@ pub fn apply_mr_event(c: &Connection, v: &Value) -> Result<usize> {
     Ok(n)
 }
 
+/// GitLab ve Jira için HTTPS istemcisi: sistem sertifika deposu ya da `DIVAN_CA_DOSYASI` (PEM).
+pub const CA_ENV: &str = "DIVAN_CA_DOSYASI";
+
 pub fn agent() -> ureq::Agent {
+    let (tls, err) = common::tls::config_or_platform(&[CA_ENV]);
+    if let Some(e) = err {
+        tracing::error!(hata = %e, "CA dosyası kullanılamadı, sistem sertifika deposuyla devam ediliyor");
+    }
     ureq::Agent::config_builder()
+        .tls_config(tls)
         .http_status_as_error(false)
         .timeout_global(Some(std::time::Duration::from_secs(30)))
         .build()
@@ -99,7 +107,10 @@ pub fn trigger_fix_pipeline(st: &AppState, project_gitlab_id: &str, git_ref: &st
         .header("PRIVATE-TOKEN", token.expose())
         .header("Content-Type", "application/json")
         .send(body.to_string())
-        .map_err(|e| anyhow::anyhow!("GitLab'a ulaşılamadı: {}", redact(&e.to_string(), &secrets)))?;
+        .map_err(|e| {
+            let m = e.to_string();
+            anyhow::anyhow!("GitLab'a ulaşılamadı: {}{}", redact(&m, &secrets), common::tls::hint(&m, CA_ENV))
+        })?;
     let status = resp.status().as_u16();
     let mut text = String::new();
     resp.body_mut().as_reader().take(1 << 20).read_to_string(&mut text)?;
