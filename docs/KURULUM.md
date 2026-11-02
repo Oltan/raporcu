@@ -332,7 +332,7 @@ yeni `ulak`'ı sonraki koşumda sunucudan indirir. Sunucu ve `ulak` sürümleri 
 
 | Görülen | Sebep | Çözüm |
 |---------|-------|-------|
-| `GitLab'a ulaşılamadı` / `Jira'ya ulaşılamadı: ... invalid peer certificate: UnknownIssuer` | GitLab/Jira'nın HTTPS sertifikası şirket CA'sıyla imzalı, divan/ulak bu CA'yı tanımıyor (yetki sorunu değil; yetki olsaydı 401/403 gelirdi) | Şirket kök sertifikasını sistem deposuna ekleyin (Windows: `certlm.msc` → Güvenilen Kök Sertifika Yetkilileri; Ubuntu: `.crt` dosyasını `/usr/local/share/ca-certificates/` altına koyup `sudo update-ca-certificates`) ya da PEM dosyasını verin: divan için `.env`'de `DIVAN_CA_DOSYASI`, ulak için CI değişkeni `ULAK_CA_DOSYASI`. Aşağıdaki nota bakın |
+| `GitLab'a ulaşılamadı` / `Jira'ya ulaşılamadı: ... invalid peer certificate: UnknownIssuer` | GitLab/Jira'nın HTTPS sertifikası şirket CA'sıyla imzalı, divan/ulak bu CA'yı tanımıyor (yetki sorunu değil; yetki olsaydı 401/403 gelirdi) | Şirket kök sertifikasını sistem deposuna ekleyin (Windows: `certlm.msc` → Güvenilen Kök Sertifika Yetkilileri; Ubuntu: `.crt` dosyasını `/usr/local/share/ca-certificates/` altına koyup `sudo update-ca-certificates`) ya da sertifika dosyasını (`.pem`/`.crt`/`.cer`/`.cert`, PEM ya da DER) verin: divan için `.env`'de `DIVAN_CA_DOSYASI`, ulak için CI değişkeni `ULAK_CA_DOSYASI`. Aşağıdaki nota bakın |
 | `Cannot access central ... in offline mode` | Kütüphane depoda yok | Bölüm 3, önemli sınır |
 | `mvn.cmd: program not found` | Runner Maven'ı görmüyor | PATH'i düzeltip runner'ı yeniden başlatın |
 | `masaüstü oturumunda değil` | Runner Windows hizmeti | Runner'ı masaüstünde başlatın |
@@ -358,9 +358,9 @@ sertifikayı şu sırayla doğrular:
 | divan | `DIVAN_CA_DOSYASI` (PEM) → işletim sisteminin sertifika deposu |
 | ulak | `ULAK_CA_DOSYASI` (PEM) → `CI_SERVER_TLS_CA_FILE` (GitLab runner'ın güvendiği zincir, runner `tls-ca-file` ile ayarlıysa kendiliğinden gelir) → sistem deposu |
 
-- PEM dosyası `-----BEGIN CERTIFICATE-----` ile başlamalı. Windows'ta `.cer` dosyasını "Base-64 kodlu X.509"
-  olarak dışa aktarın. Dosya verilince **yalnızca** o dosyadaki CA'lara güvenilir (zincirdeki kök ve
-  ara sertifikaları birlikte koyun).
+- Dosya uzantısı önemsiz (`.pem`, `.crt`, `.cer`, `.cert`). İçerik metin (PEM, `-----BEGIN CERTIFICATE-----`;
+  kök ve ara sertifikalar art arda olabilir) ya da tek bir ikili (DER) sertifika olabilir; ikisi de okunur.
+  Dosya verilince **yalnızca** o dosyadaki CA'lara güvenilir: ara sertifika varsa PEM'de kök ile birlikte koyun.
 - ulak'ın `git push`'una da aynı dosya `http.sslCAInfo` olarak verilir.
 - Linux'ta `SSL_CERT_FILE` ortam değişkeni tanımlıysa sistem deposu yerine o dosya okunur.
 - Windows'ta CA sistem deposundayken iptal (revocation) denetimi hata verirse (şirket CRL'ine

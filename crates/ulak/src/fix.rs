@@ -538,7 +538,10 @@ pub fn fix(c: &Ctx) -> Result<i32> {
             let pushed = match push_remote() {
                 Some(remote) => {
                     // git kendi sertifika ayarını kullanır: aynı CA dosyasını ona da ver
-                    let ca = common::tls::ca_file(CA_ENVS).map(|(_, f)| format!("http.sslCAInfo={f}"));
+                    // .cert/.cer ikili (DER) ise git için PEM'e çevrilir
+                    let ca = common::tls::ca_file(CA_ENVS)
+                        .and_then(|(_, f)| common::tls::pem_path_for_git(&f, &c.state_dir).ok())
+                        .map(|f| format!("http.sslCAInfo={f}"));
                     let refspec = format!("HEAD:refs/heads/{branch}");
                     let mut args: Vec<&str> = Vec::new();
                     if let Some(c) = &ca {
