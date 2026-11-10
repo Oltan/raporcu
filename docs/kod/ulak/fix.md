@@ -27,6 +27,11 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
       ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn). Şirket CA'sı
       tanımlıysa ajana `NODE_EXTRA_CA_CERTS=.ulak/sirket-ca.pem` verilir (kullanıcı tanımlamadıysa).
+      Zaman aşımında (`run_with_timeout`, kod `-1`) yalnızca ajan değil **süreç ağacı** sonlandırılır:
+      ajan sarmalayıcıyla başlar (`opencode.cmd` → node) ve torun süreç çıktı borusunu açık tutar.
+      Windows'ta `taskkill /T /F /PID`, Unix'te ajan kendi süreç grubunda başlatılır ve gruba
+      `kill -KILL` gönderilir. Çıktı okuması süreç bittikten sonra en çok 5 sn beklenir; boru hâlâ
+      açıksa o ana kadar okunan kısım kullanılır (aynı yol `ulak degerlendir` için de geçerli).
    5. Çıktı tokenlar maskelenerek `.ulak/fix/<senaryo>-ajan.log` dosyasına yazılır; ajan başarısızsa
       son 15 satır işin loguna da düşer. Son satırlardan `ULAK_OZET:` ve `ULAK_TRIAGE: {json}` alınır;
       ajan istemi tekrar basarsa şablon satırları (`<...>`, `test_kodu|urun`) sonuç sayılmaz.
@@ -61,4 +66,4 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
 `test_sw_7_2_claude_code_agent_command`; prova "Fix işi" adımları.
 
 ## Python karşılığı
-`subprocess.run(["git", …])`; ajan zaman aşımı `subprocess.run(timeout=…)`; MR için `requests.post` + `PRIVATE-TOKEN` başlığı. Push URL'sindeki tokenı hata mesajlarından silmeyi unutmayın.
+`subprocess.run(["git", …])`; ajan zaman aşımı `subprocess.Popen(…, start_new_session=True)` + `communicate(timeout=…)`, aşımda `os.killpg` (Windows'ta `taskkill /T /F`) — `subprocess.run(timeout=…)` yalnızca doğrudan çocuğu öldürür ve torun boruyu tutarsa asılı kalır; MR için `requests.post` + `PRIVATE-TOKEN` başlığı. Push URL'sindeki tokenı hata mesajlarından silmeyi unutmayın.

@@ -158,33 +158,74 @@ pub fn tail_lines(s: &str, n: usize) -> String {
     lines[lines.len().saturating_sub(n)..].join("\n")
 }
 
+/// Süreci ve başlattığı alt süreçleri sonlandırır. Ajan çoğu zaman sarmalayıcıyla başlar
+/// (`opencode.cmd` → node): yalnızca doğrudan çocuk ölürse torun çalışmaya devam eder.
+fn kill_tree(child: &mut std::process::Child) {
+    let pid = child.id().to_string();
+    #[cfg(windows)]
+    let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", &pid])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    // süreç kendi grubunun lideri olarak başlatıldı: grup = süreç ağacı
+    #[cfg(unix)]
+    let _ = Command::new("kill")
+        .args(["-KILL", "--", &format!("-{pid}")])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// Boruyu okuyup biriktirir; bitince haber verir. Okunan kısım, boru kapanmasa da alınabilir.
+fn collect(mut r: impl Read + Send + 'static, done: std::sync::mpsc::Sender<()>) -> std::sync::Arc<std::sync::Mutex<Vec<u8>>> {
+    let buf = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let b = buf.clone();
+    std::thread::spawn(move || {
+        let mut chunk = [0u8; 8192];
+        while let Ok(n) = r.read(&mut chunk) {
+            if n == 0 {
+                break;
+            }
+            b.lock().unwrap().extend_from_slice(&chunk[..n]);
+        }
+        let _ = done.send(());
+    });
+    buf
+}
+
+/// Zaman aşımında `-1` döner ve süreç ağacı sonlandırılır.
 fn run_with_timeout(mut cmd: Command, timeout: Duration) -> Result<(i32, String)> {
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
-    let mut so = child.stdout.take().unwrap();
-    let mut se = child.stderr.take().unwrap();
-    let t1 = std::thread::spawn(move || {
-        let mut s = String::new();
-        let _ = so.read_to_string(&mut s);
-        s
-    });
-    let t2 = std::thread::spawn(move || {
-        let mut s = String::new();
-        let _ = se.read_to_string(&mut s);
-        s
-    });
+    let (tx, rx) = std::sync::mpsc::channel();
+    let so = collect(child.stdout.take().unwrap(), tx.clone());
+    let se = collect(child.stderr.take().unwrap(), tx);
     let start = Instant::now();
     let code = loop {
         if let Some(st) = child.try_wait()? {
             break st.code().unwrap_or(1);
         }
         if start.elapsed() > timeout {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_tree(&mut child);
             break -1;
         }
         std::thread::sleep(Duration::from_millis(200));
     };
-    Ok((code, format!("{}{}", t1.join().unwrap_or_default(), t2.join().unwrap_or_default())))
+    // boruyu hâlâ tutan bir alt süreç kalmışsa sonsuza kadar beklenmez: o ana kadarki çıktı yeter
+    let son = Instant::now() + Duration::from_secs(5);
+    for _ in 0..2 {
+        if rx.recv_timeout(son.saturating_duration_since(Instant::now())).is_err() {
+            break;
+        }
+    }
+    let text = |b: &std::sync::Mutex<Vec<u8>>| String::from_utf8_lossy(&b.lock().unwrap()).into_owned();
+    Ok((code, format!("{}{}", text(&so), text(&se))))
 }
 
 pub fn slug(s: &str) -> String {

@@ -134,6 +134,7 @@ fn run(c: &Ctx) -> Result<()> {
         std::fs::write(&prompt_file, &prompt)?;
         // ajan karar yazmadan bitebilir (ör. reddedilen araç oturumu kapatır): bir kez daha sorulur
         let mut verdict = None;
+        let mut stalled = false;
         for deneme in 1..=2 {
             let (code, out) = fix::run_agent(c, &evaluation_command(), &prompt_file, &prompt, shot.as_deref(), timeout);
             let _ = std::fs::write(work.join(format!("{name}-ajan.log")), &out);
@@ -144,6 +145,12 @@ fn run(c: &Ctx) -> Result<()> {
                 fix::restore(dir);
                 break;
             }
+            if code == -1 {
+                // kota dolunca OpenCode hata vermeden yeniden dener: model yanıt vermiyorsa diğer
+                // senaryolar da bekler, iş boşuna kilitlenmesin
+                stalled = true;
+                break;
+            }
             verdict = parse_triage(&out);
             if verdict.is_some() {
                 break;
@@ -152,6 +159,13 @@ fn run(c: &Ctx) -> Result<()> {
                 "UYARI: ajan karar vermedi ({code}, deneme {deneme}), son çıktı:\n{}",
                 fix::tail_lines(&out, 15)
             ));
+        }
+        if stalled {
+            say(format!(
+                "UYARI: ajan {} sn içinde bitmedi (model yanıt vermiyor ya da kota doldu); değerlendirme durduruldu, kalan senaryolar kural kararıyla kalıyor",
+                timeout.as_secs()
+            ));
+            break;
         }
         let Some(triage) = verdict else {
             continue;

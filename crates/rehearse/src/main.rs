@@ -296,6 +296,15 @@ fn main() -> Result<()> {
         Some("fake-tests") => std::process::exit(fake_tests(&args[1..])),
         Some("fake-opencode") => std::process::exit(fake_opencode()),
         Some("fake-degerlendir") => std::process::exit(fake_degerlendir()),
+        Some("fake-asili-torun") => {
+            // ajan öldürülünce torun da ölmeli: yaşarsa bu dosyayı yazar
+            std::thread::sleep(std::time::Duration::from_secs(4));
+            if let Ok(p) = std::env::var("ULAK_FAKE_TORUN_DOSYASI") {
+                let _ = std::fs::write(p, "torun yaşıyor");
+            }
+            std::thread::sleep(std::time::Duration::from_secs(26));
+            std::process::exit(0)
+        }
         Some("fake-validate") => std::process::exit(
             std::env::var("ULAK_FAKE_VALIDATE")
                 .map(|v| if v == "fail" { 1 } else { 0 })
@@ -636,6 +645,13 @@ fn fake_opencode() -> i32 {
 
 /// Sahte salt okunur ajan: karar yazar; `yaz` modunda kuralı bozup dosya değiştirir.
 fn fake_degerlendir() -> i32 {
+    if std::env::var("ULAK_FAKE_MODE").as_deref() == Ok("asili") {
+        // gerçek ajan sarmalayıcıyla başlar (ör. `.cmd` → node): çıktı borusunu torun süreç de tutar
+        let _ = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("fake-asili-torun")
+            .spawn();
+        std::thread::sleep(std::time::Duration::from_secs(30));
+    }
     if std::env::var("ULAK_FAKE_MODE").as_deref() == Ok("yaz") {
         std::fs::write("src/test/ajan-yazdi.txt", "salt okunur değil").unwrap();
     }
@@ -895,6 +911,30 @@ fn evaluation_steps(ck: &mut Checks, server: &Server, ulak: &Path, proj: &Path, 
         html.matches("class=\"duzeltme").count() == attempts_before,
         "",
     );
+    let torun = std::env::temp_dir().join(format!("ulak-asili-torun-{}", std::process::id()));
+    let _ = std::fs::remove_file(&torun);
+    s.set("ULAK_FAKE_MODE", "asili")
+        .set("ULAK_DEGERLENDIR_TIMEOUT", "1")
+        .set("ULAK_FAKE_TORUN_DOSYASI", torun.display().to_string());
+    let t = std::time::Instant::now();
+    let o = s.run(&["degerlendir"])?;
+    let sure = t.elapsed().as_secs();
+    ck.check(
+        "SW-4.5",
+        "model yanıt vermezse değerlendirme durur, iş kilitlenmez, kural kararı kalır",
+        o.code == 0 && o.text.contains("değerlendirme durduruldu") && o.text.matches("LLM değerlendirmesi:").count() == 1 && sure < 20,
+        format!("{sure} sn\n{}", o.text),
+    );
+    // torun yaşıyorsa başlamasından 4 sn sonra dosyayı yazar
+    std::thread::sleep(std::time::Duration::from_secs(6u64.saturating_sub(sure)));
+    ck.check(
+        "SW-4.5",
+        "zaman aşımında ajanın başlattığı alt süreçler de sonlandırılır",
+        !torun.exists(),
+        "",
+    );
+    let _ = std::fs::remove_file(&torun);
+    s.set("ULAK_FAKE_MODE", "normal").set("ULAK_DEGERLENDIR_TIMEOUT", "60");
     s.set("ULAK_FIX", "off");
     let o = s.run(&["degerlendir"])?;
     ck.check(

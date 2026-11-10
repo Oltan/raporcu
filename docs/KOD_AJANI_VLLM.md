@@ -98,6 +98,8 @@ dahil; flaky, `@sample-fail` ve açık MR'ı olanlar hariç) ajana sorar, kod de
   desteklemeyen modelde komuttan `--file {ekran}` kaldırılır; ajan karara ekran görüntüsüz varır.
 - OpenCode `run` etkileşimsizdir: `ask` izni otomatik reddedilir ve oturumu karar yazılmadan kapatabilir.
   Şablonda proje dışı erişim bu yüzden `external_directory: deny`; karar çıkmazsa ulak bir kez daha sorar.
+- Model yanıt vermezse (kota dolduysa OpenCode hata vermeden bekler) ilk zaman aşımında değerlendirme durur;
+  kalan senaryolar kural kararıyla kalır. Nedeni OpenCode logundadır (`~/.local/share/opencode/log`).
 
 ## Ajan tanımı (OpenCode)
 

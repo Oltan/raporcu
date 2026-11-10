@@ -24,6 +24,9 @@ geçerli karar değişirse `fix-candidates` hedefleri de değişir. Ayrıntı: `
 5. **Koruma:** ajandan sonra `fix::changed_files`; değişiklik varsa `fix::restore` ile geri alınır,
    karar kullanılmaz.
 6. `ULAK_TRIAGE` satırı okunur. Karar yoksa uyarı + bir deneme daha (reddedilen araç oturumu kapatabilir).
+   Zaman aşımında yeniden denenmez ve değerlendirme durur: kota dolunca OpenCode hata vermeden bekler,
+   model yanıt vermiyorsa kalan senaryolar da bekleyecektir; onlar kural kararıyla kalır. Ajanın
+   başlattığı alt süreçler de sonlandırılır (`fix.md`, süreç ağacı).
 7. `POST /api/ci/runs/{id}/triage` (`AgentTriage`).
 
 Hatalar uyarıdır, çıkış kodu her zaman 0: değerlendirme kurulamazsa `ulak fix` yine çalışır ve kural
