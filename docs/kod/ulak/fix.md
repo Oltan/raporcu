@@ -35,6 +35,8 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
    5. Çıktı tokenlar maskelenerek `.ulak/fix/<senaryo>-ajan.log` dosyasına yazılır; ajan başarısızsa
       son 15 satır işin loguna da düşer. Son satırlardan `ULAK_OZET:` ve `ULAK_TRIAGE: {json}` alınır;
       ajan istemi tekrar basarsa şablon satırları (`<...>`, `test_kodu|urun`) sonuç sayılmaz.
+      Satır Markdown ile süslenmiş olabilir (`**ULAK_TRIAGE:** {…}`, `- ULAK_OZET: …`); baştaki
+      `* _ ` # > -` ve değerin çevresindeki `*`, `` ` `` atılır (Claude Code böyle yazabiliyor).
    6. **Koruma (SW-9.4):** `git status --porcelain --untracked-files=all` (`.ulak/`, `ulak.env`,
       `target/`, `ulak*` hariç). İzinli önekler `ULAK_FIX_ALLOWED` (`src/test/`).
       - Ajan hata verip değişiklik yoksa → `error`, geri al.

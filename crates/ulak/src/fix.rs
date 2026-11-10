@@ -136,11 +136,18 @@ pub fn push_failure(p: &mut String, c: &FixCandidate, test_root: &str, screensho
 }
 
 /// Son işaret satırı. Ajan hata verirken istemi tekrar basabilir; şablon satırı (`<...>`) sonuç değildir.
+/// Ajan satırı Markdown ile süsleyebilir (`**ULAK_TRIAGE:** {...}`, `- ULAK_OZET: ...`); süs atılır.
 pub fn parse_marker<'a>(out: &'a str, marker: &str) -> Option<&'a str> {
+    const SUS: &[char] = &['*', '_', '`', '#', '>', '-', ' ', '\t'];
+    let ad = marker.trim_end_matches(':');
     out.lines()
         .rev()
-        .filter_map(|l| l.trim().strip_prefix(marker))
-        .map(str::trim)
+        .filter_map(|l| l.trim_start_matches(SUS).strip_prefix(ad))
+        // iki nokta kalın işaretinin içinde de dışında da olabilir: `**AD:**`, `**AD**:`
+        .filter_map(|v| {
+            let v = v.trim_start_matches(['*', '_', '`']).strip_prefix(':')?;
+            Some(v.trim_matches(|c: char| c.is_whitespace() || c == '*' || c == '`'))
+        })
         .find(|v| !v.starts_with('<') && !v.contains("test_kodu|urun"))
 }
 
@@ -698,6 +705,18 @@ mod tests {
         assert_eq!(parse_marker(p, "ULAK_TRIAGE:"), None);
         let gercek = format!("{p}ULAK_OZET: seçici düzeltildi\n");
         assert_eq!(parse_marker(&gercek, "ULAK_OZET:"), Some("seçici düzeltildi"));
+    }
+
+    #[test]
+    fn test_sw_4_5_markdown_ile_suslenmis_karar_okunur() {
+        // Claude Code (haiku) gerçek pipeline'da kararı böyle yazdı
+        let out = "---\n\n**ULAK_OZET:** Seçici yanlış\n\n**ULAK_TRIAGE:** {\"category\": \"test_kodu\", \"reason\": \"Seçici #girisDugmesi yok\", \"confidence\": 1.0}\n";
+        assert_eq!(parse_marker(out, "ULAK_OZET:"), Some("Seçici yanlış"));
+        let j = parse_marker(out, "ULAK_TRIAGE:").unwrap();
+        assert!(serde_json::from_str::<TriageSuggestion>(j).is_ok(), "{j}");
+        assert_eq!(parse_marker("- **ULAK_OZET**: tamam", "ULAK_OZET:"), Some("tamam"));
+        assert_eq!(parse_marker("`ULAK_TRIAGE: {\"a\": 1}`", "ULAK_TRIAGE:"), Some("{\"a\": 1}"));
+        assert_eq!(parse_marker("ULAK_OZETI: başka", "ULAK_OZET:"), None);
     }
 
     #[test]
