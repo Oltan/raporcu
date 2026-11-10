@@ -116,6 +116,11 @@ impl Jira {
         ))
     }
 
+    /// Jira bu kimliği tanımıyor mu (token geçersiz, süresi dolmuş ya da kullanıcı yanlış).
+    fn token_rejected(&self) -> bool {
+        matches!(self.call("GET", "/rest/api/2/myself", None), Ok((401, _)))
+    }
+
     /// SW-6.1: bug açar; label reddedilirse label'sız tekrar dener.
     pub fn create_bug(&self, bug: &NewBug) -> Result<String> {
         let mut fields = json!({
@@ -147,6 +152,12 @@ impl Jira {
         }
         if !(200..300).contains(&st) {
             tracing::warn!(servis = "jira", durum = st, deneme = 2, "Jira bug açılamadı");
+            // Jira Cloud geçersiz token'ı reddetmez, isteği anonim sayar: hata "proje yok / izin yok"
+            // diye gelir. Kimlik sorulur; 401 ise asıl neden token'dır.
+            if st == 401 || (v["errors"].get("project").is_some() && self.token_rejected()) {
+                tracing::warn!(servis = "jira", durum = 401, "Jira kimliği reddetti");
+                bail!("{TOKEN_GECERSIZ}");
+            }
             bail!("{}", redact(&jira_error(st, &v), &self.secrets));
         }
         v["key"]
@@ -316,6 +327,9 @@ fn parse_meta(id: &str, f: &Value) -> FieldMeta {
     }
 }
 
+pub const TOKEN_GECERSIZ: &str = "Jira kimliği reddetti (401): JIRA_TOKEN geçersiz ya da süresi dolmuş, \
+     ya da JIRA_USER yanlış. Yeni bir API token oluşturup .env içindeki JIRA_TOKEN'ı güncelleyin ve divan'ı yeniden başlatın.";
+
 /// Jira'nın hata yanıtını okunur metne çevirir: alan bazında hatalar ve ne yapılacağı.
 pub fn jira_error(st: u16, v: &Value) -> String {
     let mut parts: Vec<String> = Vec::new();
@@ -330,7 +344,10 @@ pub fn jira_error(st: u16, v: &Value) -> String {
     if parts.is_empty() {
         return format!("Jira {st}: {}", crate::logging::truncate(&v.to_string(), 300));
     }
-    let hint = if v["errors"].as_object().is_some_and(|m| !m.is_empty()) {
+    let hint = if v["errors"].get("project").is_some() {
+        // alan eksiği değil: proje anahtarı ya da yetki
+        " — .env içindeki JIRA_PROJECT anahtarını ve bu kullanıcının o projede issue açma iznini denetleyin."
+    } else if v["errors"].as_object().is_some_and(|m| !m.is_empty()) {
         " — Eksik/yanlış alanları Admin > Ayarlar > Jira'da \"Ek alanlar\" kısmına ya da bug formuna ekleyin; alan kimlikleri ve izinli değerler aynı sayfadaki \"Jira alanlarını getir\" ile görülür."
     } else {
         ""
@@ -928,5 +945,11 @@ mod tests {
             &json!({"errorMessages": [], "errors": {"customfield_10200": "Faz is required."}}),
         );
         assert!(e.contains("customfield_10200: Faz is required.") && e.contains("Ek alanlar"), "{e}");
+        // proje hatası alan eksiği değildir: "Ek alanlar" yönlendirmesi yanıltır
+        let e = jira_error(
+            400,
+            &json!({"errorMessages": [], "errors": {"project": "The target project doesn't exist or you don't have permission to create issues in it."}}),
+        );
+        assert!(e.contains("JIRA_PROJECT") && !e.contains("Ek alanlar"), "{e}");
     }
 }

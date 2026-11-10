@@ -25,6 +25,11 @@
 ezer; `labels` DOORS label'larına eklenir). 400 ve hata `labels` alanındaysa label'sız tekrar.
 Başarısızsa `jira_error`: Jira'nın `errors` (alan: mesaj) ve `errorMessages`'ı tek satırda, alan
 hatası varsa "Admin > Ayarlar > Jira'da Ek alanlar…" ipucu; gizli değerler temizlenir.
+Hata `project` alanındaysa ipucu `JIRA_PROJECT` anahtarı ve issue açma iznidir (alan eksiği değil).
+**Geçersiz token:** Jira Cloud geçersiz token'ı reddetmez, isteği anonim sayar ve bug açmayı
+"proje yok ya da izin yok" (400, `errors.project`) diye geri çevirir. Bu yüzden yanıt 401 ise ya da
+hata `project` alanındaysa `GET /rest/api/2/myself` sorulur (`token_rejected`); 401 dönerse hata
+`TOKEN_GECERSIZ` metnidir ("JIRA_TOKEN geçersiz ya da süresi dolmuş…").
 
 ## Alan bilgisi — `field_meta()`
 `GET /rest/api/2/issue/createmeta/{proje}/issuetypes` → iş türü kimliği (ad `JIRA_ISSUE_TYPE`,

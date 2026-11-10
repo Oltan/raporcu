@@ -145,6 +145,8 @@ struct JiraLog {
     require_field: Option<String>,
     /// Jira Cloud benzetimi: eski arama ucu kaldırılmış
     cloud: bool,
+    /// Jira Cloud benzetimi: geçersiz token anonim sayılır, bug açma "proje yok" diye reddedilir
+    token_invalid: bool,
 }
 
 type JL = Arc<Mutex<JiraLog>>;
@@ -158,6 +160,14 @@ async fn fake_jira(log: JL) -> String {
                 .map(|h| h.to_str().unwrap().to_string())
                 .unwrap_or_default(),
         );
+        if g.token_invalid {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    json!({ "errorMessages": [], "errors": { "project": "The target project doesn't exist or you don't have permission to create issues in it." } }),
+                ),
+            );
+        }
         if g.reject_labels && v["fields"].get("labels").is_some() {
             return (
                 StatusCode::BAD_REQUEST,
@@ -196,6 +206,13 @@ async fn fake_jira(log: JL) -> String {
         }
         search(state, q).await.into_response()
     }
+    async fn myself(State(l): State<JL>) -> StatusCode {
+        if l.lock().unwrap().token_invalid {
+            StatusCode::UNAUTHORIZED
+        } else {
+            StatusCode::OK
+        }
+    }
     async fn issuetypes() -> Json<Value> {
         Json(json!({ "values": [{ "id": "10004", "name": "Bug" }, { "id": "10001", "name": "Task" }] }))
     }
@@ -217,6 +234,7 @@ async fn fake_jira(log: JL) -> String {
             .route("/rest/api/2/issue/createmeta/{p}/issuetypes", get(issuetypes))
             .route("/rest/api/2/issue/createmeta/{p}/issuetypes/{t}", get(fields))
             .route("/rest/api/2/issue", post(create))
+            .route("/rest/api/2/myself", get(myself))
             .route("/rest/api/2/issue/{key}/attachments", post(attach))
             .route("/rest/api/2/search", get(search_old))
             .route("/rest/api/2/search/jql", get(search))
@@ -740,6 +758,24 @@ async fn test_sw_9_2_gitlab_token_not_in_error_messages_or_logs() {
 }
 
 // --- Jira şablonu, zorunlu alanlar ve bug formu; DOORS ayarları -----------------------------
+
+#[tokio::test]
+async fn test_sw_6_1_gecersiz_token_proje_hatasi_yerine_soylenir() {
+    let log: JL = Default::default();
+    log.lock().unwrap().token_invalid = true;
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, divan::config::JiraMode::Off));
+    let cookie = app.admin_cookie();
+    let id = upload_sample(&app, Q).await;
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira"), &cookie, "").await;
+    let body = body_string(r).await;
+    assert!(body.contains("JIRA_TOKEN geçersiz"), "{body}");
+    assert!(!body.contains("Ek alanlar") && !body.contains("jira-gizli-pat"), "{body}");
+    // token geçerliyse aynı hata proje anahtarına ve izne yönlendirir
+    let e = divan::jira::jira_error(400, &json!({ "errors": { "project": "yok" } }));
+    assert!(e.contains("JIRA_PROJECT") && !e.contains("Ek alanlar"), "{e}");
+}
 
 #[tokio::test]
 async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {

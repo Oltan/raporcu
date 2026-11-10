@@ -98,6 +98,13 @@ Jira bug'ı reddederse hata **alan adıyla** gösterilir, ör.
 `Jira 400: customfield_10200: Faz is required. — Eksik/yanlış alanları Admin > Ayarlar > Jira'da …`.
 Otomatik açmada aynı hata Admin panelindeki "Jira gözlem kayıtları"nda `hata` satırı olarak görünür.
 
+**Token süresi dolduysa:** Jira Cloud geçersiz token'ı reddetmez, isteği anonim sayar ve
+`project: The target project doesn't exist or you don't have permission…` der. divan bu durumda
+Jira'ya kimliğini sorar; kimlik reddedilirse hata `Jira kimliği reddetti (401): JIRA_TOKEN geçersiz
+ya da süresi dolmuş…` olur. Yeni API token oluşturup `.env` içindeki `JIRA_TOKEN`'ı güncelleyin ve
+divan'ı yeniden başlatın. Token geçerliyken aynı proje hatası gelirse `JIRA_PROJECT` anahtarı yanlıştır
+ya da kullanıcının o projede issue açma izni yoktur.
+
 ## 5. Ürün hatası: taslak → tek tıkla aç
 
 Varsayılan (`JIRA_AUTO_CREATE=observe`): divan Jira'ya **yazmaz**, bug'ı **taslak** olarak
