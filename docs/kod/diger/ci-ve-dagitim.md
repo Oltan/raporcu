@@ -27,7 +27,19 @@ Windows işlerinde `ULAK_XVFB=off`. Değişkenler: `ULAK_SERVER=http://127.0.0.1
 `ULAK_FIX`; `CI_API_TOKEN` masked proje/grup değişkeni.
 
 ## ci/gitlab/runner/config.toml.example
-`concurrent = 1` (aynı makinede tek test işi, SW-1.7), shell executor örneği.
+`concurrent = 1` (aynı makinede tek test işi, SW-1.7), shell executor örneği; yorum satırı olarak
+`environment = ["AD=deger", ...]` (ulak ve ajan ayarlarının runner'da verilmesi).
+
+## ci/gitlab/runner/runner.env.example
+Runner tarafının bütün ortam değişkenleri, örnek değerleriyle: `ulak` (sunucu bağlantısı, test koşumu,
+ekran/video, canlı aktarım, değerlendirme ve self-healing), OpenCode (`VLLM_*`), Claude Code
+(`ANTHROPIC_*`), şirket CA'sı. Hiçbir süreç bu dosyayı okumaz: satırlar GitLab CI değişkenine
+(`[MASKED]` işaretliler masked) ya da runner `environment` listesine yazılır; Linux'ta elle denemede
+kabuğa yüklenebilir (`set -a; . ./runner.env; set +a`). Açık satırlar varsayılan değerlerdir (adres,
+token, model adı hariç); davranışı değiştirenler yorum satırıdır. Sunucunun kendi örneği `.env.example`
+ayrıdır. `test_sw_10_5_runner_env_example_lists_every_variable` (ulak) kodda okunan her `ULAK_*`
+değişkeninin burada olduğunu, `test_sw_10_5_env_example_lists_every_setting` (divan) `config.rs`'in
+okuduğu her ayarın `.env.example` içinde olduğunu denetler.
 
 ## ci/opencode/template, ci/claude/template
 Test projesine kopyalanacak ajan dosyaları: `opencode.json` (vLLM sağlayıcısı, `fix` ajanı),

@@ -164,6 +164,11 @@ açık bir mesajla düşürür.
 | `VLLM_BASE_URL`, `VLLM_API_KEY`, `VLLM_MODEL`, `TESTFX_MCP_JAR` | runner ortamı ya da CI değişkeni | OpenCode + vLLM (SW-7.6) |
 | `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_HAIKU_MODEL` | runner ortamı ya da CI değişkeni | Claude Code + vLLM (ağ geçidi üzerinden), `docs/KOD_AJANI_VLLM.md` |
 
+İki örnek dosya var: sunucu için `.env.example` (divan'ın `.env` dosyası olur), runner tarafı için
+`ci/gitlab/runner/runner.env.example` (`ulak`, OpenCode ve Claude Code'un bütün değişkenleri, örnek
+değerleriyle). İkincisini hiçbir şey kendiliğinden okumaz; satırları CI değişkenine ya da runner
+`config.toml` içindeki `environment` listesine yazılır.
+
 Webhook: test projesi → Settings → Webhooks → URL `http://<divan-makinesi>:8080/api/gitlab/webhook`,
 Secret token = `GITLAB_WEBHOOK_TOKEN`, tetikler: **Pipeline events** ve **Merge request events**.
 

@@ -8,6 +8,9 @@ ajanına düzelttirir. Ajan seçimi CI değişkeniyle yapılır:
 | `opencode` (varsayılan) | `opencode run --agent fix <istem> --file <ekran.png>` | `opencode.json`, `.opencode/agents/fix.md`, `AGENTS.md` — şablon `ci/opencode/template/` |
 | `claude` | `claude -p <istem> --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text` | `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` — şablon `ci/claude/template/` |
 
+Bütün değişkenler örnek değerleriyle `ci/gitlab/runner/runner.env.example` dosyasındadır (CI değişkeni ya da
+runner `environment`; divan'ın `.env` dosyası değil).
+
 Komutun tamamı `ULAK_FIX_CMD` ile değiştirilebilir. Yer tutucular: `{istem}` (istem metni),
 `{ekran}` (ekran görüntüsü yolu; yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`.
 

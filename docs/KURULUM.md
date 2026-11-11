@@ -13,7 +13,7 @@ bölümün sonundaki **Kontrol** geçmeden sonrakine geçmeyin.
 | `java/` | `divan-test-destek-1.0.0.jar`, `m2/` (çevrimdışı Maven deposu), `maven/` (Maven 3.9.16), `pom-eklentisi.xml` |
 | `test-projesi/` | `.gitlab-ci.yml`, `opencode.json`, `AGENTS.md`, `fix` ajanı, üç skill |
 | `ozel/` | Kendi ajanlarınız ve skill'leriniz, örnekleriyle |
-| `sunucu/` | `.env` örneği, Windows hazırlık betiği, Linux hizmet dosyası, ayrıntılı rehberler |
+| `sunucu/` | `.env` örneği (`env.ornek`), runner tarafının dolu ortam örneği (`runner.env.example`), Windows hazırlık betiği, Linux hizmet dosyası, ayrıntılı rehberler |
 | `projeye-ekle.ps1`, `.sh` | Dosyaları test projesine kopyalayan betik |
 | `SHA256.txt` | Aktarım sonrası dosya doğrulama listesi |
 
@@ -232,6 +232,9 @@ Dosya değiştirmeniz gerekmez, modeli runner ortamından verirsiniz:
 | `TESTFX_MCP_JAR` | | İsteğe bağlı. TestFX MCP sunucusu varsa jar yolu |
 
 Bunları CI değişkeni olarak ya da runner `config.toml` içindeki `environment` satırına yazın.
+divan'ın `.env` dosyasına yazmayın: orası yalnızca sunucu içindir, `ulak` ve ajan onu okumaz.
+`ulak`, OpenCode ve Claude Code'un bütün değişkenleri örnek değerleriyle tek dosyada:
+`sunucu/runner.env.example`.
 
 - **Windows:** npm yalnızca kısayol koyar, `ulak` onu çalıştıramaz. Gerçek yolu şöyle bulun ve
   `ULAK_OPENCODE_BIN` yapın:

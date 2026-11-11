@@ -9,4 +9,6 @@ check_interval = 0
   executor = "shell"
   # Windows'ta: shell = "powershell"
   limit = 1
+  # ulak ve kod ajanı ayarları (gizli olmayanlar) buraya da yazılabilir; tam liste: runner.env.example
+  # environment = ["VLLM_BASE_URL=http://llm.sirket.local:8000/v1", "VLLM_MODEL=qwen3-coder"]
   [runners.custom_build_dir]

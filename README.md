@@ -23,7 +23,7 @@ divan: canlı ekran · rapor · arama/CSV · paylaşım · triage · Jira/DOORS 
 
 ```bash
 cargo build --release
-cp .env.example .env          # CI_API_TOKEN, PUBLIC_URL, ...
+cp .env.example .env          # sunucu: CI_API_TOKEN, PUBLIC_URL, ... (runner tarafı: ci/gitlab/runner/runner.env.example)
 ./target/release/divan set-admin-password
 ./target/release/divan    # http://127.0.0.1:8080
 ```

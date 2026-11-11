@@ -34,7 +34,7 @@ if (-not $LinuxYok) {
 
 Write-Host "== Sunucu dosyaları"
 Copy-Item "$kok\.env.example" "$p\sunucu\env.ornek"
-Copy-Item "$kok\deploy\linux\divan.service", "$kok\deploy\windows\kurulum.ps1", "$kok\deploy\windows\rdp-cikis.cmd", "$kok\ci\gitlab\runner\config.toml.example" "$p\sunucu\"
+Copy-Item "$kok\deploy\linux\divan.service", "$kok\deploy\windows\kurulum.ps1", "$kok\deploy\windows\rdp-cikis.cmd", "$kok\ci\gitlab\runner\config.toml.example", "$kok\ci\gitlab\runner\runner.env.example" "$p\sunucu\"
 Copy-Item "$kok\deploy\projeye-ekle.ps1", "$kok\deploy\projeye-ekle.sh", "$kok\docs\KURULUM.md" $p
 Copy-Item "$kok\docs\KOD_AJANI_VLLM.md", "$kok\docs\LLM_JAVA_ENTEGRASYON.md", "$kok\docs\JIRA_DOORS_AYARLARI.md", "$kok\docs\GITLAB_CI_KURULUMU.md" "$p\sunucu\"
 

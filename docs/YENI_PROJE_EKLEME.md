@@ -35,6 +35,7 @@ Tam örnek: `ornek-test-projesi/.gitlab-ci.yml`. divan deposu şirket GitLab'ın
 
 **6. GitLab ayarları** — CI değişkenleri `CI_API_TOKEN` (masked), self-healing için
 `ULAK_FIX_TOKEN`; webhook (Pipeline + Merge request events); gece schedule'ı 02:00.
+Tüm değişkenler: `ci/gitlab/runner/runner.env.example`.
 Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.
 
 **7. OpenCode** — `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agents/fix.md` ve
