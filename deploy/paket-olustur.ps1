@@ -44,6 +44,8 @@ Copy-Item "$kok\ci\gitlab\template\.gitlab-ci.yml" $t
 Copy-Item "$kok\ci\opencode\template\opencode.json", "$kok\ci\opencode\template\AGENTS.md" $t
 Copy-Item "$kok\ci\opencode\template\.opencode\agents\fix.md", "$kok\ci\opencode\template\.opencode\agents\degerlendir.md" "$t\.opencode\agents\"
 foreach ($s in "cucumber-adim", "hata-siniflandirma", "testfx-secici") { Copy-Item "$kok\ci\skills\$s" "$t\.claude\skills\" -Recurse }
+# Claude Code dosyaları ayrı durur: .claude\settings.json depodaki herkesin Claude Code'unu kısıtlar, isteyen kopyalar
+Copy-Item "$kok\ci\claude\template" "$p\claude-code" -Recurse
 Copy-Item "$kok\ci\opencode\template\.opencode\agents\fix.md" "$p\ozel\agents\ORNEK-ajan.md"
 Copy-Item "$kok\ci\skills\testfx-secici\SKILL.md" "$p\ozel\skills\ornek-skill\SKILL.md"
 Copy-Item "$kok\ci\java-destek\pom-eklentisi.xml" "$p\java\"

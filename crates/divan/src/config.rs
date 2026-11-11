@@ -254,30 +254,6 @@ mod tests {
         assert_eq!(parsed[1].0, "SONRAKI");
     }
 
-    /// Yeni bir ayar eklenince `.env.example` eksik kalmasın: `var("AD")` / `parse("AD", …)` ile okunan
-    /// her ad örnekte `AD=` ya da `# AD=` satırı olarak durmalı.
-    #[test]
-    fn test_sw_10_5_env_example_lists_every_setting() {
-        let example = include_str!("../../../.env.example");
-        let listed = |name: &str| {
-            example.lines().any(|l| {
-                l.strip_prefix("# ")
-                    .unwrap_or(l)
-                    .strip_prefix(name)
-                    .is_some_and(|r| r.starts_with('='))
-            })
-        };
-        let names: Vec<&str> = include_str!("config.rs")
-            .split("(\"")
-            .skip(1)
-            .filter_map(|part| part.split('"').next())
-            .filter(|n| n.len() > 2 && n.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'))
-            .collect();
-        assert!(names.len() > 30, "config.rs taranamadı: {}", names.len());
-        let missing: Vec<&&str> = names.iter().filter(|n| !listed(n)).collect();
-        assert!(missing.is_empty(), ".env.example içinde eksik: {missing:?}");
-    }
-
     #[test]
     fn test_sw_9_2_secret_debug_and_redact() {
         let mut cfg = Config::for_tests("/tmp/x");

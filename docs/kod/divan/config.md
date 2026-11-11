@@ -39,9 +39,7 @@ Geçersiz sayı ya da `JIRA_AUTO_CREATE` değeri açılışta açık hata mesaj�
   kullanıcıya/loga gitmeden önce bundan geçer.
 
 ## Testler
-`test_sw_9_2_secret_debug_and_redact`, `test_sw_10_5_windows_ca_path_example_parses`,
-`test_sw_10_5_env_example_lists_every_setting` (bu dosyanın okuduğu her ayar `.env.example` içinde
-`AD=` ya da `# AD=` satırı olarak durur)
+`test_sw_9_2_secret_debug_and_redact`
 
 ## Python karşılığı
 `python-dotenv` + `os.environ`; `Secret` için `__repr__` → `"***"` döndüren küçük sınıf.

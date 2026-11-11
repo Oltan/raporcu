@@ -38,8 +38,10 @@ Tam örnek: `ornek-test-projesi/.gitlab-ci.yml`. divan deposu şirket GitLab'ın
 Tüm değişkenler: `ci/gitlab/runner/runner.env.example`.
 Ayrıntı: `docs/GITLAB_CI_KURULUMU.md` bölüm 4–5.
 
-**7. OpenCode** — `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agents/fix.md` ve
-`AGENTS.md`'yi projeye kopyalayın; `AGENTS.md`'yi projenize göre doldurun. Skill'ler:
+**7. Kod ajanı** — OpenCode: `ci/opencode/template/` içindeki `opencode.json`, `.opencode/agents/fix.md`,
+`.opencode/agents/degerlendir.md` ve `AGENTS.md`'yi projeye kopyalayın; `AGENTS.md`'yi projenize göre
+doldurun. Claude Code (`ULAK_FIX_AGENT=claude`): `ci/claude/template/` içindeki `.claude/settings.json`,
+`.mcp.json` ve `CLAUDE.md`. Skill'ler:
 `ci/skills/*` → projede `.claude/skills/` (OpenCode ve Claude Code ikisi de okur). Ayrıntı:
 `docs/KOD_AJANI_VLLM.md`.
 

@@ -28,9 +28,7 @@ sinyali), `.ulak/queue/` (gönderilemeyen zip'ler), `<proje>/ulak.env` (GitLab d
   tırnak = boş argüman).
 
 ## Testler
-`test_sw_1_1_split_command_without_shell`, `test_sw_10_5_runner_env_example_lists_every_variable`
-(`ulak` ve `common` kaynaklarında geçen her `"ULAK_*"` değişkeni `ci/gitlab/runner/runner.env.example`
-içinde durur; test kancası, ajana verilen `ULAK_FIX_PROMPT_FILE`, eski ad ve işaret satırları hariç)
+`test_sw_1_1_split_command_without_shell`
 
 ## Python karşılığı
 `os.environ.get`, `pathlib`; `split_command` yerine `shlex.split(s, posix=True)` (Windows yolları için ters bölüye dikkat).

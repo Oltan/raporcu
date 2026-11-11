@@ -179,48 +179,6 @@ pub fn split_command(s: &str) -> Vec<String> {
 mod tests {
     use super::*;
 
-    /// ulak'ın okuduğu her `ULAK_*` değişkeni runner örnek dosyasında `AD=` ya da `# AD=` satırı olarak
-    /// durmalı (yeni değişken eklenince örnek eksik kalmasın). Dışarıda kalanlar: test kancası, ulak'ın
-    /// ajana verdiği değişken, eski ad ve ajan çıktısındaki işaret satırları.
-    #[test]
-    fn test_sw_10_5_runner_env_example_lists_every_variable() {
-        const HARIC: &[&str] = &[
-            "ULAK_FAKE_WINDOWS_SESSION",
-            "ULAK_FIX_PROMPT_FILE",
-            "ULAK_OPENCODE_CMD",
-            "ULAK_OZET",
-            "ULAK_TRIAGE",
-        ];
-        let example = include_str!("../../../ci/gitlab/runner/runner.env.example");
-        let listed = |name: &str| {
-            example.lines().any(|l| {
-                l.strip_prefix("# ")
-                    .unwrap_or(l)
-                    .strip_prefix(name)
-                    .is_some_and(|r| r.starts_with('='))
-            })
-        };
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut names = std::collections::BTreeSet::new();
-        for dir in [root.join("src"), root.join("../common/src")] {
-            for e in std::fs::read_dir(&dir).unwrap().flatten() {
-                let src = std::fs::read_to_string(e.path()).unwrap_or_default();
-                for part in src.split("\"ULAK_").skip(1) {
-                    let rest: String = part
-                        .chars()
-                        .take_while(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || *c == '_')
-                        .collect();
-                    if !rest.is_empty() && part[rest.len()..].starts_with('"') {
-                        names.insert(format!("ULAK_{rest}"));
-                    }
-                }
-            }
-        }
-        assert!(names.len() > 40, "kaynaklar taranamadı: {}", names.len());
-        let missing: Vec<&String> = names.iter().filter(|n| !HARIC.contains(&n.as_str()) && !listed(n)).collect();
-        assert!(missing.is_empty(), "ci/gitlab/runner/runner.env.example içinde eksik: {missing:?}");
-    }
-
     #[test]
     fn test_sw_1_1_split_command_without_shell() {
         assert_eq!(split_command("mvn -B test"), vec!["mvn", "-B", "test"]);

@@ -256,6 +256,15 @@ Notlar:
 - Ekran görüntüsü istemde dosya yolu olarak verilir; Claude Code onu Read aracıyla görüntü
   olarak açar.
 - TestFX MCP sunucusu `.mcp.json` ile tanımlıdır (`TESTFX_MCP_JAR`).
+- **Doğrudan Anthropic API:** ağ geçidi yoksa `ANTHROPIC_BASE_URL` ve `ANTHROPIC_AUTH_TOKEN` yazılmaz,
+  yalnızca `ANTHROPIC_API_KEY` (masked CI değişkeni) verilir; `ANTHROPIC_MODEL` isteğe bağlıdır.
+- **Windows:** ulak `claude` komutunu kabuk olmadan başlatır; yalnızca PATH'teki `claude.exe` bulunur,
+  npm kısayolu (`claude.cmd`) bulunmaz (`program not found`). `ULAK_OPENCODE_BIN` gibi bir ayar yoktur:
+  tam yol `ULAK_FIX_CMD` ve `ULAK_DEGERLENDIR_CMD` içine yazılır (hazır satırlar
+  `ci/gitlab/runner/runner.env.example` içinde). Gerçek Windows runner'da denenmedi.
+- `ulak preflight` ajan dosyalarını yalnızca OpenCode için denetler; `.claude/settings.json`, `.mcp.json`
+  ve `CLAUDE.md` dosyalarının proje kökünde olduğu elle kontrol edilir. Kurulum paketinde bu dosyalar
+  `claude-code/` klasöründedir; `projeye-ekle` onları kopyalamaz.
 
 ## Deneme (CI olmadan)
 

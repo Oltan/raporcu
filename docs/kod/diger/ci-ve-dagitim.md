@@ -14,7 +14,7 @@ Test projesi `include: project/ref/file` + `ULAK_OS: linux|windows` ekler. Aşam
 | `.ulak-linux` / `.ulak-windows` | `before_script`: `curl -fsS -o ulak "$ULAK_SERVER/api/tools/ulak?os=…"` | etiket `linux` / `windows`; OS'e özgü tek yer (SW-10.9) |
 | `.ulak-test` | `ulak preflight`, `ulak start` | artifact (her zaman, 7 gün): `target/allure-results/`, `.ulak/`; `reports: dotenv: ulak.env` (`ULAK_RUN_ID`, `ULAK_REPORT_URL`); `ULAK_FIX_ONLY=true` ise atlanır |
 | `.ulak-report` | `ulak upload`, `ulak finish` | `when: always` (test düşse de); artifact `.ulak/queue/` 30 gün (SW-2.6); `environment: rapor/$CI_COMMIT_REF_SLUG`, `url: $ULAK_REPORT_URL` (SW-5.4) |
-| `.ulak-fix` | `ulak fix` | `allow_failure: true`; `ULAK_FIX=off` ise yok |
+| `.ulak-fix` | `ulak degerlendir`, `ulak fix` | `allow_failure: true`; `ULAK_FIX=off` ise yok (`ULAK_DEGERLENDIR=on` verilmediyse) |
 
 Somut işler: `ulak-{test,report,fix}-{linux,windows}`, `ULAK_OS`'a göre `rules` ile seçilir. Hiçbiri
 `merge_request_event` pipeline'ında koşmaz; `auto-fix/…` branch'inde test/report yalnızca
@@ -37,13 +37,14 @@ ekran/video, canlı aktarım, değerlendirme ve self-healing), OpenCode (`VLLM_*
 (`[MASKED]` işaretliler masked) ya da runner `environment` listesine yazılır; Linux'ta elle denemede
 kabuğa yüklenebilir (`set -a; . ./runner.env; set +a`). Açık satırlar varsayılan değerlerdir (adres,
 token, model adı hariç); davranışı değiştirenler yorum satırıdır. Sunucunun kendi örneği `.env.example`
-ayrıdır. `test_sw_10_5_runner_env_example_lists_every_variable` (ulak) kodda okunan her `ULAK_*`
-değişkeninin burada olduğunu, `test_sw_10_5_env_example_lists_every_setting` (divan) `config.rs`'in
-okuduğu her ayarın `.env.example` içinde olduğunu denetler.
+ayrıdır. Eksiksizliği bir test denetlemez: `ulak`'a yeni değişken eklenince bu dosya elle güncellenir.
 
 ## ci/opencode/template, ci/claude/template
-Test projesine kopyalanacak ajan dosyaları: `opencode.json` (vLLM sağlayıcısı, `fix` ajanı),
-`AGENTS.md`; `CLAUDE.md` (Claude Code için aynı kurallar). Ayrıntı `docs/KOD_AJANI_VLLM.md`.
+Test projesine kopyalanacak ajan dosyaları. OpenCode: `opencode.json` (vLLM sağlayıcısı), `AGENTS.md`,
+`.opencode/agents/fix.md` ve `degerlendir.md` (salt okunur). Claude Code: `.claude/settings.json`
+(düzenleme yalnızca `src/test/**`, Bash ve web kapalı), `.mcp.json` (TestFX MCP), `CLAUDE.md` (aynı
+kurallar). Pakette OpenCode dosyaları `test-projesi/` altında (`projeye-ekle` kopyalar), Claude Code
+dosyaları `claude-code/` altındadır (elle kopyalanır). Ayrıntı `docs/KOD_AJANI_VLLM.md`.
 
 ## deploy/linux/divan.service
 systemd hizmeti: `divan` kullanıcısı, `/opt/divan` (`.env` çalışma klasöründen okunur), `MemoryMax=150M` / `MemoryHigh=110M`

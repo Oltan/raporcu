@@ -11,7 +11,8 @@ bölümün sonundaki **Kontrol** geçmeden sonrakine geçmeyin.
 | `windows/` | `divan.exe` (sunucu), `ulak.exe` (CI aracı). Ek çalışma zamanı istemez |
 | `linux/` | `divan`, `ulak`. Statik derlendi, her Ubuntu sürümünde çalışır |
 | `java/` | `divan-test-destek-1.0.0.jar`, `m2/` (çevrimdışı Maven deposu), `maven/` (Maven 3.9.16), `pom-eklentisi.xml` |
-| `test-projesi/` | `.gitlab-ci.yml`, `opencode.json`, `AGENTS.md`, `fix` ajanı, üç skill |
+| `test-projesi/` | `.gitlab-ci.yml`, `opencode.json`, `AGENTS.md`, `fix` ve `degerlendir` ajanları, üç skill |
+| `claude-code/` | Claude Code kullanılacaksa test projesine kopyalanan dosyalar: `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` (bölüm 6) |
 | `ozel/` | Kendi ajanlarınız ve skill'leriniz, örnekleriyle |
 | `sunucu/` | `.env` örneği (`env.ornek`), runner tarafının dolu ortam örneği (`runner.env.example`), Windows hazırlık betiği, Linux hizmet dosyası, ayrıntılı rehberler |
 | `projeye-ekle.ps1`, `.sh` | Dosyaları test projesine kopyalayan betik |
@@ -266,6 +267,37 @@ opencode run --agent fix "Merhaba de"
 Yanıt gelmeli ve başlık satırında sizin model adınız görünmeli. Ardından `ULAK_FIX` değişkenini
 silin, bilinen bir test kodu hatasıyla pipeline koşun. Sonuç koşum sayfasındaki OpenCode kutusunda
 görünür. Ayrıntı: `sunucu/KOD_AJANI_VLLM.md`.
+
+### Claude Code kullanacaksanız
+
+OpenCode yerine Claude Code da çalışır; skill'ler ortaktır, model değişkenleri farklıdır.
+
+1. Paketteki `claude-code/` klasörünün içeriğini test projesinin köküne kopyalayın:
+   `.claude/settings.json`, `.mcp.json`, `CLAUDE.md`. Projede bu dosyalar zaten varsa üzerine yazmayın,
+   içeriklerini birleştirin. `projeye-ekle` bunları kopyalamaz: `.claude/settings.json` o depoda Claude
+   Code kullanan herkes için geçerlidir (Bash kapalı, düzenleme yalnızca `src/test/`).
+2. Değişkenleri CI değişkeni olarak ya da runner `environment` satırına yazın:
+
+   | Değişken | Örnek | Anlamı |
+   |----------|-------|--------|
+   | `ULAK_FIX_AGENT` | `claude` | Ajan seçimi (yazılmazsa OpenCode) |
+   | `ANTHROPIC_BASE_URL` | `http://llm-gecidi.sirket.local:4000` | Anthropic biçimini konuşan ağ geçidi. Doğrudan Anthropic API'de yazılmaz |
+   | `ANTHROPIC_AUTH_TOKEN` | | Ağ geçidi anahtarı. Masked. Doğrudan Anthropic API'de bunun yerine `ANTHROPIC_API_KEY` |
+   | `ANTHROPIC_MODEL` | `gorsel-model` | Model adı |
+   | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | `gorsel-model` | Yardımcı isteklerin modeli; kapalı ağda aynı sunucuya yönlenmeli |
+
+3. **Windows:** `ulak`, `claude` komutunu kabuk olmadan başlatır; yalnızca PATH'teki `claude.exe` bulunur.
+   `(Get-Command claude).Source` bir `.cmd` ya da `.ps1` gösteriyorsa (npm kısayolu) `program not found`
+   alırsınız. `claude.exe` runner'ın PATH'inde değilse tam yolunu `ULAK_FIX_CMD` ve `ULAK_DEGERLENDIR_CMD`
+   içine yazın; hazır satırlar `sunucu/runner.env.example` içinde. Gerçek Windows runner'da denenmedi.
+4. `ulak preflight` ajan dosyalarını yalnızca OpenCode için denetler; üç dosyanın proje kökünde olduğunu
+   kendiniz kontrol edin.
+
+**Kontrol:** Test projesinde, ortam değişkenleri tanımlıyken:
+
+```bash
+claude -p "Merhaba de"
+```
 
 ## 7. Kendi ajanlarınız ve skill'leriniz
 
