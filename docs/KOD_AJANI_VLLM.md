@@ -82,7 +82,7 @@ sertifikaları tek PEM'e birleştirip bu değişkeni kendisi verir. Ajanı elle 
 ## LLM değerlendirmesi (`ulak degerlendir`)
 
 Fix işi önce `ulak degerlendir`, sonra `ulak fix` koşar. Değerlendirme her kalan senaryoyu (`failed`
-dahil; flaky, `@sample-fail` ve açık MR'ı olanlar hariç) ajana sorar, kod değiştirmez:
+ve kuralın flaky dedikleri dahil; `@sample-fail` ve açık MR'ı olanlar hariç) ajana sorar, kod değiştirmez:
 
 | | `ulak degerlendir` | `ulak fix` |
 |---|---|---|

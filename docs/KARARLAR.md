@@ -23,6 +23,11 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 
 - Kategoriler: `flaky`, `test_kodu`, `urun`, `ortam`, `bilinmiyor` (gereksinimdeki liste).
 - Kural kararı koşum bitince kendiliğinden verilir (flaky geçmişi → ortam kalıbı → broken/failed).
+- **Flaky tanımı (kullanıcı kararı):** son `FLAKY_WINDOW` koşumda aynı commit'te kaldıktan sonra geçmek
+  (sonraki koşumda ya da aynı koşumun tekrar denemesinde). Eski kural "pencerede hem geçti hem kaldı"
+  idi; geçerken bozulan senaryoyu da flaky sayıp yaklaşık 10 koşum boyunca atlatıyordu. Flaky artık
+  atlanmaz: düzeltme ve bug taslağı yoktur ama `ulak degerlendir` bakar; ajan `test_kodu` ya da `urun`
+  derse (güven ≥ 0,70) senaryo o yola girer. Commit bilinmiyorsa koşumlar aynı sürüm sayılır.
 - OpenCode kararı **güven ≥ 0,70 ise** (`TRIAGE_AUTO_CONFIDENCE`) admin onayı beklemeden geçerli
   olur; altındaysa yalnızca geçmişte öneri olarak görünür, geçerli karar kural kararı kalır.
 - Admin kararı her zaman en üsttedir; hiçbir karar silinmez, senaryo sayfasında "Karar geçmişi".

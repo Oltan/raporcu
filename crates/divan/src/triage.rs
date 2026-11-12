@@ -81,7 +81,10 @@ impl Decision {
 /// Kural kararı: flaky geçmişi → flaky; ortam kalıbı → ortam; broken → test kodu; failed → ürün.
 pub fn rule_decision(status: &str, message: Option<&str>, trace: Option<&str>, flaky: bool) -> (String, String) {
     if flaky {
-        return ("flaky".into(), "Son koşumlarda hem geçti hem kaldı (flaky geçmişi)".into());
+        return (
+            "flaky".into(),
+            "Son koşumlarda aynı commit'te kaldıktan sonra geçti (flaky geçmişi)".into(),
+        );
     }
     let text = format!("{}\n{}", message.unwrap_or(""), trace.unwrap_or(""));
     if let Some(p) = ENV_PATTERNS.iter().find(|p| text.contains(**p)) {

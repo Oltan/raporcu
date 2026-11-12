@@ -23,16 +23,21 @@ pub fn scenario_history(
     Ok(rows.collect::<rusqlite::Result<_>>()?)
 }
 
-/// Flaky senaryolar: son `window` koşumda hem geçmiş hem kalmış olanlar ya da aynı koşumda önce
-/// kalıp tekrar denemede geçenler (SW-4.9).
+/// Flaky senaryolar: son `window` koşumda **aynı commit'te kaldıktan sonra geçenler** (sonraki bir
+/// koşumda ya da aynı koşumun tekrar denemesinde, SW-4.9). Kod değişmeden sonuç değiştiyse flaky'dir.
+/// Geçerken kalmaya başlayan ve o günden beri geçmeyen senaryo bozulmadır, flaky sayılmaz; commit
+/// değişince geçen senaryo da düzeltilmiş sayılır. Commit bilinmiyorsa koşumlar aynı sürüm kabul edilir.
 pub fn flaky_keys(c: &Connection, project_id: i64, branch: &str, window: usize) -> Result<HashSet<String>> {
     let mut st = c.prepare(
-        "WITH recent AS (SELECT id FROM runs WHERE project_id = ?1 AND branch = ?2 ORDER BY id DESC LIMIT ?3)
-         SELECT scenario_key FROM scenarios
-          WHERE run_id IN (SELECT id FROM recent)
-          GROUP BY scenario_key
-         HAVING SUM(CASE WHEN status = 'passed' AND is_latest = 1 THEN 1 ELSE 0 END) > 0
-            AND SUM(CASE WHEN status IN ('failed', 'broken') THEN 1 ELSE 0 END) > 0",
+        "WITH recent AS (SELECT id, COALESCE(commit_sha, '') AS surum FROM runs
+                          WHERE project_id = ?1 AND branch = ?2 ORDER BY id DESC LIMIT ?3)
+         SELECT DISTINCT f.scenario_key
+           FROM scenarios f
+           JOIN recent rf ON rf.id = f.run_id
+           JOIN recent rp ON rp.surum = rf.surum AND rp.id >= rf.id
+           JOIN scenarios p ON p.run_id = rp.id AND p.scenario_key = f.scenario_key AND p.status = 'passed'
+          WHERE f.status IN ('failed', 'broken')
+            AND (p.run_id > f.run_id OR p.attempt > f.attempt)",
     )?;
     let rows = st.query_map(params![project_id, branch, window as i64], |r| r.get::<_, String>(0))?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)

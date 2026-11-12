@@ -216,9 +216,9 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Doğrulama: `test_sw_4_1_run_to_scenario_to_steps_and_attachments`, e2esmoke
 
 ### SW-4.2 [MEVCUT] Dashboard, senaryo geçmişi, flaky tespiti
-- Kabul: Dashboard son koşumların özetini gösterir; bir senaryonun geçmiş koşumlardaki sonuçları listelenir; geçip kalmayı değişken olan senaryo flaky olarak işaretlenir.
+- Kabul: Dashboard son koşumların özetini gösterir; bir senaryonun geçmiş koşumlardaki sonuçları listelenir; aynı commit'te kaldıktan sonra geçen senaryo flaky olarak işaretlenir (geçerken kalmaya başlayıp bir daha geçmeyen senaryo bozulmadır, flaky değildir; commit değişince geçen senaryo düzeltilmiştir).
 - Test: B
-- Doğrulama: `test_sw_4_2_dashboard_history_and_flaky_detection`
+- Doğrulama: `test_sw_4_2_dashboard_history_and_flaky_detection`, `test_sw_4_2_flaky_needs_pass_after_fail_on_same_commit`
 
 ### SW-4.3 [MEVCUT] CI bilgisi raporda: repo, branch, commit ve pipeline linki
 - Kabul: Rapor başlığında bu bilgiler görünür; pipeline linki tıklanabilir.
@@ -237,7 +237,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
   1. Kural: flaky geçmişi (SW-4.2), Allure durumu (`broken` → test kodu, `failed` → ürün), bilinen ortam hata kalıpları (zaman aşımı, bağlantı hatası, ekran bulunamadı).
   2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde `ulak degerlendir` (salt okunur, her kalan senaryo) ve `ulak fix` (SW-7.2) çalışır, sonucu divan'a bildirir. Ajan OpenCode ya da Claude Code'dur.
   3. Admin: kararı onaylar ya da değiştirir. Admin kararı diğerlerinin üstündedir.
-- Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → atlanır, ortam sorunu → bildirim.
+- Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → düzeltilmez ve bug açılmaz ama ajan değerlendirir (kararı değiştirebilir), ortam sorunu → bildirim.
 - Ayrıntılar netleşmedi (açık soru 3); bu gereksinime başlamadan önce sor.
 - Kabul: Her başarısız senaryonun raporda kategorisi, kaynağı ve gerekçesi görünür; admin değiştirince yeni karar geçerli olur ve eski karar geçmişte kalır.
 - Test: B, P
@@ -347,7 +347,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayıyla birleştirilir.
 
 ### SW-7.1 [MEVCUT] fix-candidates sınıflandırması
-- Hedef triage kategorisine göre seçilir (SW-4.5): test kodu hatası → OpenCode, ürün hatası → Jira, @sample-fail ve flaky → atlanır. Triage kararı yoksa Allure durumu kullanılır (broken → OpenCode, failed → Jira).
+- Hedef triage kategorisine göre seçilir (SW-4.5): test kodu hatası → OpenCode, ürün hatası → Jira, @sample-fail → atlanır, flaky → hedef `flaky` (düzeltilmez, `ulak degerlendir` bakar). Triage kararı yoksa Allure durumu kullanılır (broken → OpenCode, failed → Jira).
 - Kabul: Her durum için doğru hedef seçilir.
 - Test: B
 - Doğrulama: `test_sw_7_1_*`

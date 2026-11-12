@@ -8,7 +8,7 @@ adı `opencode`, arayüzdeki etiketi `LLM`dir (ajan Claude Code da olabilir).
 ## Kategoriler
 | Kod | Etiket | Sonraki adım (fix.rs) |
 |-----|--------|-----------------------|
-| `flaky` | Flaky | atlanır |
+| `flaky` | Flaky | düzeltilmez, bug açılmaz; ajan değerlendirir |
 | `test_kodu` | Test kodu hatası | OpenCode/Claude düzeltmesi |
 | `urun` | Ürün hatası | Jira |
 | `ortam` | Ortam sorunu | bildirim |
@@ -16,7 +16,7 @@ adı `opencode`, arayüzdeki etiketi `LLM`dir (ajan Claude Code da olabilir).
 
 ## Kural kararı — `rule_decision(durum, mesaj, iz, flaky) -> (kategori, gerekçe)`
 Sırayla:
-1. Senaryo flaky ise → `flaky` ("Son koşumlarda hem geçti hem kaldı").
+1. Senaryo flaky ise → `flaky` ("Son koşumlarda aynı commit'te kaldıktan sonra geçti").
 2. Mesaj+izde bilinen ortam kalıbı varsa → `ortam`. Kalıplar (`ENV_PATTERNS`): TimeoutException,
    "timed out"/"Timed out", "zaman aşımı", ConnectException, "Connection refused",
    UnknownHostException, NoRouteToHostException, SocketTimeoutException, "Can't connect to X11",

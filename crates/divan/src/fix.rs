@@ -6,7 +6,9 @@ use common::api::{FixCandidate, FixExample, FixResult, TriageSuggestion};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashSet;
 
-/// Hedef: `opencode` | `jira` | `atla` | `bildirim`
+/// Hedef: `opencode` | `jira` | `flaky` | `atla` | `bildirim`. `flaky` düzeltilmez ve bug taslağı
+/// hazırlanmaz ama `ulak degerlendir` ona da bakar (yalnızca `atla` ve açık MR'ı olan atlanır): ajan
+/// "test kodu" ya da "ürün" derse karar değişir ve senaryo o yola girer.
 pub fn target(status: &str, tags: &[String], category: Option<&str>) -> &'static str {
     if tags.iter().any(|t| t == "sample-fail") {
         return "atla";
@@ -14,7 +16,7 @@ pub fn target(status: &str, tags: &[String], category: Option<&str>) -> &'static
     match category {
         Some("test_kodu") => "opencode",
         Some("urun") => "jira",
-        Some("flaky") => "atla",
+        Some("flaky") => "flaky",
         Some("ortam") => "bildirim",
         _ => match status {
             "broken" => "opencode",
@@ -235,7 +237,7 @@ mod tests {
         let none: Vec<String> = vec![];
         assert_eq!(target("broken", &none, Some("test_kodu")), "opencode");
         assert_eq!(target("broken", &none, Some("urun")), "jira");
-        assert_eq!(target("failed", &none, Some("flaky")), "atla");
+        assert_eq!(target("failed", &none, Some("flaky")), "flaky");
         assert_eq!(target("failed", &none, Some("ortam")), "bildirim");
         assert_eq!(target("broken", &none, None), "opencode");
         assert_eq!(target("failed", &none, None), "jira");

@@ -5,7 +5,7 @@ geçmiş düzeltme örnekleri.
 
 ## `target(durum, tag'ler, triage) -> hedef`
 - `@sample-fail` tag'i → `atla`.
-- Triage: `test_kodu` → `opencode`, `urun` → `jira`, `flaky` → `atla`, `ortam` → `bildirim`.
+- Triage: `test_kodu` → `opencode`, `urun` → `jira`, `flaky` → `flaky` (düzeltilmez, bug taslağı yok; `ulak degerlendir` bakar), `ortam` → `bildirim`.
 - Triage yok / `bilinmiyor`: `broken` → `opencode`, `failed` → `jira`, diğer → `atla`.
 
 ## `candidates(c, paths, koşum, public_url)` → `GET /api/ci/runs/{id}/fix-candidates`

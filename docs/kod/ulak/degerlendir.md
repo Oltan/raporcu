@@ -11,7 +11,7 @@ geçerli karar değişirse `fix-candidates` hedefleri de değişir. Ayrıntı: `
 - Diğer: `ULAK_FIX=off` değilse çalışır.
 
 ## Akış
-1. Koşum: `fix::current_run`. Adaylar: `GET fix-candidates`; hedefi `atla` (flaky, `@sample-fail`) ve
+1. Koşum: `fix::current_run`. Adaylar: `GET fix-candidates`; hedefi `atla` (`@sample-fail`; flaky'nin hedefi `flaky`'dir ve değerlendirilir) ve
    `acik-mr` olanlar atlanır (`evaluable`). Üst sınır `ULAK_DEGERLENDIR_MAX` (20); fazlası kural
    kararıyla kalır. Çalışma klasörü temiz değilse değerlendirme yapılmaz.
 2. `.ulak/degerlendir/` silinip yeniden açılır: eski ajan logları yeni kararı etkilemesin.

@@ -96,11 +96,18 @@ async fn test_sw_4_2_dashboard_history_and_flaky_detection() {
         )
         .await;
     assert_eq!(st, StatusCode::OK, "{body}");
+    // geçerken kalmaya başlayan senaryo bozulmadır, flaky değil
+    let (_, dash) = app.get("/").await;
+    let flaky_section = dash.split("Flaky senaryolar").nth(1).unwrap();
+    assert!(!flaky_section.contains("Geçerli bilgilerle giriş"), "bozulma flaky sayılmaz");
+    // 3. koşum: aynı sürümde yeniden geçer → kaldıktan sonra geçti, flaky
+    upload_sample(&app, q).await;
     let (st, dash) = app.get("/").await;
     assert_eq!(st, StatusCode::OK);
     assert!(dash.contains("Koşumlar") && dash.contains("#2"));
     assert!(dash.contains("Flaky senaryolar"));
-    assert!(dash.contains("Geçerli bilgilerle giriş"));
+    let flaky_section = dash.split("Flaky senaryolar").nth(1).unwrap();
+    assert!(flaky_section.contains("Geçerli bilgilerle giriş"));
     // rerun'da önce kalıp sonra geçen de flaky (SW-4.9 girdisi)
     assert!(dash.contains("Yavaş açılan karşılama mesajı"));
     // her zaman geçen senaryo flaky değil
@@ -120,6 +127,56 @@ async fn test_sw_4_2_dashboard_history_and_flaky_detection() {
     let (st, hist) = app.get(&format!("/history?project={pid}&branch=main&key={key}")).await;
     assert_eq!(st, StatusCode::OK);
     assert!(hist.contains("#1") && hist.contains("#2") && hist.contains("flaky"));
+}
+
+/// Flaky: kod değişmeden (aynı commit) kaldıktan sonra geçmek. Commit değişince geçen senaryo düzeltilmiştir;
+/// geçerken kalmaya başlayan senaryo bozulmadır.
+#[tokio::test]
+async fn test_sw_4_2_flaky_needs_pass_after_fail_on_same_commit() {
+    let app = app();
+    let ad = "Geçerli bilgilerle giriş";
+    let kaldi = |q: String| {
+        let app = &app;
+        async move {
+            let (st, body) = app
+                .ci_post(&format!("/api/ci/runs?{q}"), "application/zip", mutated_zip(ad, "failed"))
+                .await;
+            assert_eq!(st, StatusCode::OK, "{body}");
+        }
+    };
+    let flaky = |proje: &'static str| {
+        let app = &app;
+        async move {
+            app.state
+                .db
+                .read(move |c| {
+                    let (pid, key): (i64, String) = c.query_row(
+                        "SELECT s.project_id, s.scenario_key FROM scenarios s JOIN projects p ON p.id = s.project_id
+                          WHERE p.path = ?1 AND s.name = ?2 LIMIT 1",
+                        rusqlite::params![proje, ad],
+                        |r| Ok((r.get(0)?, r.get(1)?)),
+                    )?;
+                    divan::history::is_flaky(c, pid, "main", &key, 10)
+                })
+                .await
+                .unwrap()
+        }
+    };
+    // commit aaa'da kaldı, commit bbb'de geçti: düzeltildi
+    kaldi("project_path=ekip%2Fduzeltildi&branch=main&commit=aaa".into()).await;
+    upload_sample(&app, "project_path=ekip%2Fduzeltildi&branch=main&commit=bbb").await;
+    assert!(!flaky("ekip/duzeltildi").await, "commit değişince geçen senaryo flaky değil");
+    // aynı commit'te geçti, sonra iki kez kaldı: bozulma
+    upload_sample(&app, "project_path=ekip%2Fbozuldu&branch=main&commit=aaa").await;
+    kaldi("project_path=ekip%2Fbozuldu&branch=main&commit=aaa".into()).await;
+    kaldi("project_path=ekip%2Fbozuldu&branch=main&commit=aaa".into()).await;
+    assert!(!flaky("ekip/bozuldu").await, "kaldıktan sonra hiç geçmeyen senaryo flaky değil");
+    // aynı commit'te kaldı, sonra geçti: flaky; yeniden kalınca da flaky kalır
+    kaldi("project_path=ekip%2Fdegisken&branch=main&commit=aaa".into()).await;
+    upload_sample(&app, "project_path=ekip%2Fdegisken&branch=main&commit=aaa").await;
+    assert!(flaky("ekip/degisken").await);
+    kaldi("project_path=ekip%2Fdegisken&branch=main&commit=aaa".into()).await;
+    assert!(flaky("ekip/degisken").await);
 }
 
 #[tokio::test]
@@ -747,6 +804,7 @@ async fn test_sw_4_2_feature_history_matrix() {
         )
         .await;
     assert_eq!(st, StatusCode::OK, "{body}");
+    upload_sample(&app, q).await; // kaldıktan sonra yeniden geçti → flaky
     let (st, html) = app.get("/feature?project=1&branch=main&name=Giri%C5%9F%20ekran%C4%B1").await;
     assert_eq!(st, StatusCode::OK);
     assert!(html.contains("Senaryo × koşum"));
