@@ -107,8 +107,9 @@ ya da kullanıcının o projede issue açma izni yoktur.
 
 ## 5. Ürün hatası: taslak → tek tıkla aç
 
-Varsayılan (`JIRA_AUTO_CREATE=observe`): divan Jira'ya **yazmaz**, bug'ı **taslak** olarak
-hazırlar; siz göz atıp açarsınız.
+Varsayılan (`JIRA_AUTO_CREATE=observe`): divan Jira'da **bug açmaz**, bug'ı **taslak** olarak
+hazırlar; siz göz atıp açarsınız. Bu ayar yalnızca bug açmayı yönetir; aşağıdaki otomatik eşleşme
+ondan bağımsız çalışır.
 
 **Taslak ne zaman hazırlanır:**
 - Koşum bitince, kalan (`failed`) ve ürün hatası sayılan senaryo için: triage kararı yoksa ya da
@@ -135,6 +136,39 @@ Admin paneli ("Onay bekleyen Jira bug taslakları").
 
 Jira bir alanı reddederse hata alan adıyla gösterilir; "Düzenleyip aç…" ile eksik alanı girip açın.
 `JIRA_AUTO_CREATE=on` taslak beklemeden doğrudan açar; `off` hiçbir şey hazırlamaz.
+
+### Otomatik eşleşme (koşum bitince, `JIRA_AUTO_CREATE`'ten bağımsız)
+
+Jira bağlıysa (`JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` üçü de dolu) her koşumun sonunda, bağlı bug'ı
+olmayan her kalan (`failed`) senaryo için sırayla:
+
+1. `@JIRA-…` tag'i varsa senaryo o issue'ya bağlanır (Jira'ya gidilmez).
+2. Aynı hata (parmak izi) daha önce bir issue'ya bağlandıysa senaryo ona bağlanır (Jira'ya gidilmez).
+3. Jira'da aranır: `JIRA_PROJECT` içinde, kapanmamış, **label'ı senaryonun DOORS numarası olan ya da
+   özetinde senaryo adı geçen** en yeni issue. Bulunursa senaryo ona bağlanır ve **ekran görüntüsü o
+   issue'ya eklenir** (`ekran-<senaryo no>.png`). Arama issue türüne bakmaz: aynı projedeki bir iş ya da
+   hikâye de eşleşebilir.
+
+`JIRA_AUTO_CREATE=off` ya da `observe` bunu **durdurmaz**. Yanlış bir eşleşme 2. adım yüzünden sonraki
+koşumlarda da tekrarlanır.
+
+**Kapatmak / daraltmak (yalnızca `.env`, sonra divan yeniden başlatılır):**
+
+| Ne istiyorsunuz | Ayar | Kaybedilen |
+|-----------------|------|------------|
+| Jira'ya hiç gidilmesin | `JIRA_URL` satırını yorum yapın (sistem ortam değişkeni olarak da tanımlı olmamalı) | "Jira'ya bug aç…" ve "Jira'da aç" düğmeleri çalışmaz; taslak da istemiyorsanız `JIRA_AUTO_CREATE=off` |
+| Yanlış eşleşme olmasın, düğmeler çalışsın | `JIRA_PROJECT` yalnızca otomasyon bug'larının durduğu ayrı bir Jira projesi olsun | bug'lar o projede açılır |
+
+**Yanlış bağlantıyı silmek:** arayüzde düğmesi yoktur. divan'ı durdurun, `DATA_DIR/divan.db` dosyasını
+yedekleyin, sonra `sqlite3` ile:
+
+```sql
+SELECT jira_key, COUNT(*) FROM bug_links WHERE source = 'eslesme' GROUP BY jira_key;   -- önce bakın
+DELETE FROM bug_links WHERE source = 'eslesme' AND jira_key = 'ABC-12';                -- yanlış olan
+```
+
+`source` değerleri: `tag` (feature'daki tag), `eslesme` (otomatik), `otomatik` (divan'ın açtığı bug),
+`admin` (elle açılan). Jira'ya eklenmiş ekran görüntüleri Jira'dan elle silinir.
 
 ## 6. DOORS
 
