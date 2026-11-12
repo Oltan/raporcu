@@ -31,7 +31,9 @@ cucumber.execution.parallel.enabled=false
   `setupApplication(GirisUygulamasi.class)`.
 - `@After kapat(Scenario)`: senaryo kaldıysa `scenario.attach(png, "image/png", "Ekran görüntüsü")`
   ve **"Sahne ağacı (TestFX)"** metin eki (her satır `Tür #fxId "metin" değer="…" (gizli) (pasif)`,
-  girintili; şifre alanı değeri yazılmaz). Video durdurulur; kalan senaryoda `video/mp4` eklenir.
+  girintili; şifre alanı değeri yazılmaz; `TabPane`, `ScrollPane`, `TitledPane`, `SplitPane`, `Accordion`,
+  `ToolBar`, `ButtonBar` içeriğine inilir, diğer kontrollerin iç yapısı yazılmaz; ağaç JavaFX iş
+  parçacığında okunur; ekran görüntüsü alınamasa da ağaç eklenir). Video durdurulur; kalan senaryoda `video/mp4` eklenir.
   Uygulama ve pencereler temizlenir.
 - Bu ekler Allure'da container dosyasının `afters` bölümüne düşer; divan onları container
   üzerinden senaryoya bağlar (SW-2.2).

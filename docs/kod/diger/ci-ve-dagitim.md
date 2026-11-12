@@ -4,6 +4,12 @@
 Test projesine kopyalanan yardımcı sınıf (`docs/LLM_JAVA_ENTEGRASYON.md`, adım 3). Senaryo kaldıysa
 pencere bölgesinin ekran görüntüsünü ve TestFX sahne ağacını Cucumber ekine koyar; geçen senaryoda
 hiçbir şey yapmaz. Kanıt alınamazsa yalnızca `System.err`'e yazar, senaryonun gerçek hatası değişmez.
+İki kanıt bağımsızdır: ekran görüntüsü alınamasa da ağaç eklenir. Ağaç JavaFX iş parçacığında okunur
+(10 sn içinde sıra gelmezse test iş parçacığından). İçerik taşıyan kontrollerin içine inilir:
+`TabPane` (her `Tab` ayrı satır, `(seçili)` / `(seçili değil)`), `ScrollPane`, `TitledPane`, `SplitPane`,
+`Accordion`, `ToolBar`, `ButtonBar`; diğer kontrollerin iç yapısı (skin) yazılmaz. Ağaç boşsa (pencere
+kapatıldıktan sonra çağrıldıysa) ek konmaz, uyarı yazılır. Aynı ağaç kodu `ornek-test-projesi`
+içindeki `Hooks.java`'da da durur.
 
 ## ci/gitlab/template/.gitlab-ci.yml (SW-1.1, 1.4)
 Test projesi `include: project/ref/file` + `ULAK_OS: linux|windows` ekler. Aşamalar

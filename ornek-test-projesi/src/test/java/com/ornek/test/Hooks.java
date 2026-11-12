@@ -1,5 +1,26 @@
 package com.ornek.test;
 
+import javafx.application.Platform;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.stage.Window;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import javafx.scene.control.Accordion;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.Control;
+import javafx.scene.control.Labeled;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TextInputControl;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToolBar;
 import com.ornek.app.GirisUygulamasi;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
@@ -37,9 +58,18 @@ public class Hooks {
     public void kapat(Scenario scenario) throws Exception {
         try {
             if (scenario.isFailed()) {
-                scenario.attach(ekranGoruntusu(), "image/png", "Ekran görüntüsü");
+                // iki kanıt birbirinden bağımsız: ekran görüntüsü alınamasa da sahne ağacı eklenir
+                try {
+                    scenario.attach(ekranGoruntusu(), "image/png", "Ekran görüntüsü");
+                } catch (Exception e) {
+                    System.err.println("[divan] ekran görüntüsü alınamadı: " + e);
+                }
                 // Self-healing için: ekrandaki gerçek düğümler (fx:id, tür, metin)
-                scenario.attach(sahneAgaci().getBytes(java.nio.charset.StandardCharsets.UTF_8), "text/plain", "Sahne ağacı (TestFX)");
+                try {
+                    scenario.attach(sahneAgaci().getBytes(java.nio.charset.StandardCharsets.UTF_8), "text/plain", "Sahne ağacı (TestFX)");
+                } catch (Exception e) {
+                    System.err.println("[divan] sahne ağacı alınamadı: " + e);
+                }
             }
         } finally {
             if (video != null) {
@@ -53,10 +83,24 @@ public class Hooks {
         }
     }
 
-    /** Açık pencerelerin düğüm ağacı: her satır "tür #fxId \"metin\"" biçiminde, girintili. */
-    private static String sahneAgaci() {
+    /** Sahne JavaFX iş parçacığında okunur; o meşgulse (10 sn) test iş parçacığından okunur. */
+    private static String sahneAgaci() throws Exception {
+        if (Platform.isFxApplicationThread()) {
+            return pencereler();
+        }
+        FutureTask<String> is = new FutureTask<>(Hooks::pencereler);
+        Platform.runLater(is);
+        try {
+            return is.get(10, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            is.cancel(false);
+            return pencereler();
+        }
+    }
+
+    private static String pencereler() {
         StringBuilder sb = new StringBuilder();
-        for (javafx.stage.Window w : javafx.stage.Window.getWindows()) {
+        for (Window w : Window.getWindows()) {
             if (w.getScene() != null) {
                 sb.append("Pencere: ").append(w instanceof Stage st ? st.getTitle() : w.getClass().getSimpleName()).append('\n');
                 yaz(w.getScene().getRoot(), 1, sb);
@@ -65,15 +109,15 @@ public class Hooks {
         return sb.toString();
     }
 
-    private static void yaz(javafx.scene.Node n, int derinlik, StringBuilder sb) {
+    private static void yaz(Node n, int derinlik, StringBuilder sb) {
         sb.append("  ".repeat(derinlik)).append(n.getClass().getSimpleName());
         if (n.getId() != null) {
             sb.append(" #").append(n.getId());
         }
-        if (n instanceof javafx.scene.control.Labeled l && l.getText() != null && !l.getText().isEmpty()) {
+        if (n instanceof Labeled l && l.getText() != null && !l.getText().isEmpty()) {
             sb.append(" \"").append(l.getText()).append('"');
         }
-        if (n instanceof javafx.scene.control.TextInputControl t && !(n instanceof javafx.scene.control.PasswordField)) {
+        if (n instanceof TextInputControl t && !(n instanceof PasswordField)) {
             sb.append(" değer=\"").append(t.getText()).append('"');
         }
         if (!n.isVisible()) {
@@ -83,10 +127,54 @@ public class Hooks {
             sb.append(" (pasif)");
         }
         sb.append('\n');
-        if (n instanceof javafx.scene.Parent p && !(n instanceof javafx.scene.control.Control)) {
-            for (javafx.scene.Node c : p.getChildrenUnmodifiable()) {
-                yaz(c, derinlik + 1, sb);
+        if (n instanceof TabPane sekmeler) {
+            for (Tab t : sekmeler.getTabs()) {
+                sb.append("  ".repeat(derinlik + 1)).append("Tab");
+                if (t.getId() != null) {
+                    sb.append(" #").append(t.getId());
+                }
+                if (t.getText() != null && !t.getText().isEmpty()) {
+                    sb.append(" \"").append(t.getText()).append('"');
+                }
+                sb.append(t.isSelected() ? " (seçili)" : " (seçili değil)").append('\n');
+                if (t.getContent() != null) {
+                    yaz(t.getContent(), derinlik + 2, sb);
+                }
             }
+            return;
+        }
+        for (Node c : cocuklar(n)) {
+            yaz(c, derinlik + 1, sb);
+        }
+    }
+
+    /**
+     * Yazılacak alt düğümler. İçerik taşıyan kontrollerin (ScrollPane, TitledPane, SplitPane...) içeriğine
+     * inilir; diğer kontrollerin iç yapısı (skin: düğmenin içindeki Text vb.) yazılmaz.
+     */
+    private static List<Node> cocuklar(Node n) {
+        List<Node> liste = new ArrayList<>();
+        if (n instanceof ScrollPane s) {
+            ekle(liste, s.getContent());
+        } else if (n instanceof TitledPane t) {
+            ekle(liste, t.getContent());
+        } else if (n instanceof SplitPane s) {
+            liste.addAll(s.getItems());
+        } else if (n instanceof Accordion a) {
+            liste.addAll(a.getPanes());
+        } else if (n instanceof ToolBar t) {
+            liste.addAll(t.getItems());
+        } else if (n instanceof ButtonBar b) {
+            liste.addAll(b.getButtons());
+        } else if (n instanceof Parent p && !(n instanceof Control)) {
+            liste.addAll(p.getChildrenUnmodifiable());
+        }
+        return liste;
+    }
+
+    private static void ekle(List<Node> liste, Node n) {
+        if (n != null) {
+            liste.add(n);
         }
     }
 
