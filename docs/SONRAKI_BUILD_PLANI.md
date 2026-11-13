@@ -4,7 +4,7 @@
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
 Kullanıcının onayladığı dört kalem: ek kimlik önekleri (CSV sütunu), Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onaylandı** (kalem 1 CSV sütunu kararıyla güncellendi), henüz uygulanmadı.
+Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1 CSV sütunu kararıyla güncellendi), henüz uygulanmadı.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
