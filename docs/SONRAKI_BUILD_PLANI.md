@@ -3,14 +3,14 @@
 ## Context
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
-Kullanıcının onayladığı dört kalem: DOORS tag öneki, Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor**, henüz uygulanmadı.
+Kullanıcının onayladığı dört kalem: ek kimlik önekleri (CSV sütunu), Jira arama kriteri, doğrulama filtresi (tag),
+Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onaylandı** (kalem 1 CSV sütunu kararıyla güncellendi), henüz uygulanmadı.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
 - **Hangi tag'ler iletiliyor:** Bütün tag'ler saklanır, raporda görünür ve aranır; kendi tag'lerini
   serbestçe ekleyebilirsin. Özel anlam taşıyan yalnızca ikisi: `@DOORS-…` (DOORS numarası) ve
-  `@JIRA-ABC-12` (issue'ya doğrudan bağlama). `@YTET_1234` şu an sıradan tag sayılıyor (kalem 1).
+  `@JIRA-ABC-12` (issue'ya doğrudan bağlama). `@YTET_1234` şu an sıradan tag sayılıyor; kalem 1 ile CSV'de kendi sütununa çıkar.
 - **Jira eşleşmesi:** Evet, yalnızca `failed` senaryolar için çalışır; `broken`, geçen ve atlanan
   senaryolara dokunmaz.
 - **`ulak degerlendir` yml'da:** Depodaki şablonda fix işi zaten `ulak degerlendir` + `ulak fix`
@@ -33,18 +33,25 @@ Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor
 
 ## Kalemler
 
-### 1. DOORS tag önekleri (divan.exe)
-- `crates/divan/src/config.rs`: `DOORS_TAG_PREFIXES` (varsayılan `DOORS-`; örn. `DOORS-,YTET_`).
-- `crates/common/src/allure.rs`: `doors_id(tag, onekler)`; kimlik yazıldığı gibi saklanır
-  (`YTET_1234`), `DOORS-` için mevcut büyük harf normalleştirmesi korunur.
-- `crates/divan/src/defterdar.rs:141`: önekler ayarı geçirilir.
-- Öneki söken üç yer ortak bir yardımcıya bağlanır: `queries.rs:609` (arama),
-  `ayarlar.rs:109` (`{{no}}`), `export.rs:271` (DXL).
-- Eski koşumlar yeniden işlenmez; yeni koşumlardan itibaren geçerli.
-- `@YGÖ-XXXX` de aynı listeyle tanınır (`DOORS_TAG_PREFIXES=DOORS-,YTET_,YGÖ-`); önekten sonraki
-  kısım harf/rakam olabilir, basamak sayısı sınırsız. Raporda DOORS rozetleri gibi gösterilir ve
-  aranır. Önekte ASCII olmayan harf (`Ö`) desteklenir; testle doğrulanır. Şimdilik yalnızca
-  gösterim: ne için kullanılacağı belli olunca (Jira label'ı, CSV sütunu) ayrıca karar verilir.
+### 1. Ek kimlik önekleri: YTET, YGÖ (divan.exe)
+Karar: `DOORS-` kimlikleri bugünkü gibi kalır (`doors_ids` sütunu, Jira label'ı ve araması, CSV'nin
+"DOORS numarası" sütunu, DXL). Ek önekler `doors_ids`'e **girmez**; değerleri saklanan `tags`
+sütunundan okunur. Böylece Jira'ya ve DOORS sütununa sızmazlar, migration gerekmez ve eski
+koşumlar da yeni sütunlarda görünür.
+- `crates/divan/src/config.rs`: `EK_KIMLIK_ONEKLERI` (varsayılan boş; örn. `YTET_,YGÖ-`).
+- `crates/common/src/allure.rs`: `ek_kimlik(tag, onek)`: önek büyük/küçük harfe duyarlı, önekten
+  sonraki kısım harf/rakam (basamak sınırı yok), kimlik yazıldığı gibi (`YTET_1234`, `YGÖ-12`).
+  `doors_id` değişmez.
+- CSV (`crates/divan/src/export.rs`): her önek için ayrı sütun; başlık önekin sondaki `-`/`_`
+  atılmış hâli (`YTET`, `YGÖ`), alan anahtarı `ek:YTET_` gibi; değer o önekli kimlikler, boşlukla
+  ayrılmış. `FIELDS` sabit listesine ek olarak `parse_fields` bu dinamik alanları da tanır;
+  alan seçilmezse tüm sütunlar (ek sütunlar DOORS'tan sonra) gelir. Hücreler `csv_cell`'den geçer.
+- Rapor: senaryo satırında DOORS rozetleri gibi rozet (`queries.rs:157`'deki "sıradan tag" süzgeci
+  ek önekleri de ayırır); arama kutusu: tanınan önekle başlayan girdi tag üzerinden aranır
+  (tam tag eşleşmesi, `YTET_12` `YTET_123`'ü getirmez), yalnızca rakam girilirse bugünkü gibi
+  `DOORS-` eklenir.
+- ASCII olmayan önek (`YGÖ-`) için test: tanıma, CSV başlığı/değeri (UTF-8 BOM ile), arama.
+- `ayarlar.rs:109` ve `export.rs:271` (DXL) değişmez.
 
 ### 2. Jira arama kriteri (divan.exe)
 - `crates/divan/src/jira.rs` `find_open_bug`: JQL'e `issuetype = "<JIRA_ISSUE_TYPE>"` ve
@@ -62,6 +69,10 @@ Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor
   düzeniyle).
 - Not: aynı tag kümesini taşıyan başka senaryolar da koşar; senaryoya özgü tag (DOORS no) varsa tek
   senaryo koşar.
+- ASCII olmayan tag (`@YGÖ-12`): runner ASCII dil ayarında Java komut satırı bozulur ve tag
+  ifadesinde joker yok (`regex_quote` çaresi işlemez); bu tag'ler ifadeden çıkarılır, hiç tag
+  kalmazsa ada düşülür (uyarıyla).
+- Windows'ta `mvn.cmd` üzerinden parantez/boşluklu argüman gerçek runner'da denenir.
 
 ### 4. Claude yolu, ön kontrol, ağaç sınırı
 - `crates/ulak/src/fix.rs` `agent_command`, `degerlendir.rs` `command_for`: `ULAK_CLAUDE_BIN`
@@ -69,9 +80,13 @@ Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor
 - `crates/ulak/src/preflight.rs` `kod_ajani_kontrol`: ajan `claude` iken `.claude/settings.json`
   ve `CLAUDE.md` yoksa uyarı; skill denetimi iki ajan için ortak.
 - `crates/divan/src/fix.rs:142`: metin eki sınırı 16 KB → 64 KB (sahne ağacı artık daha uzun).
+  Ek başına 64 KB, toplamda en fazla 96 KB (3 × 64 KB küçük bağlamlı vLLM modelinde istemi
+  taşırabilir); `docs/KOD_AJANI_VLLM.md`'ye `max-model-len` notu.
+- `ULAK_CLAUDE_BIN` boşluklu yol olabilir (`C:\Program Files\…`): şablona tırnaklı girer
+  (`split_command` bölmesin); testle doğrulanır.
 
 ## Her kalemde ortak işler
-- Test adı `test_sw_<bölüm>_<madde>_…`: 1 → SW-6.4/2.x, 2 → SW-6.2, 3 → SW-7.2, 4 → SW-7.2/7.6.
+- Test adı `test_sw_<bölüm>_<madde>_…`: 1 → SW-6.4 (CSV) / 2.x, 2 → SW-6.2, 3 → SW-7.2, 4 → SW-7.2/7.6.
   Mevcut `test_sw_6_2_auto_match_after_upload` sahte Jira'sı yeni JQL'e göre güncellenir.
 - Belgeler: `GEREKSINIMLER_1.md`, `docs/KARARLAR.md`, `docs/JIRA_DOORS_AYARLARI.md`,
   `docs/KOD_AJANI_VLLM.md`, `docs/KURULUM.md`, ilgili `docs/kod/*`, `.env.example`,
