@@ -38,8 +38,9 @@ Karar: Gereksinim numarası `@YTET_1234` diye yazılır; `DOORS-` öneki kullan�
 senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolmaması için tutulur.
 - **Gereksinim öneki** `GEREKSINIM_ONEKI` (`crates/divan/src/config.rs`; varsayılan `DOORS-`,
   geriye uyum için; sahada `YTET_`). Tek önek: ayarlanınca bugün `DOORS-`'un yaptığı her şeyi
-  o yapar: `doors_ids` sütunu, rozet, arama, Jira label'ı ve Jira araması, CSV "DOORS numarası"
-  sütunu, link şablonu (`{{no}}` = önekten sonrası, `{{id}}` = `YTET_1234`), DXL.
+  o yapar: `doors_ids` sütunu, rozet, arama, CSV "DOORS numarası"
+  sütunu, link şablonu (`{{no}}` = önekten sonrası, `{{id}}` = `YTET_1234`), DXL; Jira'ya
+  yalnızca açıklama yer tutucusu olarak gider (aşağıda).
 - `crates/common/src/allure.rs` `doors_id(tag, onek)`: kimlik yazıldığı gibi saklanır
   (`YTET_1234`); önekten sonrası harf/rakam/`-`/`_`, basamak sınırı yok. `DOORS-` için mevcut
   büyük harf normalleştirmesi korunur. `defterdar.rs:141` ayarı geçirir.
@@ -50,16 +51,22 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
   `ek_kimlik(tag, onek)` önek büyük/küçük harfe duyarlı, kimlik yazıldığı gibi.
   - CSV: her önek için ayrı sütun, başlık önekin sondaki `-`/`_` atılmış hâli (`YGÖ`), alan
     anahtarı `ek:YGÖ-`; DOORS sütunundan sonra. `parse_fields` bu dinamik alanları tanır.
-  - Jira şablonu (`jira.rs:401` `vars`): her önek için yer tutucu, adı CSV başlığıyla aynı
-    (`{{YGÖ}}` → `YGÖ-12, YGÖ-40`); özet, açıklama ve ek alanlarda (`alanlar` JSON'u, örn. özel
-    alan) kullanılır. Ayrıca `{{gereksinim}}` = `{{doors}}` (YTET kimlikleri; eski ad çalışmaya
-    devam eder). YGÖ label olarak eklenmez, Jira aramasına girmez. Ayarlar sayfasındaki yer
-    tutucu listesi ve `docs/JIRA_DOORS_AYARLARI.md` güncellenir; `vars` anahtarları `String` olur.
+  - Jira şablonunda yer tutucu (aşağıda, "Jira'da YTET/YGÖ").
   - Rapor: rozet (`queries.rs:157` "sıradan tag" süzgeci bunları da ayırır) ve arama (tam tag
     eşleşmesi, `YGÖ-12` `YGÖ-123`'ü getirmez).
+- **Jira'da YTET/YGÖ** (karar: yalnızca açıklamaya yazılır; label yok, Jira'da alan yok, aranmaz):
+  - Yer tutucular önek adıyla: `{{YTET}}` → `YTET_1234, YTET_1240`, `{{YGÖ}}` → `YGÖ-12`
+    (`jira.rs:401` `vars`; anahtarlar `String` olur). Eski `{{doors}}` aynı değeri verir, mevcut
+    şablonlar bozulmaz. Önek tanımlı ama senaryoda yoksa boş.
+  - Label yok: `build_bug` gereksinim kimliklerini label olarak eklemez; `doors_label` ayarı ve
+    ayarlar/bug sayfasındaki "DOORS numaralarını label olarak ekle" kutusu kaldırılır (kayıtlı
+    ayarda `true` olsa da yok sayılır).
+  - `find_open_bug` `labels in (<YTET…>)` koşulunu bırakır; eşleşme senaryo adı + kalem 2'deki
+    issuetype/`divan` label'ı ile yapılır.
 - Eski koşumlar yeniden işlenmez: önek değişmeden önce yüklenen koşumlarda `YTET_` tag'leri
   gereksinim numarası olarak görünmez (tag olarak durur).
-- Testler: `YTET_` önekiyle tanıma, Jira label'ı, link şablonu, CSV; ASCII olmayan `YGÖ-` için
+- Testler: `YTET_` önekiyle tanıma, `{{YTET}}`/`{{YGÖ}}`/`{{doors}}` doldurma, bug'da label
+  olmaması, link şablonu, CSV; ASCII olmayan `YGÖ-` için
   tanıma, CSV başlığı/değeri (UTF-8 BOM ile), arama; varsayılan ayarla bugünkü `DOORS-` testleri
   değişmeden geçer.
 
