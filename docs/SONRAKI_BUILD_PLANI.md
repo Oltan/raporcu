@@ -3,14 +3,14 @@
 ## Context
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
-Kullanıcının onayladığı dört kalem: ek kimlik önekleri (CSV sütunu), Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1 CSV sütunu kararıyla güncellendi), henüz uygulanmadı.
+Kullanıcının onayladığı dört kalem: gereksinim öneki (YTET_) ve ek kimlikler (YGÖ-), Jira arama kriteri, doğrulama filtresi (tag),
+Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
 - **Hangi tag'ler iletiliyor:** Bütün tag'ler saklanır, raporda görünür ve aranır; kendi tag'lerini
-  serbestçe ekleyebilirsin. Özel anlam taşıyan yalnızca ikisi: `@DOORS-…` (DOORS numarası) ve
-  `@JIRA-ABC-12` (issue'ya doğrudan bağlama). `@YTET_1234` şu an sıradan tag sayılıyor; kalem 1 ile CSV'de kendi sütununa çıkar.
+  serbestçe ekleyebilirsin. Özel anlam taşıyan yalnızca ikisi: `@DOORS-…` (gereksinim numarası; kalem 1 ile `@YTET_…`) ve
+  `@JIRA-ABC-12` (issue'ya doğrudan bağlama). `@YTET_1234` şu an sıradan tag sayılıyor (kalem 1).
 - **Jira eşleşmesi:** Evet, yalnızca `failed` senaryolar için çalışır; `broken`, geçen ve atlanan
   senaryolara dokunmaz.
 - **`ulak degerlendir` yml'da:** Depodaki şablonda fix işi zaten `ulak degerlendir` + `ulak fix`
@@ -33,25 +33,30 @@ Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor
 
 ## Kalemler
 
-### 1. Ek kimlik önekleri: YTET, YGÖ (divan.exe)
-Karar: `DOORS-` kimlikleri bugünkü gibi kalır (`doors_ids` sütunu, Jira label'ı ve araması, CSV'nin
-"DOORS numarası" sütunu, DXL). Ek önekler `doors_ids`'e **girmez**; değerleri saklanan `tags`
-sütunundan okunur. Böylece Jira'ya ve DOORS sütununa sızmazlar, migration gerekmez ve eski
-koşumlar da yeni sütunlarda görünür.
-- `crates/divan/src/config.rs`: `EK_KIMLIK_ONEKLERI` (varsayılan boş; örn. `YTET_,YGÖ-`).
-- `crates/common/src/allure.rs`: `ek_kimlik(tag, onek)`: önek büyük/küçük harfe duyarlı, önekten
-  sonraki kısım harf/rakam (basamak sınırı yok), kimlik yazıldığı gibi (`YTET_1234`, `YGÖ-12`).
-  `doors_id` değişmez.
-- CSV (`crates/divan/src/export.rs`): her önek için ayrı sütun; başlık önekin sondaki `-`/`_`
-  atılmış hâli (`YTET`, `YGÖ`), alan anahtarı `ek:YTET_` gibi; değer o önekli kimlikler, boşlukla
-  ayrılmış. `FIELDS` sabit listesine ek olarak `parse_fields` bu dinamik alanları da tanır;
-  alan seçilmezse tüm sütunlar (ek sütunlar DOORS'tan sonra) gelir. Hücreler `csv_cell`'den geçer.
-- Rapor: senaryo satırında DOORS rozetleri gibi rozet (`queries.rs:157`'deki "sıradan tag" süzgeci
-  ek önekleri de ayırır); arama kutusu: tanınan önekle başlayan girdi tag üzerinden aranır
-  (tam tag eşleşmesi, `YTET_12` `YTET_123`'ü getirmez), yalnızca rakam girilirse bugünkü gibi
-  `DOORS-` eklenir.
-- ASCII olmayan önek (`YGÖ-`) için test: tanıma, CSV başlığı/değeri (UTF-8 BOM ile), arama.
-- `ayarlar.rs:109` ve `export.rs:271` (DXL) değişmez.
+### 1. Gereksinim kimliği öneki (YTET_) ve ek kimlikler (YGÖ-) (divan.exe)
+Karar: Gereksinim numarası `@YTET_1234` diye yazılır; `DOORS-` öneki kullanılmayacak. `@YGÖ-…`
+senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolmaması için tutulur.
+- **Gereksinim öneki** `GEREKSINIM_ONEKI` (`crates/divan/src/config.rs`; varsayılan `DOORS-`,
+  geriye uyum için; sahada `YTET_`). Tek önek: ayarlanınca bugün `DOORS-`'un yaptığı her şeyi
+  o yapar: `doors_ids` sütunu, rozet, arama, Jira label'ı ve Jira araması, CSV "DOORS numarası"
+  sütunu, link şablonu (`{{no}}` = önekten sonrası, `{{id}}` = `YTET_1234`), DXL.
+- `crates/common/src/allure.rs` `doors_id(tag, onek)`: kimlik yazıldığı gibi saklanır
+  (`YTET_1234`); önekten sonrası harf/rakam/`-`/`_`, basamak sınırı yok. `DOORS-` için mevcut
+  büyük harf normalleştirmesi korunur. `defterdar.rs:141` ayarı geçirir.
+- Öneki söken/ekleyen üç yer ortak yardımcıya bağlanır: `queries.rs:609` (arama: yalnızca rakam
+  girilirse önek eklenir), `ayarlar.rs:109` (`{{no}}`), `export.rs:271` (DXL; kapalı ama tutarlı).
+- **Ek kimlikler** `EK_KIMLIK_ONEKLERI` (varsayılan boş; sahada `YGÖ-`): `doors_ids`'e ve Jira'ya
+  girmez; değer saklanan `tags` sütunundan okunur (migration yok, eski koşumlarda da görünür).
+  `ek_kimlik(tag, onek)` önek büyük/küçük harfe duyarlı, kimlik yazıldığı gibi.
+  - CSV: her önek için ayrı sütun, başlık önekin sondaki `-`/`_` atılmış hâli (`YGÖ`), alan
+    anahtarı `ek:YGÖ-`; DOORS sütunundan sonra. `parse_fields` bu dinamik alanları tanır.
+  - Rapor: rozet (`queries.rs:157` "sıradan tag" süzgeci bunları da ayırır) ve arama (tam tag
+    eşleşmesi, `YGÖ-12` `YGÖ-123`'ü getirmez).
+- Eski koşumlar yeniden işlenmez: önek değişmeden önce yüklenen koşumlarda `YTET_` tag'leri
+  gereksinim numarası olarak görünmez (tag olarak durur).
+- Testler: `YTET_` önekiyle tanıma, Jira label'ı, link şablonu, CSV; ASCII olmayan `YGÖ-` için
+  tanıma, CSV başlığı/değeri (UTF-8 BOM ile), arama; varsayılan ayarla bugünkü `DOORS-` testleri
+  değişmeden geçer.
 
 ### 2. Jira arama kriteri (divan.exe)
 - `crates/divan/src/jira.rs` `find_open_bug`: JQL'e `issuetype = "<JIRA_ISSUE_TYPE>"` ve
