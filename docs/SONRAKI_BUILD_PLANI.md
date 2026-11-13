@@ -50,6 +50,11 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
   `ek_kimlik(tag, onek)` önek büyük/küçük harfe duyarlı, kimlik yazıldığı gibi.
   - CSV: her önek için ayrı sütun, başlık önekin sondaki `-`/`_` atılmış hâli (`YGÖ`), alan
     anahtarı `ek:YGÖ-`; DOORS sütunundan sonra. `parse_fields` bu dinamik alanları tanır.
+  - Jira şablonu (`jira.rs:401` `vars`): her önek için yer tutucu, adı CSV başlığıyla aynı
+    (`{{YGÖ}}` → `YGÖ-12, YGÖ-40`); özet, açıklama ve ek alanlarda (`alanlar` JSON'u, örn. özel
+    alan) kullanılır. Ayrıca `{{gereksinim}}` = `{{doors}}` (YTET kimlikleri; eski ad çalışmaya
+    devam eder). YGÖ label olarak eklenmez, Jira aramasına girmez. Ayarlar sayfasındaki yer
+    tutucu listesi ve `docs/JIRA_DOORS_AYARLARI.md` güncellenir; `vars` anahtarları `String` olur.
   - Rapor: rozet (`queries.rs:157` "sıradan tag" süzgeci bunları da ayırır) ve arama (tam tag
     eşleşmesi, `YGÖ-12` `YGÖ-123`'ü getirmez).
 - Eski koşumlar yeniden işlenmez: önek değişmeden önce yüklenen koşumlarda `YTET_` tag'leri
