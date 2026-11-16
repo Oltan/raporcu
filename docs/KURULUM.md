@@ -281,6 +281,7 @@ OpenCode yerine Claude Code da çalışır; skill'ler ortaktır, model değişke
    | Değişken | Örnek | Anlamı |
    |----------|-------|--------|
    | `ULAK_FIX_AGENT` | `claude` | Ajan seçimi (yazılmazsa OpenCode) |
+   | `ULAK_CLAUDE_BIN` | `C:\Program Files\Claude\claude.exe` | `claude` PATH'te değilse tam yol (varsayılan `claude`) |
    | `ANTHROPIC_BASE_URL` | `http://llm-gecidi.sirket.local:4000` | Anthropic biçimini konuşan ağ geçidi. Doğrudan Anthropic API'de yazılmaz |
    | `ANTHROPIC_AUTH_TOKEN` | | Ağ geçidi anahtarı. Masked. Doğrudan Anthropic API'de bunun yerine `ANTHROPIC_API_KEY` |
    | `ANTHROPIC_MODEL` | `gorsel-model` | Model adı |
@@ -288,8 +289,9 @@ OpenCode yerine Claude Code da çalışır; skill'ler ortaktır, model değişke
 
 3. **Windows:** `ulak`, `claude` komutunu kabuk olmadan başlatır; yalnızca PATH'teki `claude.exe` bulunur.
    `(Get-Command claude).Source` bir `.cmd` ya da `.ps1` gösteriyorsa (npm kısayolu) `program not found`
-   alırsınız. `claude.exe` runner'ın PATH'inde değilse tam yolunu `ULAK_FIX_CMD` ve `ULAK_DEGERLENDIR_CMD`
-   içine yazın; hazır satırlar `sunucu/runner.env.example` içinde. Gerçek Windows runner'da denenmedi.
+   alırsınız. `claude.exe` runner'ın PATH'inde değilse tam yolunu `ULAK_CLAUDE_BIN` ile verin
+   (boşluklu yol olabilir); düzeltme ve değerlendirme ikisi de kullanır. `ulak preflight`,
+   `.claude/settings.json` ve `CLAUDE.md` yoksa ve yol `.cmd`/`.bat` ise uyarır. Gerçek Windows runner'da denenmedi.
 4. `ulak preflight` ajan dosyalarını yalnızca OpenCode için denetler; üç dosyanın proje kökünde olduğunu
    kendiniz kontrol edin.
 

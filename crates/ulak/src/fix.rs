@@ -454,9 +454,11 @@ pub fn agent_command() -> String {
     match env_or("ULAK_FIX_AGENT", "opencode").as_str() {
         // Claude Code: ekran görüntüsü istemde yol olarak verilir, Read aracıyla açılır.
         // İzinler .claude/settings.json ile src/test/** düzenlemeye sınırlanır; Bash kapalı.
-        "claude" => "claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill \
-                     --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text"
-            .into(),
+        "claude" => format!(
+            "{} -p {{istem}} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill \
+             --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text",
+            bin_arg(&claude_bin())
+        ),
         _ => opencode_command(
             &env_or("ULAK_OPENCODE_BIN", "opencode"),
             &env_or("ULAK_OPENCODE_AGENT", "fix"),
@@ -470,7 +472,22 @@ pub fn agent_command() -> String {
 /// modeli ezer. Windows'ta npm yalnızca kısayol koyar; gerçek yol `ULAK_OPENCODE_BIN` ile verilir.
 pub fn opencode_command(bin: &str, agent: &str, model: Option<&str>) -> String {
     let m = model.map(|m| format!(" --model {m}")).unwrap_or_default();
-    format!("{bin} run --agent {agent}{m} {{istem}} --file {{ekran}}")
+    format!("{} run --agent {agent}{m} {{istem}} --file {{ekran}}", bin_arg(bin))
+}
+
+/// Claude Code programı: `ULAK_CLAUDE_BIN` (varsayılan `claude`, PATH'ten).
+pub fn claude_bin() -> String {
+    env_or("ULAK_CLAUDE_BIN", "claude")
+}
+
+/// Komut şablonundaki program yolu: boşluk içeriyorsa tırnaklanır (`C:\Program Files\…`),
+/// `split_command` bölmesin.
+pub fn bin_arg(bin: &str) -> String {
+    if bin.chars().any(char::is_whitespace) {
+        format!("\"{bin}\"")
+    } else {
+        bin.to_string()
+    }
 }
 
 /// Ajanı proje klasöründe çalıştırır; çıktı tokenlardan temizlenir. Başlatılamazsa kod -2, zaman aşımında -1.
@@ -868,6 +885,18 @@ mod tests {
             !a.iter().any(|x| x.contains("e.png")),
             "Claude Code'da görüntü istemdeki yoldan okunur"
         );
+    }
+
+    #[test]
+    fn test_sw_7_6_bosluklu_ajan_yolu_tek_arguman() {
+        let t = opencode_command("C:\\Program Files\\opencode\\opencode.exe", "fix", None);
+        let a = subst(&t, Path::new("/t/p.md"), "İSTEM", None);
+        assert_eq!(a[0], "C:\\Program Files\\opencode\\opencode.exe");
+        assert_eq!(a[1], "run");
+        assert_eq!(bin_arg("claude"), "claude");
+        let c = crate::degerlendir::command_for_test("claude", "C:\\Program Files\\Claude\\claude.exe");
+        let a = subst(&c, Path::new("/t/p.md"), "İSTEM", None);
+        assert_eq!(&a[..3], &["C:\\Program Files\\Claude\\claude.exe", "-p", "İSTEM"]);
     }
 
     #[test]

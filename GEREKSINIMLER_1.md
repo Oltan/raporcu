@@ -387,6 +387,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Test: U
 - Not: Şablonlar ci/opencode/template, ci/claude/template (Claude Code seçeneği, `ULAK_FIX_AGENT=claude`) ve ornek-test-projesi altında; opencode.ai belgelerine bu ortamdan erişilemedi, kurulu OpenCode / Claude Code ve vLLM ağ geçidiyle doğrulanmalı (docs/KOD_AJANI_VLLM.md).
 - Ek: ajan `.opencode/agents/fix.md` (OpenCode'un güncel yolu), skill'ler `ci/skills/` → test projesinde `.claude/skills/` (OpenCode ve Claude Code ortak): `hata-siniflandirma`, `testfx-secici`, `cucumber-adim`. Ajan adı `ULAK_OPENCODE_AGENT`.
+- Ek: Claude Code yolu `ULAK_CLAUDE_BIN` (boşluklu yol tırnaklanır); `ulak preflight` Claude Code'da `.claude/settings.json` ve `CLAUDE.md` yoksa uyarır; ajana giden metin ekleri ek başına 64 KB, toplam 96 KB. Doğrulama: `test_sw_7_6_claude_ajani_on_kontrolu`, `test_sw_7_6_bosluklu_ajan_yolu_tek_arguman`, `test_sw_7_2_metin_eki_siniri_ek_basina_ve_toplam`.
 
 ### SW-7.7 [MEVCUT] Geçmişteki başarılı düzeltmeler OpenCode'a örnek olarak verilir
 - Kabul: İstek metninde benzer bir senaryonun önceki düzeltmesi yer alır.

@@ -9,6 +9,51 @@ use std::collections::HashSet;
 /// Hedef: `opencode` | `jira` | `flaky` | `atla` | `bildirim`. `flaky` düzeltilmez ve bug taslağı
 /// hazırlanmaz ama `ulak degerlendir` ona da bakar (yalnızca `atla` ve açık MR'ı olan atlanır): ajan
 /// "test kodu" ya da "ürün" derse karar değişir ve senaryo o yola girer.
+/// Ajana giden metin ekleri: ek başına sınır (sahne ağacı uzun olabilir), toplam sınır (küçük
+/// bağlamlı vLLM modelinde istem taşmasın), en fazla ek sayısı.
+pub const METIN_EKI_SINIRI: usize = 64 * 1024;
+pub const METIN_EKI_TOPLAM: usize = 96 * 1024;
+pub const METIN_EKI_ADET: usize = 3;
+const KIRPILDI: &str = "\n… (kırpıldı)";
+
+/// Dosyanın ilk `n` baytı (tamamı belleğe alınmaz).
+fn bas_oku(yol: &std::path::Path, n: usize) -> Option<Vec<u8>> {
+    use std::io::Read;
+    let mut v = Vec::new();
+    std::fs::File::open(yol).ok()?.take(n as u64).read_to_end(&mut v).ok()?;
+    Some(v)
+}
+
+/// UTF-8 karakter sınırında en fazla `n` bayt.
+fn kirp(s: &str, n: usize) -> &str {
+    let mut i = n.min(s.len());
+    while !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    &s[..i]
+}
+
+/// (ad, baş baytlar) → `FixText`: ek başına `METIN_EKI_SINIRI`, toplam `METIN_EKI_TOPLAM`;
+/// kırpılan ekin sonuna "(kırpıldı)" yazılır, toplam dolunca kalan ekler atlanır.
+pub fn metin_ekleri(ekler: Vec<(String, Vec<u8>)>) -> Vec<common::api::FixText> {
+    let mut kalan = METIN_EKI_TOPLAM;
+    let mut out = Vec::new();
+    for (name, data) in ekler.into_iter().take(METIN_EKI_ADET) {
+        if kalan == 0 {
+            break;
+        }
+        let metin = String::from_utf8_lossy(&data);
+        let sinir = METIN_EKI_SINIRI.min(kalan);
+        let mut content = kirp(&metin, sinir).to_string();
+        if content.len() < metin.len() {
+            content.push_str(KIRPILDI);
+        }
+        kalan = kalan.saturating_sub(content.len().min(sinir));
+        out.push(common::api::FixText { name, content });
+    }
+    out
+}
+
 pub fn target(status: &str, tags: &[String], category: Option<&str>) -> &'static str {
     if tags.iter().any(|t| t == "sample-fail") {
         return "atla";
@@ -135,21 +180,22 @@ pub fn candidates(c: &Connection, paths: &crate::Paths, run_id: i64, public_url:
         } else {
             vec![]
         };
-        // küçük metin ekleri (sahne ağacı, log): ilk 3 tanesi, her biri en fazla 16 KB
-        let texts = crate::queries::attachments(c, id)?
+        // metin ekleri (sahne ağacı, log): ilk 3 dolu ek, her biri en fazla 64 KB, toplam 96 KB
+        let mut ekler = Vec::new();
+        for a in crate::queries::attachments(c, id)?
             .into_iter()
             .filter(|a| a.is_text() && !a.is_deleted())
-            .filter_map(|a| {
-                let data = std::fs::read(paths.attachment(a.run_id, &a.source)).ok()?;
-                let text = String::from_utf8_lossy(&data[..data.len().min(16 * 1024)]).into_owned();
-                Some(common::api::FixText {
-                    name: a.title(),
-                    content: text,
-                })
-            })
-            .filter(|t| !t.content.trim().is_empty())
-            .take(3)
-            .collect();
+        {
+            if ekler.len() == METIN_EKI_ADET {
+                break;
+            }
+            if let Some(data) = bas_oku(&paths.attachment(a.run_id, &a.source), METIN_EKI_SINIRI + 1) {
+                if !String::from_utf8_lossy(&data).trim().is_empty() {
+                    ekler.push((a.title(), data));
+                }
+            }
+        }
+        let texts = metin_ekleri(ekler);
         out.push(FixCandidate {
             scenario_id: id,
             scenario_key: key,
@@ -231,6 +277,26 @@ pub fn record(c: &Connection, run_id: i64, r: &FixResult, auto_conf: f64) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_7_2_metin_eki_siniri_ek_basina_ve_toplam() {
+        let buyuk = "ç".repeat(40 * 1024).into_bytes(); // 80 KB, iki baytlık harf
+        let ekler = vec![
+            ("sahne".to_string(), buyuk.clone()),
+            ("log".to_string(), b"kisa".to_vec()),
+            ("ikinci".to_string(), buyuk),
+            ("dorduncu".to_string(), b"x".to_vec()),
+        ];
+        let t = metin_ekleri(ekler);
+        assert_eq!(t.len(), 3, "en fazla 3 ek");
+        assert!(t[0].content.ends_with("(kırpıldı)"));
+        assert!(t[0].content.len() <= METIN_EKI_SINIRI + 32, "ek başına 64 KB");
+        assert!(t[0].content.len() > 60 * 1024, "16 KB değil");
+        assert_eq!(t[1].content, "kisa");
+        let toplam: usize = t.iter().map(|x| x.content.len()).sum();
+        assert!(toplam <= METIN_EKI_TOPLAM + 64, "toplam 96 KB: {toplam}");
+        assert!(t[2].content.ends_with("(kırpıldı)"));
+    }
 
     #[test]
     fn test_sw_7_1_target_for_each_case() {

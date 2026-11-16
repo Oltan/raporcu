@@ -259,11 +259,13 @@ Notlar:
 - **Doğrudan Anthropic API:** ağ geçidi yoksa `ANTHROPIC_BASE_URL` ve `ANTHROPIC_AUTH_TOKEN` yazılmaz,
   yalnızca `ANTHROPIC_API_KEY` (masked CI değişkeni) verilir; `ANTHROPIC_MODEL` isteğe bağlıdır.
 - **Windows:** ulak `claude` komutunu kabuk olmadan başlatır; yalnızca PATH'teki `claude.exe` bulunur,
-  npm kısayolu (`claude.cmd`) bulunmaz (`program not found`). `ULAK_OPENCODE_BIN` gibi bir ayar yoktur:
-  tam yol `ULAK_FIX_CMD` ve `ULAK_DEGERLENDIR_CMD` içine yazılır (hazır satırlar
-  `ci/gitlab/runner/runner.env.example` içinde). Gerçek Windows runner'da denenmedi.
-- `ulak preflight` ajan dosyalarını yalnızca OpenCode için denetler; `.claude/settings.json`, `.mcp.json`
-  ve `CLAUDE.md` dosyalarının proje kökünde olduğu elle kontrol edilir. Kurulum paketinde bu dosyalar
+  npm kısayolu (`claude.cmd`) bulunmaz (`program not found`). Tam yol `ULAK_CLAUDE_BIN` ile verilir
+  (düzeltme ve değerlendirme ikisi de kullanır; boşluklu yol olabilir, ör.
+  `C:\Program Files\Claude\claude.exe`). `.cmd`/`.bat` verilirse istem cmd.exe'den geçer ve bozulabilir;
+  `ulak preflight` uyarır. Komutun tamamı yine `ULAK_FIX_CMD` / `ULAK_DEGERLENDIR_CMD` ile ezilebilir.
+  Gerçek Windows runner'da denenmedi.
+- `ulak preflight` Claude Code için `.claude/settings.json` (yok ya da bozuk JSON) ve `CLAUDE.md`
+  yoksa uyarır; skill denetimi (`name`, `description`) iki ajan için ortaktır. `.mcp.json` elle kontrol edilir. Kurulum paketinde bu dosyalar
   `claude-code/` klasöründedir; `projeye-ekle` onları kopyalamaz.
 
 ## Deneme (CI olmadan)
@@ -276,3 +278,11 @@ ulak fix
 ```
 
 Sahte ajanla uçtan uca akış `cargo run -p rehearse` içindeki "Fix işi" adımlarında koşar.
+
+## Bağlam boyu (vLLM `--max-model-len`)
+
+İstem; hata mesajı, yığın izi, adımlar, benzer düzeltme örnekleri ve en fazla 3 metin ekinden
+(TestFX sahne ağacı, log) oluşur. Metin ekleri ek başına 64 KB, toplam 96 KB ile sınırlıdır (divan
+kırpar, sonuna "(kırpıldı)" yazar); bu kabaca 25–30 bin token eder. Ajanın kendi araç çağrıları ve
+okuduğu dosyalarla birlikte modelin bağlamı en az **32k**, tercihen **64k** olmalı
+(`vllm serve … --max-model-len 65536`). Daha küçük bağlamda istem taşar ve ajan hata verir.

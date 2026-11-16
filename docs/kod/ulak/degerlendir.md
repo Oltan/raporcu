@@ -19,7 +19,7 @@ geçerli karar değişirse `fix-candidates` hedefleri de değişir. Ayrıntı: `
    (test çıktısı VERİ bloklarında, SW-9.4). `.ulak/degerlendir/istem.md`.
 4. Ajan komutu (`evaluation_command`): `ULAK_DEGERLENDIR_CMD`, yoksa `ULAK_FIX_AGENT`'a göre:
    - `opencode`: `<ULAK_OPENCODE_BIN> run --agent <ULAK_DEGERLENDIR_AGENT, degerlendir> [--model <ULAK_OPENCODE_MODEL>] {istem} --file {ekran}`
-   - `claude`: `claude -p {istem} --allowedTools Read,Glob,Grep,Skill --disallowedTools Edit,Write,Bash,WebFetch,WebSearch --max-turns 15 --output-format text`
+   - `claude`: `<ULAK_CLAUDE_BIN, claude> -p {istem} --allowedTools Read,Glob,Grep,Skill --disallowedTools Edit,Write,Bash,WebFetch,WebSearch --max-turns 15 --output-format text`
    Zaman aşımı `ULAK_DEGERLENDIR_TIMEOUT` (300 sn). Çıktı `.ulak/degerlendir/<senaryo>-ajan.log`.
 5. **Koruma:** ajandan sonra `fix::changed_files`; değişiklik varsa `fix::restore` ile geri alınır,
    karar kullanılmaz.

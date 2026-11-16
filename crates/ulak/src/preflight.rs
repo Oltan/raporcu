@@ -95,7 +95,42 @@ fn skill_sorunu(ad: &str, metin: &str) -> Option<String> {
 }
 
 /// Ajan dosyası ve skill'ler bozuksa `ulak fix` gece sessizce işe yaramaz; burada söylenir.
-fn kod_ajani_kontrol(project: &Path, ajan: &str, r: &mut Report) {
+/// `tur`: `ULAK_FIX_AGENT` (`opencode` | `claude`); `ajan`: OpenCode ajan adı. Skill denetimi ortak.
+fn kod_ajani_kontrol(project: &Path, tur: &str, ajan: &str, r: &mut Report) {
+    if tur == "claude" {
+        claude_kontrol(project, &crate::fix::claude_bin(), r);
+    } else {
+        opencode_kontrol(project, ajan, r);
+    }
+    skill_kontrol(project, r);
+}
+
+/// Claude Code: izinler `.claude/settings.json` (src/test/** düzenleme), proje kuralları `CLAUDE.md`.
+fn claude_kontrol(project: &Path, bin: &str, r: &mut Report) {
+    match std::fs::read_to_string(project.join(".claude").join("settings.json")) {
+        Err(_) => r.warnings.push(
+            "Claude Code izin dosyası yok: .claude/settings.json (yalnızca src/test/** düzenleme izni; docs/KOD_AJANI_VLLM.md). Ajan izin isteyip takılabilir.".into(),
+        ),
+        Ok(s) if serde_json::from_str::<serde_json::Value>(&s).is_err() => {
+            r.warnings.push(".claude/settings.json geçerli JSON değil; Claude Code ayarları okuyamaz".into())
+        }
+        Ok(_) => r.ok.push("Claude Code: .claude/settings.json".into()),
+    }
+    if project.join("CLAUDE.md").is_file() {
+        r.ok.push("Claude Code: CLAUDE.md".into());
+    } else {
+        r.warnings
+            .push("CLAUDE.md yok: ajan proje kurallarını (yalnızca src/test/, seçiciler, beklemeler) bilmeden çalışır".into());
+    }
+    let b = bin.to_lowercase();
+    if b.ends_with(".cmd") || b.ends_with(".bat") {
+        r.warnings.push(format!(
+            "ULAK_CLAUDE_BIN bir .cmd/.bat dosyası ({bin}): istem cmd.exe üzerinden geçer ve çok satırlı istem bozulabilir; claude.exe (yerel kurulum) kullanın"
+        ));
+    }
+}
+
+fn opencode_kontrol(project: &Path, ajan: &str, r: &mut Report) {
     if std::env::var("ULAK_DEGERLENDIR").as_deref() != Ok("off") && !project.join(".opencode/agents/degerlendir.md").is_file() {
         r.warnings.push(
             "OpenCode ajanı yok: .opencode/agents/degerlendir.md. LLM değerlendirmesi kullanılmayacaksa ULAK_DEGERLENDIR=off yapın.".into(),
@@ -120,6 +155,9 @@ fn kod_ajani_kontrol(project: &Path, ajan: &str, r: &mut Report) {
             r.ok.push(format!("OpenCode ajanı: {ajan}"));
         }
     }
+}
+
+fn skill_kontrol(project: &Path, r: &mut Report) {
     let mut adet = 0;
     for kok in [".claude", ".opencode"] {
         let Ok(rd) = std::fs::read_dir(project.join(kok).join("skills")) else {
@@ -246,8 +284,13 @@ pub fn check(project: &Path) -> Report {
             }
         }
     }
-    if env("ULAK_FIX").as_deref() != Some("off") && env_or("ULAK_FIX_AGENT", "opencode") == "opencode" {
-        kod_ajani_kontrol(project, &env_or("ULAK_OPENCODE_AGENT", "fix"), &mut r);
+    if env("ULAK_FIX").as_deref() != Some("off") {
+        kod_ajani_kontrol(
+            project,
+            &env_or("ULAK_FIX_AGENT", "opencode"),
+            &env_or("ULAK_OPENCODE_AGENT", "fix"),
+            &mut r,
+        );
     }
     r
 }
@@ -281,7 +324,7 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let p = t.path();
         let mut r = Report::default();
-        kod_ajani_kontrol(p, "ozel", &mut r);
+        kod_ajani_kontrol(p, "opencode", "ozel", &mut r);
         assert!(r.warnings.iter().any(|w| w.contains("agents/ozel.md")));
 
         std::fs::create_dir_all(p.join(".opencode/agents")).unwrap();
@@ -296,11 +339,37 @@ mod tests {
             std::fs::write(p.join(".claude/skills").join(ad).join("SKILL.md"), metin).unwrap();
         }
         let mut r = Report::default();
-        kod_ajani_kontrol(p, "ozel", &mut r);
+        kod_ajani_kontrol(p, "opencode", "ozel", &mut r);
         let w = r.warnings.join("\n");
         assert!(w.contains("ULAK_TRIAGE") && w.contains("subagent"));
         assert!(w.contains("`yanlis-ad`") && w.contains("`bos-aciklama`") && w.contains("`Buyuk_Harf`"));
         assert!(!w.contains("iyi-skill"));
+    }
+
+    #[test]
+    fn test_sw_7_6_claude_ajani_on_kontrolu() {
+        let t = tempfile::tempdir().unwrap();
+        let p = t.path();
+        let mut r = Report::default();
+        claude_kontrol(p, "C:\\Users\\x\\AppData\\Roaming\\npm\\claude.cmd", &mut r);
+        let w = r.warnings.join("\n");
+        assert!(
+            w.contains(".claude/settings.json") && w.contains("CLAUDE.md") && w.contains(".cmd"),
+            "{w}"
+        );
+        assert!(!w.contains(".opencode"), "Claude Code'da OpenCode ajanı aranmaz");
+        std::fs::create_dir_all(p.join(".claude")).unwrap();
+        std::fs::write(p.join(".claude/settings.json"), "{bozuk").unwrap();
+        std::fs::write(p.join("CLAUDE.md"), "# kurallar\n").unwrap();
+        let mut r = Report::default();
+        claude_kontrol(p, "claude", &mut r);
+        assert_eq!(r.warnings.len(), 1, "{:?}", r.warnings);
+        assert!(r.warnings[0].contains("geçerli JSON değil"));
+        // gerçek örnek proje: uyarı yok
+        let ornek = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ornek-test-projesi");
+        let mut r = Report::default();
+        claude_kontrol(&ornek, "claude", &mut r);
+        assert!(r.warnings.is_empty(), "{:?}", r.warnings);
     }
 
     fn copy_dir(src: &Path, dst: &Path) {

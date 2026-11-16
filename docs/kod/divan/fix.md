@@ -11,7 +11,8 @@ geçmiş düzeltme örnekleri.
 ## `candidates(c, paths, koşum, public_url)` → `GET /api/ci/runs/{id}/fix-candidates`
 Koşumun kalan (failed/broken) son denemeleri; her biri için: hedef, mesaj, iz (6000 karakter),
 adımlar (`"metin [durum]"`), ilk ekran görüntüsünün tam URL'si (`<public_url>/files/<id>`),
-tag'ler, ilk 3 küçük **metin eki** (her biri 16 KB, ör. TestFX sahne ağacı) ve hedef opencode
+tag'ler, ilk 3 dolu **metin eki** (`metin_ekleri`: ek başına 64 KB, toplam 96 KB, kırpılanın sonunda
+"(kırpıldı)"; dosyanın yalnızca başı okunur; ör. TestFX sahne ağacı) ve hedef opencode
 ise en benzer 2 örnek.
 
 ## `examples(c, proje, ad, mesaj, n)` (SW-7.7)

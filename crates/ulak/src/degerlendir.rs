@@ -37,17 +37,25 @@ fn evaluation_command() -> String {
         &env_or("ULAK_OPENCODE_BIN", "opencode"),
         &env_or("ULAK_DEGERLENDIR_AGENT", "degerlendir"),
         env("ULAK_OPENCODE_MODEL").as_deref(),
+        &fix::claude_bin(),
     )
 }
 
-fn command_for(agent: &str, opencode_bin: &str, opencode_agent: &str, model: Option<&str>) -> String {
+fn command_for(agent: &str, opencode_bin: &str, opencode_agent: &str, model: Option<&str>, claude_bin: &str) -> String {
     match agent {
         // Claude Code: düzeltme komutundan farkı Edit, Write araçlarının da kapalı olması.
-        "claude" => "claude -p {istem} --allowedTools Read,Glob,Grep,Skill \
-                     --disallowedTools Edit,Write,Bash,WebFetch,WebSearch --max-turns 15 --output-format text"
-            .into(),
+        "claude" => format!(
+            "{} -p {{istem}} --allowedTools Read,Glob,Grep,Skill \
+             --disallowedTools Edit,Write,Bash,WebFetch,WebSearch --max-turns 15 --output-format text",
+            fix::bin_arg(claude_bin)
+        ),
         _ => fix::opencode_command(opencode_bin, opencode_agent, model),
     }
+}
+
+#[cfg(test)]
+pub fn command_for_test(agent: &str, claude_bin: &str) -> String {
+    command_for(agent, "opencode", "degerlendir", None, claude_bin)
 }
 
 fn evaluation_prompt(c: &FixCandidate, test_root: &str, screenshot: Option<&Path>, report_url: &str) -> String {
@@ -215,9 +223,9 @@ mod tests {
 
     #[test]
     fn test_sw_4_5_evaluation_agent_cannot_edit() {
-        let claude = command_for("claude", "opencode", "degerlendir", None);
+        let claude = command_for("claude", "opencode", "degerlendir", None, "claude");
         assert!(claude.contains("--disallowedTools Edit,Write,Bash") && !claude.contains("acceptEdits"));
-        let opencode = command_for("opencode", "opencode", "degerlendir", Some("vllm/model"));
+        let opencode = command_for("opencode", "opencode", "degerlendir", Some("vllm/model"), "claude");
         assert!(opencode.starts_with("opencode run --agent degerlendir --model vllm/model"));
     }
 

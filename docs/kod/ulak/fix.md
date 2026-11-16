@@ -23,7 +23,8 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
    4. **Ajan komutu** (`agent_command`): `ULAK_FIX_CMD` / `ULAK_OPENCODE_CMD`, yoksa
       `ULAK_FIX_AGENT`'a göre:
       - `opencode`: `<ULAK_OPENCODE_BIN, opencode> run --agent <ULAK_OPENCODE_AGENT, fix> [--model <ULAK_OPENCODE_MODEL>] {istem} --file {ekran}`
-      - `claude`: `claude -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
+      - `claude`: `<ULAK_CLAUDE_BIN, claude> -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
+      Program yolu boşluk içeriyorsa `bin_arg` ile tırnaklanır (`split_command` bölmesin).
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
       ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn). Şirket CA'sı
       tanımlıysa ajana `NODE_EXTRA_CA_CERTS=.ulak/sirket-ca.pem` verilir (kullanıcı tanımlamadıysa).
