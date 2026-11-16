@@ -120,3 +120,15 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da klasör; PEM ya da
   DER), ulak ayrıca `DIVAN_CA_DOSYASI`'yı ve runner'ın `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı
   kapatma seçeneği bilerek yok.
+
+## auto-fix branch'inin pipeline'ı: yalnızca düzeltilen senaryo (SW-7.2)
+
+- Sahada auto-fix push'undan sonra bütün testler koşuyordu (projedeki `.gitlab-ci.yml` şablonun eski
+  kopyası). İstek: yalnızca düzeltilen senaryo koşsun.
+- Karar: `ulak fix` push ederken GitLab push seçenekleriyle o pipeline'a değişken verir
+  (`git push -o ci.variable=…`); `features.txt`'ye ya da koda yazılmaz (MR birleşince ana branch'in test
+  seçimi değişmesin; self-healing yalnızca `src/test/` değiştirebilir). Filtre: senaryonun YTET tag'i
+  varsa `ULAK_TAGS` (tüm YTET kimlikleri `and` ile), yoksa `ULAK_SENARYO` (ad; henüz her senaryoda YTET yok).
+- Açma: CI değişkeni `ULAK_FIX_PIPELINE=senaryo`. Sunucu push seçeneklerini kabul etmezse seçeneksiz
+  push edilir; o pipeline'da test koşmaz (düzeltme kaybolmaz). MR'a sonradan elle eklenen commit'in
+  pipeline'ı değişkeni almaz.

@@ -602,6 +602,7 @@ fn main() -> Result<()> {
         &rs.text,
     );
 
+    senaryo_filtresi(&mut ck, &server, &ulak_path, root)?;
     extra_steps(&mut ck, &server, &ulak_path, root)?;
 
     server.stop();
@@ -721,6 +722,39 @@ fn sh(dir: &Path, args: &[&str]) -> Result<String> {
     Ok(String::from_utf8_lossy(&o.stdout).to_string())
 }
 
+/// SW-7.2: auto-fix pipeline'ı (`ulak fix` push'ta `ULAK_SENARYO` verir): `ulak start` yalnızca o
+/// senaryoyu bekler ve Maven'a ad filtresi verir; features.txt ve ULAK_TAGS kullanılmaz.
+fn senaryo_filtresi(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Result<()> {
+    println!("\n-- auto-fix pipeline'ı: yalnızca düzeltilen senaryo (ULAK_SENARYO)");
+    let proj = project_copy(root, "proje-senaryo")?;
+    let env_out = root.join("env-senaryo.json");
+    let mut s = Ulak::new(ulak, &proj, &server.url());
+    s.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &env_out, ""))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
+        .set("ULAK_XVFB", "off")
+        .set("ULAK_SENARYO", "Yanlış şifrede özel mesaj")
+        .set("CI_COMMIT_BRANCH", "auto-fix/run-1-yanlis-sifre")
+        .set("CI_PROJECT_PATH", "prova/senaryo")
+        .set("CI_PROJECT_ID", "4646");
+    let o = s.run(&["start"])?;
+    let info: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&env_out).unwrap_or("{}".into()))?;
+    let args: Vec<String> = info["args"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+    ck.check(
+        "SW-7.2",
+        "ULAK_SENARYO: yalnızca o senaryo beklenir ve Maven'a ad filtresi gider (features.txt yok sayılır)",
+        o.text.contains("1 senaryo bekleniyor")
+            && args
+                .iter()
+                .any(|a| a.starts_with("-Dcucumber.filter.name=^Yanl") && a.ends_with("mesaj$"))
+            && !args.iter().any(|a| a.starts_with("-Dcucumber.filter.tags")),
+        format!("{}\n{args:?}", o.text),
+    );
+    Ok(())
+}
+
 /// Self-healing (SW-7.2, 9.4, 7.3, 4.4, 5.4): sahte OpenCode + sahte GitLab + yerel git deposu.
 fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Result<()> {
     println!("\n-- Fix işi: ulak fix (sahte OpenCode ve GitLab)");
@@ -740,6 +774,24 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
     let proj = project_copy(root, "fix-proje")?;
     let bare = root.join("uzak.git");
     sh(root, &["init", "-q", "--bare", bare.to_str().unwrap()])?;
+    // GitLab gibi push seçeneklerini (ci.variable) kabul eden uzak depo; kanca seçenekleri kaydeder
+    sh(&bare, &["config", "receive.advertisePushOptions", "true"])?;
+    let secenek_kaydi = root.join("push-secenekleri.txt");
+    if !cfg!(windows) {
+        let kanca = bare.join("hooks").join("pre-receive");
+        std::fs::write(
+            &kanca,
+            format!(
+                "#!/bin/sh\ni=0\nwhile [ $i -lt \"${{GIT_PUSH_OPTION_COUNT:-0}}\" ]; do eval \"echo \\\"\\$GIT_PUSH_OPTION_$i\\\"\"; i=$((i+1)); done >> '{}'\n",
+                secenek_kaydi.display()
+            ),
+        )?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&kanca, std::fs::Permissions::from_mode(0o755))?;
+        }
+    }
     sh(&proj, &["init", "-q", "-b", "main"])?;
     std::fs::write(proj.join(".gitignore"), "target/\n.ulak/\nulak\nulak.exe\nulak.env\n")?;
     sh(&proj, &["add", "-A"])?;
@@ -758,8 +810,19 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
         .set("ULAK_GITLAB_API", format!("http://127.0.0.1:{gl_port}/api/v4"))
         .set("ULAK_FIX_TOKEN", "sahte-fix-token")
         .set("ULAK_PUSH_REMOTE", bare.to_str().unwrap())
+        .set("ULAK_FIX_PIPELINE", "senaryo")
         .set("ULAK_REPORT_URL", format!("{}/runs/{run_id}", server.url()));
     let o = s.run(&["fix"])?;
+    if !cfg!(windows) {
+        let kayit = std::fs::read_to_string(&secenek_kaydi).unwrap_or_default();
+        ck.check(
+            "SW-7.2",
+            "auto-fix push'u pipeline'a yalnızca düzeltilen senaryoyu verir (ci.variable)",
+            kayit.contains("ci.variable=ULAK_FIX_PIPELINE=on")
+                && (kayit.contains("ci.variable=ULAK_TAGS=@") || kayit.contains("ci.variable=ULAK_SENARYO=")),
+            format!("{kayit}\n{}", o.text),
+        );
+    }
     let branches = sh(&bare, &["branch", "--list"]).unwrap_or_default();
     let mr = mrs.lock().unwrap().first().cloned().unwrap_or_default();
     let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
@@ -814,6 +877,8 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
     mr_closed(server, 1)?;
 
     s.set("ULAK_FAKE_VALIDATE", "fail");
+    // push seçeneklerini desteklemeyen sunucu: düzeltme yine push edilir
+    sh(&bare, &["config", "receive.advertisePushOptions", "false"])?;
     let o = s.run(&["fix"])?;
     let mr = mrs.lock().unwrap().get(1).cloned().unwrap_or_default();
     let mrv: serde_json::Value = serde_json::from_str(&mr).unwrap_or_default();
@@ -822,6 +887,12 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
         "doğrulama geçmezse Draft MR",
         mrv["title"].as_str().unwrap_or("").starts_with("Draft:"),
         format!("{}\n{mr}", o.text),
+    );
+    ck.check(
+        "SW-7.2",
+        "sunucu push seçeneklerini kabul etmezse değişkensiz push edilir",
+        o.text.contains("kabul etmedi") && !mr.is_empty(),
+        &o.text,
     );
 
     mr_closed(server, 2)?;

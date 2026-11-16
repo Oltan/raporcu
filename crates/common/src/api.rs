@@ -136,6 +136,9 @@ pub struct FixCandidate {
     pub steps: Vec<String>,
     pub screenshot_url: Option<String>,
     pub tags: Vec<String>,
+    /// Gereksinim kimlikleri (sunucunun öneki: `YTET_1234`, varsayılan `DOORS-1234`). auto-fix
+    /// pipeline'ında senaryoyu tag'le seçmek için (SW-7.2). Eski sunucuda boş gelir.
+    pub doors_ids: Vec<String>,
     /// Benzer senaryoların daha önce birleştirilmiş düzeltmeleri (SW-7.7)
     pub examples: Vec<FixExample>,
     /// Senaryonun küçük metin ekleri (örn. TestFX sahne ağacı, uygulama logu)

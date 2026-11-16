@@ -370,6 +370,22 @@ fn report(c: &Ctx, run_id: i64, r: &FixResult) {
 /// Kod ajanı: `ULAK_FIX_AGENT=opencode` (varsayılan) ya da `claude` (Claude Code).
 /// Komutun tamamı `ULAK_FIX_CMD` (eski adı `ULAK_OPENCODE_CMD`) ile ezilebilir.
 /// Yer tutucular: `{istem}` istem metni, `{ekran}` ekran görüntüsü yolu, `{istem_dosyasi}`.
+/// SW-7.2: `ULAK_FIX_PIPELINE=senaryo` iken auto-fix push'una GitLab pipeline değişkenleri
+/// (`git push -o ci.variable=…`; yalnızca o push'un açtığı pipeline'a gider, proje değişkenini ezer):
+/// `ULAK_FIX_PIPELINE=on` (şablondaki auto-fix kuralı test/report'u açar) ve filtre — senaryonun
+/// gereksinim kimlikleri (YTET) varsa `ULAK_TAGS=@YTET_1 and @YTET_2`, yoksa `ULAK_SENARYO=<ad>`.
+/// `on`/`off` iken seçenek yok (şablon hepsini koşar / hiç koşmaz).
+pub fn pipeline_push_options(mode: &str, cand: &FixCandidate) -> Vec<String> {
+    if mode != "senaryo" {
+        return vec![];
+    }
+    let filtre = match crate::filtre::tag_ifadesi(&cand.doors_ids) {
+        Some(t) => format!("ci.variable=ULAK_TAGS={t}"),
+        None => format!("ci.variable=ULAK_SENARYO={}", cand.name),
+    };
+    vec!["ci.variable=ULAK_FIX_PIPELINE=on".into(), filtre]
+}
+
 /// Doğrulama koşusunun filtresi: `ULAK_FIX_VALIDATE_FILTER=name` (varsayılan) senaryo adı,
 /// `tags` adayın tag'leri (`@a and @b`; ASCII olmayanlar atılır, hiç kalmazsa uyarıyla ada düşülür).
 /// Aynı tag kümesini taşıyan başka senaryolar da koşar; senaryoya özgü tag (YTET no) varsa tek senaryo.
@@ -693,18 +709,44 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                     // .cert/.cer ikili (DER) ise git için PEM'e çevrilir
                     let ca = ca_pem(c).map(|f| format!("http.sslCAInfo={f}"));
                     let refspec = format!("HEAD:refs/heads/{branch}");
-                    let mut args: Vec<&str> = Vec::new();
-                    if let Some(c) = &ca {
-                        args.extend(["-c", c.as_str()]);
+                    // SW-7.2: bu push'un açacağı pipeline'a değişken (yalnızca düzeltilen senaryo)
+                    let secenekler = pipeline_push_options(&env_or("ULAK_FIX_PIPELINE", "off"), cand);
+                    let push = |secenekler: &[String]| {
+                        let mut args: Vec<&str> = Vec::new();
+                        if let Some(c) = &ca {
+                            args.extend(["-c", c.as_str()]);
+                        }
+                        args.extend(["push", "-q", "-f"]);
+                        for o in secenekler {
+                            args.extend(["-o", o.as_str()]);
+                        }
+                        args.extend([remote.as_str(), refspec.as_str()]);
+                        git(dir, &args).map(|_| ()).map_err(|e| {
+                            e.to_string()
+                                .replace(&env("ULAK_FIX_TOKEN").unwrap_or_else(|| "\u{0}".into()), "***")
+                        })
+                    };
+                    if !secenekler.is_empty() {
+                        say(format!(
+                            "auto-fix pipeline'ı yalnızca bu senaryoyu koşacak: {}",
+                            secenekler.join(" ")
+                        ));
                     }
-                    args.extend(["push", "-q", "-f", remote.as_str(), refspec.as_str()]);
-                    git(dir, &args).map(|_| true).unwrap_or_else(|e| {
-                        let m = e
-                            .to_string()
-                            .replace(&env("ULAK_FIX_TOKEN").unwrap_or_else(|| "\u{0}".into()), "***");
-                        say(format!("UYARI: push başarısız: {m}{}", common::tls::hint(&m, CA_ENVS[0])));
-                        false
-                    })
+                    let mut sonuc = push(&secenekler);
+                    if let Err(m) = &sonuc {
+                        if !secenekler.is_empty() && m.contains("push option") {
+                            // sunucu push seçeneklerini desteklemiyor: düzeltme kaybolmasın
+                            say("UYARI: sunucu push seçeneklerini (ci.variable) kabul etmedi; değişkensiz push ediliyor, auto-fix pipeline'ı şablon kuralına göre koşar");
+                            sonuc = push(&[]);
+                        }
+                    }
+                    match sonuc {
+                        Ok(()) => true,
+                        Err(m) => {
+                            say(format!("UYARI: push başarısız: {m}{}", common::tls::hint(&m, CA_ENVS[0])));
+                            false
+                        }
+                    }
                 }
                 None => {
                     say("UYARI: push hedefi yok (ULAK_FIX_TOKEN / ULAK_PUSH_REMOTE)");
@@ -842,6 +884,33 @@ mod tests {
         };
         let p = build_prompt(&c, "src/test/resources/", None, "http://r");
         assert!(p.contains("daha önce birleştirilmiş düzeltmeler") && p.contains("#yeni"));
+    }
+
+    #[test]
+    fn test_sw_7_2_push_ci_degiskenleri() {
+        let mut c = FixCandidate {
+            name: "Geçersiz şifre".into(),
+            tags: vec!["giris".into(), "YTET_1234".into()],
+            doors_ids: vec!["YTET_1234".into()],
+            ..Default::default()
+        };
+        assert!(pipeline_push_options("off", &c).is_empty());
+        assert!(pipeline_push_options("on", &c).is_empty(), "on: şablon hepsini koşar, filtre yok");
+        assert_eq!(
+            pipeline_push_options("senaryo", &c),
+            vec!["ci.variable=ULAK_FIX_PIPELINE=on", "ci.variable=ULAK_TAGS=@YTET_1234"]
+        );
+        c.doors_ids.push("YTET_77".into());
+        assert_eq!(
+            pipeline_push_options("senaryo", &c)[1],
+            "ci.variable=ULAK_TAGS=@YTET_1234 and @YTET_77"
+        );
+        c.doors_ids.clear();
+        assert_eq!(
+            pipeline_push_options("senaryo", &c)[1],
+            "ci.variable=ULAK_SENARYO=Geçersiz şifre",
+            "YTET yoksa ad"
+        );
     }
 
     #[test]

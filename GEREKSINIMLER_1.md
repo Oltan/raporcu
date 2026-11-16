@@ -365,6 +365,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Not: Sahte OpenCode + sahte GitLab + yerel git ile prova geçer; gerçek OpenCode, vLLM, TestFX MCP, GitLab MR ile U bekliyor.
 - Ek: açık auto-fix MR'ı olan senaryo yeniden aday olmaz (`acik-mr`); CI şablonunda auto-fix branch'inde fix işi koşmaz, test/report yalnızca `ULAK_FIX_PIPELINE=on` ile; MR pipeline'ında şablon işleri koşmaz. Doğrulama: `test_sw_7_2_open_fix_mr_blocks_new_candidate_until_closed`, rehearse SW-7.2.
 - Ek: doğrulama koşusu tag ile de seçilebilir (`ULAK_FIX_VALIDATE_FILTER=tags`: `@a and @b`, ASCII dışı tag'ler atılır, tag kalmazsa ada düşülür); `ULAK_FIX_VALIDATE_CMD` içinde `{senaryo}` ve `{taglar}`. Doğrulama: `test_sw_7_2_dogrulama_filtresi_ad_ya_da_tag`, `test_sw_7_2_tag_ifadesi_ascii_disi_atilir`. Gerçek runner'da tek senaryo koştuğu henüz doğrulanmadı.
+- Ek: `ULAK_FIX_PIPELINE=senaryo` ile auto-fix branch'inin pipeline'ında yalnızca düzeltilen senaryo koşar: `ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve filtre verir (YTET tag'i varsa `ULAK_TAGS`, yoksa `ULAK_SENARYO`); sunucu push seçeneklerini kabul etmezse seçeneksiz push. Doğrulama: `test_sw_7_2_push_ci_degiskenleri`, rehearse SW-7.2 (push seçenekleri, geri dönüş, `ULAK_SENARYO`). Gerçek GitLab'da denenmedi.
 
 ### SW-7.3 [MEVCUT] Sonuç divan'a bildirilir (fix-result) ve raporda görünür
 - Test: B, P

@@ -208,6 +208,10 @@ pub fn candidates(c: &Connection, paths: &crate::Paths, run_id: i64, public_url:
             trace: trace.map(|t| crate::logging::truncate(&t, 6000)),
             steps,
             screenshot_url: shot,
+            doors_ids: {
+                let o = common::kimlik::gecerli();
+                tags.iter().filter_map(|t| o.gereksinim_id(t)).collect()
+            },
             tags,
             examples: ex,
             texts,

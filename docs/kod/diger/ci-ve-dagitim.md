@@ -24,7 +24,8 @@ Test projesi `include: project/ref/file` + `ULAK_OS: linux|windows` ekler. Aşam
 
 Somut işler: `ulak-{test,report,fix}-{linux,windows}`, `ULAK_OS`'a göre `rules` ile seçilir. Hiçbiri
 `merge_request_event` pipeline'ında koşmaz; `auto-fix/…` branch'inde test/report yalnızca
-`ULAK_FIX_PIPELINE=on` ile, fix asla (döngü önleme);
+`ULAK_FIX_PIPELINE=on` ile (`ulak fix`, `ULAK_FIX_PIPELINE=senaryo` iken bunu push seçeneğiyle yalnızca
+o pipeline'a verir, filtreyle birlikte), fix asla (döngü önleme);
 Windows işlerinde `ULAK_XVFB=off`. Değişkenler: `ULAK_SERVER=http://127.0.0.1:8080` (aynı makine),
 `ULAK_RESULTS_DIR`, `ULAK_MAVEN_XMX=512m`, `ULAK_TEST_XMX=768m`, `ULAK_VIDEO_FPS=5`,
 `ULAK_VIDEO` (şablonda yorum satırı; Windows'ta gdigrab tüm masaüstünü kaydeder, kişisel masaüstünde `false`),

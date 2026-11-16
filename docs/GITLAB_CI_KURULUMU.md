@@ -157,7 +157,7 @@ açık bir mesajla düşürür.
 | `ULAK_DEGERLENDIR` | CI değişkeni, isteğe bağlı | LLM değerlendirmesi: `off` kapatır; `ULAK_FIX=off` iken `on` yalnızca değerlendirmeyi çalıştırır. Üst sınır `ULAK_DEGERLENDIR_MAX` (20) |
 | `ULAK_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `ulak fix`: auto-fix branch push + MR (SW-7.2) |
 | `ULAK_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
-| `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | `on`: auto-fix branch'ine push'ta da tüm e2e koşar (fix işi yine koşmaz) |
+| `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | auto-fix branch'ine push'ta: kapalı → test koşmaz; `senaryo` → yalnızca düzeltilen senaryo koşar (`ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve `ULAK_TAGS=@YTET_…` ya da `ULAK_SENARYO=<ad>` verir); `on` → tüm e2e. Fix işi auto-fix'te yine koşmaz |
 | `ULAK_OPENCODE_AGENT` | CI değişkeni (isteğe bağlı), varsayılan `fix` | `.opencode/agents/<ad>.md` ajan adı |
 | `ULAK_OPENCODE_MODEL` | CI değişkeni (isteğe bağlı) | `saglayici/model`; ajandaki ve `opencode.json`'daki modeli ezer |
 | `ULAK_OPENCODE_BIN` | CI değişkeni (isteğe bağlı), varsayılan `opencode` | Windows'ta gerçek `opencode.exe` yolu |

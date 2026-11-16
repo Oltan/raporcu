@@ -265,9 +265,16 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
         let _ = std::fs::remove_dir_all(&c.results_dir);
         let _ = std::fs::remove_file(c.live_events_file());
     }
-    let tags = tag_expression(c)?;
+    // SW-7.2: auto-fix pipeline'ında tek senaryo (ulak fix push'ta `ULAK_SENARYO` verir);
+    // ULAK_TAGS ve features.txt'nin önüne geçer
+    let senaryo = env("ULAK_SENARYO");
+    let tags = if senaryo.is_some() { None } else { tag_expression(c)? };
     let expr = tags.as_deref().map(gherkin::TagExpr::parse).transpose()?;
-    let planned = gherkin::plan(&c.project_dir, expr.as_ref())?;
+    let mut planned = gherkin::plan(&c.project_dir, expr.as_ref())?;
+    if let Some(ad) = &senaryo {
+        planned.retain(|p| &p.name == ad);
+        say(format!("yalnızca bu senaryo koşacak (ULAK_SENARYO): {ad}"));
+    }
     let ci = ctx::ci_info(&c.project_dir);
     let mut body = serde_json::to_value(&ci)?;
     body["total"] = (planned.len() as i64).into();
@@ -309,7 +316,10 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
         return Ok(0);
     }
     let mut watcher = saved.as_ref().and_then(|s| spawn_watcher(c, s.run_id));
-    let cmd = build_test_command(c, tags.as_deref());
+    let mut cmd = build_test_command(c, tags.as_deref());
+    if let Some(ad) = &senaryo {
+        cmd.args.push(crate::filtre::Filtre::Ad(ad.clone()).arguman());
+    }
     say(format!("testler başlıyor: {} {}", cmd.program, cmd.args.join(" ")));
     let started = Instant::now();
     let result = run_streaming(&cmd, &c.project_dir);

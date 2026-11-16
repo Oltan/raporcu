@@ -9,7 +9,10 @@ testleri koşar (SW-1.2, 1.6, 1.7).
    açık mesajla **çıkış 4**. `ULAK_ALLOW_SERVICE_SESSION=true` atlatır.
 2. `.ulak` hazırlanır; `stop`, `sent.txt` silinir; testler koşacaksa eski `allure-results` ve
    canlı olay dosyası silinir (`ULAK_KEEP_RESULTS` ile korunur).
-3. Tag ifadesi: `ULAK_TAGS` (geçerli olmalı) ya da `features.txt`.
+3. Senaryo seçimi: `ULAK_SENARYO` doluysa (auto-fix pipeline'ı, `ulak fix` push seçeneğiyle verir)
+   yalnızca o adlı senaryo beklenir ve Maven'a `-Dcucumber.filter.name=^<ad>$` (`filtre::Filtre::Ad`)
+   eklenir; `ULAK_TAGS` ve `features.txt` kullanılmaz. Yoksa tag ifadesi: `ULAK_TAGS` (geçerli olmalı)
+   ya da `features.txt`.
 4. Beklenen senaryolar `gherkin::plan` ile; `POST /api/ci/runs/start` (CiInfo + `total` +
    `expected`), yeniden denemeli. Başarı → `run.json` + `ulak.env`, "koşum açıldı … Canlı
    durum: <rapor>/live". Sürüm uyumsuzsa çıkış 2. Sunucuya ulaşılamazsa UYARI, testler yine koşar.

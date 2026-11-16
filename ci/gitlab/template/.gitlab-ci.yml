@@ -39,6 +39,7 @@ variables:
   # ULAK_TAGS: "@smoke"           # boşsa features.txt kullanılır
   # ULAK_FIX: "off"               # self-healing'i (ve LLM değerlendirmesini) kapatmak için
   # ULAK_DEGERLENDIR: "off"       # yalnızca LLM değerlendirmesini kapatmak için; ULAK_FIX=off iken "on" yalnızca onu açar
+  # ULAK_FIX_PIPELINE: "senaryo"  # auto-fix branch'inde yalnızca düzeltilen senaryo koşsun (on: hepsi)
   # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)
 
 stages:
@@ -115,7 +116,8 @@ ulak-test-linux:
   extends: [.ulak-linux, .ulak-test]
   rules:
     # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
     - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
       when: never
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
@@ -131,7 +133,8 @@ ulak-test-windows:
     ULAK_XVFB: "off"
   rules:
     # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
     - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
       when: never
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
@@ -145,7 +148,8 @@ ulak-report-linux:
   extends: [.ulak-linux, .ulak-report]
   rules:
     # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
     - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
       when: never
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
@@ -159,7 +163,8 @@ ulak-report-windows:
   extends: [.ulak-windows, .ulak-report]
   rules:
     # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
     - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
       when: never
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)

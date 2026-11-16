@@ -27,7 +27,7 @@ kodlanır (`A-Z a-z 0-9 - _ . ~` dışındaki her bayt `%XX`), boş (None) alanl
 | `FinishRequest` | `/finish` | `status`: `finished` (varsayılan) / `interrupted` |
 | `FixResult` | ulak fix → `/fix-result` | `run_id, scenario_key, outcome (mr_opened/draft_mr/no_change/rejected/error), mr_iid, mr_url, branch, validation_passed, summary, warnings[], diff, triage` |
 | `TriageSuggestion` | FixResult içinde | `category, reason, confidence (0–1)` |
-| `FixCandidate` | `/fix-candidates` yanıtı | `scenario_id, scenario_key, name, feature, feature_file, status, target (opencode/jira/atla/bildirim), message, trace, steps[], screenshot_url, tags[], examples[], texts[]` |
+| `FixCandidate` | `/fix-candidates` yanıtı | `scenario_id, scenario_key, name, feature, feature_file, status, target (opencode/jira/atla/bildirim), message, trace, steps[], screenshot_url, tags[], doors_ids[] (gereksinim kimlikleri, sunucunun önekiyle; auto-fix pipeline filtresi), examples[], texts[]` |
 | `FixText` | aday içinde | küçük metin ekleri: `name, content` (ör. TestFX sahne ağacı) |
 | `FixExample` | aday içinde | geçmiş birleşmiş düzeltme: `scenario, message, diff` |
 

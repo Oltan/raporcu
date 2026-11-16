@@ -4,7 +4,7 @@
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
 Kullanıcının onayladığı kalemler: gereksinim öneki (YTET_) ve ek kimlikler (YGÖ-), Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı; kalem 5 (auto-fix'te yalnızca düzeltilen senaryo). Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
+Claude yolu + ağaç sınırı; kalem 5 (auto-fix'te yalnızca düzeltilen senaryo). Dal: `llm-degerlendirme`. Durum: **uygulandı** (beş kalem ayrı commit; exe'ler yeniden derlenmeli). Gerçek runner'da yapılacaklar aşağıda.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
@@ -114,9 +114,10 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
 Durum: sahada fix push'undan sonra tüm testler koşuyor; projedeki `.gitlab-ci.yml` eski kopya
 (şablondaki auto-fix kuralı yok). Karar: `ulak fix` push'ta GitLab'a pipeline değişkeni verir
 (`git push -o ci.variable=…`); değişken yalnızca o push'un açtığı pipeline'a gider.
-- `ULAK_FIX_PIPELINE_FILTRE` (ulak, varsayılan `off`): `senaryo` iken push'a
+- CI değişkeni `ULAK_FIX_PIPELINE=senaryo` (ayrı bir değişken yerine mevcut değişkene yeni değer;
+  push seçeneğindeki `on` proje değişkenini o pipeline için ezer): push'a
   `-o ci.variable=ULAK_FIX_PIPELINE=on` ve filtre eklenir:
-  - senaryonun YTET (gereksinim önekli) tag'i varsa `ULAK_TAGS=@YTET_1234` (birden çoksa `or`);
+  - senaryonun YTET (gereksinim önekli) tag'i varsa `ULAK_TAGS=@YTET_1234` (birden çoksa `and`);
   - yoksa `ULAK_SENARYO=<senaryo adı>` (YTET tag'i henüz her senaryoda yok).
   Gereksinim öneki ulak'a `GET /api/ci/fix-candidates` yanıtında gelir (aday zaten
   `doors_ids` taşıyor; ulak'ta ayrı ayar yok).
@@ -125,6 +126,7 @@ Durum: sahada fix push'undan sonra tüm testler koşuyor; projedeki `.gitlab-ci.
   `.feature` dosyalarından aynı adla sayılır.
 - Şablon değişmez: auto-fix kuralı `ULAK_FIX_PIPELINE=on` ile test/report'u zaten açıyor, fix işi
   auto-fix'te asla koşmaz. Eski kopya kullananlar için `docs/KURULUM.md`'ye kural satırları.
+- Sunucu push seçeneklerini reddederse seçeneksiz bir kez daha push edilir (düzeltme kaybolmaz).
 - Sınır: MR'a sonradan elle eklenen commit'in pipeline'ı değişkeni almaz (bugünkü gibi test yok).
 - Test: `test_sw_7_2_push_ci_degiskenleri` (tag/ad seçimi, argümanlar),
   `test_sw_1_5_ulak_senaryo_filtresi` (runner filtresi ve sayım); rehearse'te sahte GitLab push
@@ -145,5 +147,7 @@ Durum: sahada fix push'undan sonra tüm testler koşuyor; projedeki `.gitlab-ci.
 - Örnek proje: `cd ornek-test-projesi && xvfb-run -a mvn -B test` (tag filtresiyle doğrulama
   komutu elle denenir).
 - Windows hedefi bu ortamda koşturulamıyor; gerçek runner'da yapılacaklar: zaman aşımında süreç
-  ağacının kapandığı, `ULAK_FIX_VALIDATE_FILTER=tags` ile özel runner'ın tek senaryo koştuğu,
-  yeni Jira sorgusunun story ile eşleşmediği.
+  ağacının kapandığı, `ULAK_FIX_VALIDATE_FILTER=tags` ile özel runner'ın tek senaryo koştuğu
+  (`mvn.cmd` üzerinden boşluklu tag ifadesi), yeni Jira sorgusunun story ile eşleşmediği,
+  `ULAK_FIX_PIPELINE=senaryo` ile GitLab'ın push seçeneğini kabul edip auto-fix pipeline'ında tek
+  senaryo koştuğu, `ULAK_CLAUDE_BIN` ile boşluklu yolun çalıştığı.
