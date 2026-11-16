@@ -4,7 +4,7 @@
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
 Kullanıcının onayladığı kalemler: gereksinim öneki (YTET_) ve ek kimlikler (YGÖ-), Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı; kalem 5 (auto-fix'te yalnızca düzeltilen senaryo) öneri. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
+Claude yolu + ağaç sınırı; kalem 5 (auto-fix'te yalnızca düzeltilen senaryo). Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
@@ -110,24 +110,25 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
 - `ULAK_CLAUDE_BIN` boşluklu yol olabilir (`C:\Program Files\…`): şablona tırnaklı girer
   (`split_command` bölmesin); testle doğrulanır.
 
-### 5. auto-fix branch'inde yalnızca düzeltilen senaryo (şablon + ulak.exe)
-Durum: sahada fix push'undan sonra tüm testler koşuyor. Depodaki şablon auto-fix/ branch'inde
-test/report işlerini zaten hiç koşturmuyor (düzeltme fix işinde tek senaryoyla doğrulanıyor);
-projedeki `.gitlab-ci.yml` eski kopya olduğu için bu kural yok. Yeni seçenek: hiç koşmamak ile
-hepsini koşmak arasında, yalnızca düzeltilen senaryo.
-- `ULAK_FIX_PIPELINE`: `off` (varsayılan, bugünkü: auto-fix'te test yok) | `senaryo` (yeni) |
-  `on` (hepsi). Şablon kuralı `!= "on"` → `== "off"` olmayan durumlarda test/report koşar;
-  fix işi auto-fix'te yine asla koşmaz (döngü yok).
-- `ulak fix` commit mesajına git trailer'ları yazar: `Ulak-Senaryo: <ad>`, `Ulak-Tag: <tag'ler>`,
-  `Ulak-Kosum: <id>`. Aynı koşumda birden çok senaryo aynı branch'e giderse her biri bir trailer.
-- `ulak start`: `CI_COMMIT_BRANCH` auto-fix/ ile başlıyor ve `ULAK_FIX_PIPELINE=senaryo` ise
-  HEAD commit'inin trailer'larını okur, `mvn test`'e doğrulama koşusuyla aynı filtreyi verir
-  (kalem 3: `name` ya da `tags`); beklenen senaryo sayısı da bu kadardır (SW-3.x sayımı ile
-  çelişmesin). Trailer yoksa uyarı + tüm testler (güvenli taraf).
-- Sonuç divan'da auto-fix branch'inin koşumu olarak görünür; MR açıklamasına rapor linki.
-- Test: `test_sw_7_2_fix_pipeline_yalnizca_senaryo` (trailer okuma, filtre), rehearse'e
-  `ck.check("SW-7.2", …)` (auto-fix branch'i + `senaryo` → yalnızca o senaryo koşar).
-- Belge: `docs/KURULUM.md`'de eski kopya kullananlar için eklenecek kural satırları.
+### 5. auto-fix branch'inde yalnızca düzeltilen senaryo (ulak.exe)
+Durum: sahada fix push'undan sonra tüm testler koşuyor; projedeki `.gitlab-ci.yml` eski kopya
+(şablondaki auto-fix kuralı yok). Karar: `ulak fix` push'ta GitLab'a pipeline değişkeni verir
+(`git push -o ci.variable=…`); değişken yalnızca o push'un açtığı pipeline'a gider.
+- `ULAK_FIX_PIPELINE_FILTRE` (ulak, varsayılan `off`): `senaryo` iken push'a
+  `-o ci.variable=ULAK_FIX_PIPELINE=on` ve filtre eklenir:
+  - senaryonun YTET (gereksinim önekli) tag'i varsa `ULAK_TAGS=@YTET_1234` (birden çoksa `or`);
+  - yoksa `ULAK_SENARYO=<senaryo adı>` (YTET tag'i henüz her senaryoda yok).
+  Gereksinim öneki ulak'a `GET /api/ci/fix-candidates` yanıtında gelir (aday zaten
+  `doors_ids` taşıyor; ulak'ta ayrı ayar yok).
+- `ulak start` / `runner.rs`: `ULAK_SENARYO` doluysa `-Dcucumber.filter.name=^…$`
+  (`regex_quote`), `ULAK_TAGS` ve `features.txt`'nin önüne geçer; beklenen senaryo sayısı da
+  `.feature` dosyalarından aynı adla sayılır.
+- Şablon değişmez: auto-fix kuralı `ULAK_FIX_PIPELINE=on` ile test/report'u zaten açıyor, fix işi
+  auto-fix'te asla koşmaz. Eski kopya kullananlar için `docs/KURULUM.md`'ye kural satırları.
+- Sınır: MR'a sonradan elle eklenen commit'in pipeline'ı değişkeni almaz (bugünkü gibi test yok).
+- Test: `test_sw_7_2_push_ci_degiskenleri` (tag/ad seçimi, argümanlar),
+  `test_sw_1_5_ulak_senaryo_filtresi` (runner filtresi ve sayım); rehearse'te sahte GitLab push
+  argümanları `ck.check("SW-7.2", …)`.
 
 ## Her kalemde ortak işler
 - Test adı `test_sw_<bölüm>_<madde>_…`: 1 → SW-6.4 (CSV) / 2.x, 2 → SW-6.2, 3 → SW-7.2, 4 → SW-7.2/7.6, 5 → SW-7.2 (fix pipeline).
