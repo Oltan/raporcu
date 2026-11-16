@@ -79,11 +79,12 @@ pub fn sanitize_text(s: &str, secrets: &[String]) -> String {
     out
 }
 
-/// `ABC-123` biçimi (DOORS-123 hariç; DOORS numaraları paylaşımda görünür).
+/// `ABC-123` biçimi (gereksinim ve ek kimlikler hariç; DOORS-123, YGÖ-12 paylaşımda görünür).
 pub fn is_jira_key(w: &str) -> bool {
     let Some((p, n)) = w.split_once('-') else { return false };
     p.len() >= 2
         && p != "DOORS"
+        && !common::kimlik::gecerli().kimlik_mi(w)
         && p.chars().next().is_some_and(|c| c.is_ascii_uppercase())
         && p.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
         && !n.is_empty()

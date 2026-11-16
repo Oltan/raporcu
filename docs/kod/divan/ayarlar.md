@@ -1,6 +1,6 @@
 # divan/src/ayarlar.rs
 
-**Amaç:** Arayüzden düzenlenen ayarlar: Jira bug şablonu (SW-6.1) ve DOORS bağlantısı (SW-6.4).
+**Amaç:** Arayüzden düzenlenen ayarlar: Jira bug şablonu (SW-6.1) ve gereksinim (YTET/DOORS) bağlantısı (SW-6.4).
 Kullanıcı rehberi: `docs/JIRA_DOORS_AYARLARI.md`.
 
 ## Saklama
@@ -15,12 +15,13 @@ Kullanıcı rehberi: `docs/JIRA_DOORS_AYARLARI.md`.
 | Alan | Varsayılan |
 |------|-----------|
 | `ozet` | `[Otomasyon] {{senaryo}}: {{hata_ilk_satir}}` |
-| `aciklama` | senaryo, feature, DOORS, proje/branch/commit, rapor linki, `{noformat}` içinde hata, `*Adımlar*` + `{{adimlar}}` |
+| `aciklama` | senaryo, feature, `Gereksinim: {{doors}}`, proje/branch/commit, rapor linki, `{noformat}` içinde hata, `*Adımlar*` + `{{adimlar}}` |
 | `alanlar` | `{}` — Jira REST v2 `fields` biçiminde ek alanlar |
-| `doors_label` | true |
 
 `YER_TUTUCULAR`: senaryo, feature, doors, hata, hata_ilk_satir, adimlar, rapor, kosum_rapor, proje,
-branch, commit, kosum, tarih (değerleri `jira::vars` üretir).
+branch, commit, kosum, tarih (değerleri `jira::vars` üretir). `yer_tutucular()` ayarlar sayfası için
+buna gereksinim önek adını (`YTET`) ve her ek önek adını (`YGÖ`) ekler. `Vars` = `BTreeMap<String, String>`.
+Eski kayıtlardaki `doors_label` alanı okunurken yok sayılır (label özelliği kaldırıldı).
 
 ## Yardımcılar
 - `fill(metin, değerler)`: `{{ad}}` → değer; bilinmeyen yer tutucu ve tek süslü parantez (`{noformat}`) aynen kalır.
@@ -32,7 +33,7 @@ CSV için yalnızca sonuç değerleri ve link şablonu kullanılır; modül ve �
 `modul` (boş = açık modül), `id_oznitelik` (Absolute Number), `sonuc_/tarih_/jira_/rapor_oznitelik`
 (boş = yazılmaz), sonuç değerleri `gecti/kaldi/atlandi/kosulmadi`, `link_sablonu` (`{{no}}`, `{{id}}`).
 - `status(allure)`: passed → gecti, failed/broken → kaldi, skipped → atlandi, diğer → kosulmadi.
-- `link(doors_id)`: şablon boşsa yok.
+- `link(doors_id)` / `link_with(önekler, id)`: şablon boşsa yok; `{{no}}` = önek atılmış numara, `{{id}}` = kimliğin tamamı.
 
 ## Testler
 `test_sw_6_1_template_fill_keeps_jira_braces_and_json_structure`, `test_sw_6_4_doors_link_and_status_labels`.

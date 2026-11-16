@@ -10,19 +10,22 @@
   Başarısızsa hata metni gizli değerlerden temizlenir.
 - `attach(key, ad, bayt)`: `POST /rest/api/2/issue/<key>/attachments`, multipart, başlık
   `X-Atlassian-Token: no-check`.
-- `find_open_bug(doors[], senaryo)`: JQL `project = "<P>" AND statusCategory != Done AND (labels in
-  ("DOORS-…") OR summary ~ "\"<senaryo>\"") ORDER BY created DESC`, ilk sonuç. Önce
+- `find_open_bug(senaryo)`: JQL `project = "<P>" AND statusCategory != Done AND summary ~
+  "\"<senaryo>\"" ORDER BY created DESC`, ilk sonuç (gereksinim numaraları label olmadığından label'a
+  bakılmaz). Önce
   `/rest/api/2/search` denenir; Jira Cloud bu ucu kaldırdığı için 410 dönerse `/rest/api/2/search/jql`.
 
 ## Bug içeriği — şablon (Admin > Ayarlar, `ayarlar.md`)
-- `vars(c, public_url, BugInput)`: yer tutucu değerleri; proje/branch/commit/tarih koşumdan okunur.
-- `build_bug(şablon, değerler, doors)`: özet (doldurulup ilk satır), açıklama, DOORS label'ları
-  (`doors_label` ise), ek alanlar (`fill_json`). Ek alan JSON'u bozuksa hata.
+- `vars(c, public_url, BugInput)`: yer tutucu değerleri (`ayarlar::Vars`, `String` anahtarlı);
+  proje/branch/commit/tarih koşumdan okunur. Gereksinim numaraları hem `doors` (eski ad) hem önek
+  adıyla (`YTET`); her ek önek için önek adıyla (`YGÖ`, `BugInput.tags`'ten).
+- `build_bug(şablon, değerler)`: özet (doldurulup ilk satır), açıklama, ek alanlar (`fill_json`).
+  Gereksinim/ek kimlikler label olmaz (`labels` boş). Ek alan JSON'u bozuksa hata.
 - `draft_for_scenario`: senaryo için taslak (form ve admin).
 
 ## Bug oluşturma — `create_bug(NewBug)`
 `fields` = project, issuetype, summary (≤250), description + **ek alanlar** (project hariç her şeyi
-ezer; `labels` DOORS label'larına eklenir). 400 ve hata `labels` alanındaysa label'sız tekrar.
+ezer; şablondaki `labels` `NewBug.labels`'a eklenir). 400 ve hata `labels` alanındaysa label'sız tekrar.
 Başarısızsa `jira_error`: Jira'nın `errors` (alan: mesaj) ve `errorMessages`'ı tek satırda, alan
 hatası varsa "Admin > Ayarlar > Jira'da Ek alanlar…" ipucu; gizli değerler temizlenir.
 Hata `project` alanındaysa ipucu `JIRA_PROJECT` anahtarı ve issue açma iznidir (alan eksiği değil).

@@ -164,3 +164,11 @@ def test_sw_3_2_watch_against_real_server(tmp_path):
     assert c.execute("SELECT total FROM runs WHERE id=?", (rid,)).fetchone()[0] == 7
     srv.should_exit = True
     th.join(5)
+
+
+def test_sw_2_7_gereksinim_oneki():
+    from divan import allure
+    assert allure.doors_id("@YTET_1234", "YTET_") == "YTET_1234"
+    assert allure.doors_id("ytet_1234", "YTET_") is None
+    assert allure.doors_id("@DOORS-1003", "YTET_") is None
+    assert allure.doors_id("@doors-1003", "DOORS-") == "DOORS-1003"

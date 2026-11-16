@@ -150,12 +150,18 @@ pub struct ScenarioRow {
 }
 
 impl ScenarioRow {
-    /// DOORS ve Jira tag'leri ayrı rozetle gösterildiği için düz tag listesinden çıkarılır.
+    /// Gereksinim (YTET/DOORS), ek kimlik (YGÖ) ve Jira tag'leri ayrı rozetle gösterildiği için
+    /// düz tag listesinden çıkarılır.
     pub fn plain_tags(&self) -> Vec<&String> {
+        let o = common::kimlik::gecerli();
         self.tags
             .iter()
-            .filter(|t| common::allure::doors_id(t).is_none() && common::allure::jira_key(t).is_none())
+            .filter(|t| !o.kimlik_mi(t) && common::allure::jira_key(t).is_none())
             .collect()
+    }
+    /// Ek kimlikler (`EK_KIMLIK_ONEKLERI`, örn. `YGÖ-12`), tag'lerden.
+    pub fn ek_kimlikler(&self) -> Vec<String> {
+        common::kimlik::gecerli().ek_kimlikler(&self.tags).into_iter().flatten().collect()
     }
     /// `giris.feature:21` — aynı adlı senaryo taslağı satırlarını ayırt eder.
     pub fn location(&self) -> String {
@@ -605,13 +611,7 @@ impl SearchFilter {
             run: self.run,
             tag: nonempty(&self.tag).map(|t| t.trim_start_matches('@').to_string()),
             feature: nonempty(&self.feature),
-            doors: nonempty(&self.doors).map(|d| {
-                if d.to_uppercase().starts_with("DOORS-") {
-                    d.to_uppercase()
-                } else {
-                    format!("DOORS-{d}")
-                }
-            }),
+            doors: nonempty(&self.doors).map(|d| common::kimlik::gecerli().arama(&d)),
             jira: nonempty(&self.jira).map(|j| j.to_uppercase()),
             triage: nonempty(&self.triage),
             status: nonempty(&self.status),
@@ -672,8 +672,14 @@ pub fn search_where(f: &SearchFilter) -> (String, Vec<rusqlite::types::Value>) {
         w.push(format!("s.feature LIKE ?{} ESCAPE '\\'", p.len()));
     }
     if let Some(x) = &f.doors {
+        // ek kimlik (YGÖ-12) doors_ids'te değil, tag'lerde durur; ikisi de tam eşleşme
+        let sutun = if common::kimlik::gecerli().ek_onekli(x) {
+            "s.tags"
+        } else {
+            "s.doors_ids"
+        };
         p.push(V::Text(like(&format!(" {x} "))));
-        w.push(format!("s.doors_ids LIKE ?{} ESCAPE '\\'", p.len()));
+        w.push(format!("{sutun} LIKE ?{} ESCAPE '\\'", p.len()));
     }
     if let Some(x) = &f.jira {
         p.push(V::Text(like(&format!(" {x} "))));

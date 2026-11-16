@@ -23,7 +23,7 @@ struct AyarlarPage {
     l: Layout,
     jira: JiraSablon,
     doors: DoorsAyar,
-    yer_tutucular: &'static [(&'static str, &'static str)],
+    yer_tutucular: Vec<(String, String)>,
     jira_ayarli: bool,
     jira_bilgi: String,
     doors_dxl: bool,
@@ -62,7 +62,7 @@ pub async fn page(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Que
         l: layout(&st, &headers),
         jira: a.jira,
         doors: a.doors,
-        yer_tutucular: ayarlar::YER_TUTUCULAR,
+        yer_tutucular: ayarlar::yer_tutucular(),
         jira_ayarli: Jira::from_config(&st.cfg).is_some(),
         doors_dxl: st.cfg.doors_dxl,
         jira_bilgi: jira_bilgi(&st),
@@ -77,7 +77,6 @@ pub struct JiraForm {
     ozet: String,
     aciklama: String,
     alanlar: String,
-    doors_label: Option<String>,
 }
 
 pub async fn save_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap, Form(f): Form<JiraForm>) -> Result<Response, AppError> {
@@ -85,7 +84,6 @@ pub async fn save_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap
         ozet: f.ozet.trim().to_string(),
         aciklama: f.aciklama.replace("\r\n", "\n"),
         alanlar: f.alanlar.trim().to_string(),
-        doors_label: f.doors_label.is_some(),
     };
     let t2 = t.clone();
     match st.db.write(move |c| ayarlar::save_jira(c, &t2)).await {
@@ -105,7 +103,7 @@ pub async fn save_jira(State(st): State<AppState>, _a: Admin, headers: HeaderMap
                     l: layout(&st, &headers),
                     jira: t,
                     doors: a.doors,
-                    yer_tutucular: ayarlar::YER_TUTUCULAR,
+                    yer_tutucular: ayarlar::yer_tutucular(),
                     jira_ayarli: Jira::from_config(&st.cfg).is_some(),
                     doors_dxl: st.cfg.doors_dxl,
                     jira_bilgi: jira_bilgi(&st),
@@ -371,11 +369,10 @@ fn bug_from_form(form: &[(String, String)], draft: NewBug) -> anyhow::Result<New
             }
         }
     }
-    let doors_labels = form.iter().any(|(k, _)| k == "doors_label");
     Ok(NewBug {
         summary: ozet.trim().to_string(),
         description: get("aciklama").unwrap_or_default().replace("\r\n", "\n"),
-        labels: if doors_labels { draft.labels } else { vec![] },
+        labels: draft.labels,
         extra,
     })
 }
@@ -538,19 +535,12 @@ mod tests {
             ("alan.priority".into(), "".into()),
             ("tur.priority".into(), "priority||1".into()),
         ];
-        let b = bug_from_form(
-            &form,
-            NewBug {
-                labels: vec!["DOORS-1".into()],
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let b = bug_from_form(&form, NewBug::default()).unwrap();
         assert_eq!(b.extra["customfield_10200"], serde_json::json!({"id": "11"}));
         assert!(b.extra.get("priority").is_none(), "boş bırakılan alan gönderilmez");
         assert_eq!(b.extra["components"][0]["name"], "UI");
         assert_eq!(b.description, "a\nb");
-        assert!(b.labels.is_empty(), "DOORS label kutusu işaretsiz");
+        assert!(b.labels.is_empty(), "gereksinim kimlikleri label olmaz");
         // boş form: şablon olduğu gibi
         let d = bug_from_form(
             &[],

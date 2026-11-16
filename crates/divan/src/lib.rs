@@ -52,6 +52,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(cfg: Config, recent_logs: logging::RecentLogs) -> anyhow::Result<AppState> {
+        common::kimlik::ayarla(cfg.onekler.clone());
         let paths = Paths::new(&cfg.data_dir);
         let db = Db::open(&paths, cfg.sqlite_cache_kib, cfg.read_pool_size)?;
         let ayarlar = ayarlar::Store::default();

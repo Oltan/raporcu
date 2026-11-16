@@ -2,6 +2,7 @@
 
 pub mod allure;
 pub mod api;
+pub mod kimlik;
 pub mod tls;
 
 /// ulak ile sunucunun uyumlu olması gereken protokol sürümü (SW-10.9).

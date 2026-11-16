@@ -35,7 +35,7 @@ pub struct Layout {
     pub banner: Option<String>,
     /// Paylaşım görünümünde token; linkler buna göre kurulur.
     pub share: Option<String>,
-    /// DOORS rozet linki şablonu (Admin > Ayarlar > DOORS); boşsa rozet link olmaz.
+    /// Gereksinim rozeti linki şablonu (Admin > Ayarlar); boşsa rozet link olmaz.
     pub doors_link: String,
 }
 
@@ -53,6 +53,10 @@ impl Layout {
             Some(t) => format!("/s/{t}/scenarios/{id}"),
             None => format!("/scenarios/{id}"),
         }
+    }
+    /// Gereksinim kimliğinin görünen adı (`YTET`; varsayılan önekle `DOORS`).
+    pub fn kimlik_adi(&self) -> String {
+        common::kimlik::gecerli().gereksinim_adi()
     }
     /// DOORS rozetinin linki (paylaşım görünümünde iç adres gösterilmez).
     pub fn doors_url(&self, doors_id: &str) -> Option<String> {
@@ -735,7 +739,7 @@ struct SearchPage {
     projects: Vec<Project>,
     categories: &'static [(&'static str, &'static str)],
     statuses: &'static [(&'static str, &'static str)],
-    fields: &'static [(&'static str, &'static str)],
+    fields: Vec<(String, String)>,
     hidden: Vec<(String, String)>,
     rows: Vec<SearchRow>,
     total: i64,
@@ -818,7 +822,7 @@ pub async fn search_page(State(st): State<AppState>, headers: HeaderMap, RawQuer
         projects,
         categories: triage::CATEGORIES,
         statuses: STATUSES,
-        fields: crate::export::FIELDS,
+        fields: crate::export::alanlar(&common::kimlik::gecerli()),
         hidden,
         rows,
         total,

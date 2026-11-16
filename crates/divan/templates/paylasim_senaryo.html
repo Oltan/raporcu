@@ -7,7 +7,7 @@
   <div>
     <div class="genel-ust-yazi">{{ s.feature.as_deref().unwrap_or("") }} · {{ s.duration() }}</div>
     <h1>{{ s.name }}</h1>
-    <div class="genel-rozetler"><span class="genel-durum {{ sinif.isaret() }}">{{ sinif.etiket() }}</span>{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}</div>
+    <div class="genel-rozetler"><span class="genel-durum {{ sinif.isaret() }}">{{ sinif.etiket() }}</span>{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}</div>
   </div>
 </div>
 

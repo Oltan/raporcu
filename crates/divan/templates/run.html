@@ -25,7 +25,7 @@
   <div class="araclar">
     {% if run.status == "running" %}<a class="btn ana" href="/runs/{{ run.id }}/live">Canlı izle</a>{% endif %}
     <a class="btn" href="/search?run={{ run.id }}">CSV / filtre</a>
-    <a class="btn" href="/runs/{{ run.id }}/doors.csv">DOORS CSV</a>
+    <a class="btn" href="/runs/{{ run.id }}/doors.csv">{{ l.kimlik_adi() }} CSV</a>
     {% if doors_dxl %}<a class="btn" href="/runs/{{ run.id }}/doors.dxl">DOORS DXL</a>{% endif %}
     {% if l.admin %}
     <form method="post" action="/admin/runs/{{ run.id }}/portal"><button title="Bu proje ve branch için tüm raporları, grafikleri ve gidişatı gösteren genel sayfa; aynı kapsam için tek link üretilir">Genel ana sayfa linki</button></form>
@@ -116,7 +116,7 @@
           {% if r.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
           {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
           <div>
-            {% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}
+            {% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for d in r.s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
             {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
             {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
           </div>

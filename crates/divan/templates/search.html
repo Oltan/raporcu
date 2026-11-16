@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Arama{% endblock %}
 {% block content %}
-<div class="baslik"><div><h1>Senaryo arama</h1><div class="alt">Tag, feature, DOORS, Jira, triage kategorisi ve hata mesajıyla arayın; sonucu seçtiğiniz alanlarla CSV olarak indirin.</div></div></div>
+<div class="baslik"><div><h1>Senaryo arama</h1><div class="alt">Tag, feature, {{ l.kimlik_adi() }}, Jira, triage kategorisi ve hata mesajıyla arayın; sonucu seçtiğiniz alanlarla CSV olarak indirin.</div></div></div>
 <section class="kart">
   <form method="get" action="/search" class="satir">
     <label>Proje<select name="project"><option value="">Tümü</option>{% for p in projects %}<option value="{{ p.id }}" {% if self.project_selected(p.id) %}selected{% endif %}>{{ p.path }}</option>{% endfor %}</select></label>
@@ -9,7 +9,7 @@
     <label>Koşum #<input name="run" value="{% if let Some(r) = f.run %}{{ r }}{% endif %}" size="6"></label>
     <label>Tag<input name="tag" value="{{ f.tag.as_deref().unwrap_or("") }}" placeholder="@smoke"></label>
     <label>Feature<input name="feature" value="{{ f.feature.as_deref().unwrap_or("") }}"></label>
-    <label>DOORS<input name="doors" value="{{ f.doors.as_deref().unwrap_or("") }}" placeholder="DOORS-1001"></label>
+    <label>{{ l.kimlik_adi() }}<input name="doors" value="{{ f.doors.as_deref().unwrap_or("") }}" placeholder="{{ l.kimlik_adi() }} no ya da ek kimlik"></label>
     <label>Jira<input name="jira" value="{{ f.jira.as_deref().unwrap_or("") }}" placeholder="ABC-12"></label>
     <label>Triage<select name="triage"><option value="">Tümü</option>{% for c in categories %}<option value="{{ c.0 }}" {% if f.triage.as_deref() == Some(c.0) %}selected{% endif %}>{{ c.1 }}</option>{% endfor %}</select></label>
     <label>Durum<select name="status">
@@ -47,7 +47,7 @@
     <tr>
       <td><span class="durum {{ r.s.status }}">{{ r.s.status }}</span></td>
       <td><a href="/scenarios/{{ r.s.id }}">{{ r.s.name }}</a>
-        <div>{% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for j in r.s.jira_keys %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}</div>
+        <div>{% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for d in r.s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}{% for j in r.s.jira_keys %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}</div>
         {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}
       </td>
       <td>{{ r.project_path }}<div class="kucuk">{{ r.s.branch }}</div></td>

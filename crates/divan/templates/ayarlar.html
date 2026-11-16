@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Ayarlar{% endblock %}
 {% block content %}
-<div class="baslik"><div><h1>Ayarlar</h1><div class="alt">Jira bug şablonu ve DOORS bağlantısı. Bağlantı bilgileri (adres, token) <code>.env</code>'de kalır.</div></div>
+<div class="baslik"><div><h1>Ayarlar</h1><div class="alt">Jira bug şablonu ve gereksinim ({{ l.kimlik_adi() }}) bağlantısı. Bağlantı bilgileri (adres, token) <code>.env</code>'de kalır.</div></div>
   <div class="araclar"><a class="btn" href="/admin">Admin paneli</a></div></div>
-{% if let Some(n) = notice %}<div class="kart bilgi">{% if n == "jira" %}Jira şablonu kaydedildi.{% else if n == "doors" %}DOORS ayarları kaydedildi.{% else %}{{ n }}{% endif %}</div>{% endif %}
+{% if let Some(n) = notice %}<div class="kart bilgi">{% if n == "jira" %}Jira şablonu kaydedildi.{% else if n == "doors" %}{{ l.kimlik_adi() }} ayarları kaydedildi.{% else %}{{ n }}{% endif %}</div>{% endif %}
 {% if let Some(h) = hata %}<div class="kart hata-kutu">{{ h }}</div>{% endif %}
 
 <section class="kart">
@@ -16,7 +16,6 @@
     <label>Açıklama<textarea name="aciklama" rows="12" class="mono">{{ jira.aciklama }}</textarea></label>
     <label><span>Ek alanlar (JSON) — zorunlu alanlar, öncelik, bileşen, sürüm...</span>
       <textarea name="alanlar" rows="8" class="mono" placeholder='{"priority": {"name": "Major"}, "components": [{"name": "Test Otomasyonu"}], "customfield_10200": {"value": "Yazılım"}}'>{{ jira.alanlar }}</textarea></label>
-    <label class="yatay"><input type="checkbox" name="doors_label" {% if jira.doors_label %}checked{% endif %}> DOORS numaralarını label olarak ekle</label>
     <div><button class="ana">Jira şablonunu kaydet</button></div>
   </form>
   <details style="margin-top:10px"><summary class="kucuk">Yer tutucular</summary>
@@ -30,7 +29,7 @@
       <tr><td>Öncelik</td><td class="mono">"priority": {"name": "Major"}</td></tr>
       <tr><td>Kullanıcı (Server/DC)</td><td class="mono">"assignee": {"name": "kullanici.adi"}</td></tr>
       <tr><td>Metin / sayı / tarih</td><td class="mono">"customfield_10300": "{{ "{{" }}branch{{ "}}" }}", "customfield_10301": 3, "duedate": "2026-12-31"</td></tr>
-      <tr><td>Label (DOORS'a eklenir)</td><td class="mono">"labels": ["otomasyon"]</td></tr>
+      <tr><td>Label</td><td class="mono">"labels": ["otomasyon"]</td></tr>
     </table></div>
   </details>
 </section>
@@ -62,9 +61,10 @@
 </section>
 
 <section class="kart">
-  <h2>DOORS</h2>
-  <p class="kucuk">Senaryolar DOORS gereksinimine <code>@DOORS-&lt;no&gt;</code> tag'iyle bağlanır. Aktarım koşum sayfasındaki
-    <b>DOORS CSV</b> ile yapılır (<code>DOORS ID, Senaryo, Feature, Sonuç, Jira, Koşum, Tarih</code>); sonuç sütunu aşağıdaki değerlerle yazılır.
+  <h2>Gereksinim ({{ l.kimlik_adi() }})</h2>
+  <p class="kucuk">Senaryolar gereksinime <code>@{{ l.kimlik_adi() }}…</code> tag'iyle bağlanır (önek <code>.env</code>: <code>GEREKSINIM_ONEKI</code>;
+    ek kimlikler <code>EK_KIMLIK_ONEKLERI</code>). Aktarım koşum sayfasındaki
+    <b>{{ l.kimlik_adi() }} CSV</b> ile yapılır (<code>{{ l.kimlik_adi() }}, Senaryo, Feature, Sonuç, Jira, Koşum, Tarih</code> ve varsa ek kimlik sütunları); sonuç sütunu aşağıdaki değerlerle yazılır.
     {% if !doors_dxl %}DXL betiği kapalı (açmak için <code>.env</code>: <code>DOORS_DXL=true</code>).{% endif %}</p>
   <form method="post" action="/admin/ayarlar/doors" class="dikey">
     {% if doors_dxl %}
@@ -91,9 +91,9 @@
       <label>Atlandı<input name="atlandi" value="{{ doors.atlandi }}"></label>
       <label>Koşulmadı<input name="kosulmadi" value="{{ doors.kosulmadi }}"></label>
     </div>
-    <label><span>DOORS linki şablonu (rapordaki DOORS rozetleri tıklanabilir olur; <code>{{ "{{" }}no{{ "}}" }}</code> numara, <code>{{ "{{" }}id{{ "}}" }}</code> DOORS-1003)</span>
+    <label><span>Gereksinim linki şablonu (rapordaki {{ l.kimlik_adi() }} rozetleri tıklanabilir olur; <code>{{ "{{" }}no{{ "}}" }}</code> önekten sonraki numara, <code>{{ "{{" }}id{{ "}}" }}</code> kimliğin tamamı)</span>
       <input name="link_sablonu" value="{{ doors.link_sablonu }}" placeholder="doors://doors.sirket.local:36677/?version=2&prodID=0&urn=urn:telelogic::1-...-O-{{ "{{" }}no{{ "}}" }}-..."></label>
-    <div><button class="ana">DOORS ayarlarını kaydet</button></div>
+    <div><button class="ana">{{ l.kimlik_adi() }} ayarlarını kaydet</button></div>
   </form>
 </section>
 {% endblock %}

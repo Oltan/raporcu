@@ -245,7 +245,7 @@ async fn test_sw_4_8_csv_selected_fields_in_order_with_bom() {
     assert_eq!(st, StatusCode::OK);
     assert!(csv.starts_with('\u{feff}'), "UTF-8 BOM");
     let lines: Vec<&str> = csv.trim_start_matches('\u{feff}').lines().collect();
-    assert_eq!(lines[0], "Durum,Senaryo,DOORS numarası,Jira issue");
+    assert_eq!(lines[0], "Durum,Senaryo,DOORS,Jira issue");
     assert_eq!(lines.len(), 3);
     assert!(lines.contains(&"failed,Yanlış şifrede özel mesaj,DOORS-1003,STAJ-42"));
     // formdan gelen alan listesi + noktalı virgül
@@ -278,7 +278,7 @@ async fn test_sw_6_4_doors_csv_and_dxl() {
     let id = upload_sample(&app, Q).await;
     let (st, csv) = app.get(&format!("/runs/{id}/doors.csv")).await;
     assert_eq!(st, StatusCode::OK);
-    assert!(csv.contains("DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih"));
+    assert!(csv.contains("DOORS,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih"));
     assert!(csv.contains("DOORS-1003,Yanlış şifrede özel mesaj,Giriş ekranı,Kaldı,STAJ-42"));
     assert!(csv.contains("DOORS-1001,Geçerli bilgilerle giriş,Giriş ekranı,Geçti"));
     assert_eq!(csv.matches("DOORS-1002").count(), 2, "taslak satırları ayrı");

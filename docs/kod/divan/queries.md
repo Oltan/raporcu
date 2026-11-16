@@ -7,7 +7,7 @@ koşum/senaryo ile sınırlıdır (SW-10.6).
 - **RunRow** (runs + projects): `failures()` = failed+broken; `short_commit()` ilk 8;
   `commit_url()` = `<project_url>/-/commit/<sha>`; `progress()` = `"toplam/beklenen"` ya da
   `"toplam"`; `pass_pct()` = round(100·passed/total).
-- **ScenarioRow**: `tags`, `doors_ids`, `jira_keys` listeye açılır; `plain_tags()` DOORS/Jira
+- **ScenarioRow**: `tags`, `doors_ids`, `jira_keys` listeye açılır; `plain_tags()` gereksinim/ek kimlik/Jira
   tag'leri hariç; `location()` = fullName'in son parçası (`giris.feature:28`); `duration()`
   ("2.0 sn" / "392 ms"); `short_message()` ilk satır, 160 karakter.
 - **StepRow** (`depth` ile), **AttachmentRow** (`is_image/is_video/is_text/is_deleted`,
@@ -34,9 +34,9 @@ koşum/senaryo ile sınırlıdır (SW-10.6).
 
 ## Arama (SW-4.7) — `SearchFilter`
 Alanlar: `project, branch, run, tag, feature, doors, jira, triage, status, q, page`.
-`normalized()`: boşları atar, tag'den `@` atar, `doors=1004` → `DOORS-1004`, Jira büyük harf.
+`normalized()`: boşları atar, tag'den `@` atar, `doors=1004` → `<önek>1004` (`kimlik::arama`; `YTET_1004`, varsayılan `DOORS-1004`), Jira büyük harf.
 `search_where` her zaman `is_latest=1`:
-- tag/doors: `" <değer> "` ile LIKE (tam kelime), feature: içerir, jira: `jira_keys` LIKE **veya**
+- tag/doors: `" <değer> "` ile LIKE (tam kelime; ek önekli değer, örn. `YGÖ-12`, `doors_ids` yerine `tags`'te), feature: içerir, jira: `jira_keys` LIKE **veya**
   `bug_links`'te kayıt, triage: `triage_category =`, status `kaldi` = failed+broken, `q`: mesaj ya
   da ad içinde. LIKE özel karakterleri kaçışlanır.
 `query_string()` sayfalama ve CSV linkleri için.

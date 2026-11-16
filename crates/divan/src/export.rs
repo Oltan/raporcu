@@ -28,14 +28,39 @@ pub const FIELDS: &[(&str, &str)] = &[
     ("tarih", "Tarih"),
 ];
 
-pub fn parse_fields(s: Option<&str>) -> Vec<&'static str> {
+/// Ek kimlik sütununun alan anahtarı: `ek:YGÖ-`.
+const EK: &str = "ek:";
+
+/// Seçilebilir alanlar (anahtar, başlık): `FIELDS`, gereksinim sütununun başlığı önek adıyla
+/// (`YTET`) ve her ek önek için gereksinim sütunundan hemen sonra bir sütun (`YGÖ`).
+pub fn alanlar(o: &common::kimlik::Onekler) -> Vec<(String, String)> {
+    let mut v = Vec::new();
+    for (k, h) in FIELDS {
+        if *k == "doors" {
+            v.push((k.to_string(), o.gereksinim_adi()));
+            for e in &o.ek {
+                v.push((format!("{EK}{e}"), common::kimlik::ad(e)));
+            }
+        } else {
+            v.push((k.to_string(), h.to_string()));
+        }
+    }
+    v
+}
+
+pub fn parse_fields(s: Option<&str>) -> Vec<String> {
+    parse_fields_with(&common::kimlik::gecerli(), s)
+}
+
+pub fn parse_fields_with(o: &common::kimlik::Onekler, s: Option<&str>) -> Vec<String> {
+    let all = alanlar(o);
     let wanted: Vec<&str> = s.unwrap_or("").split(',').map(str::trim).filter(|x| !x.is_empty()).collect();
-    let picked: Vec<&'static str> = wanted
+    let picked: Vec<String> = wanted
         .iter()
-        .filter_map(|w| FIELDS.iter().find(|(k, _)| k == w).map(|(k, _)| *k))
+        .filter_map(|w| all.iter().find(|(k, _)| k == w).map(|(k, _)| k.clone()))
         .collect();
     if picked.is_empty() {
-        FIELDS.iter().map(|(k, _)| *k).collect()
+        all.into_iter().map(|(k, _)| k).collect()
     } else {
         picked
     }
@@ -84,11 +109,13 @@ mod bytes_chunk {
     }
 }
 
-fn write_csv(c: &Connection, f: &SearchFilter, fields: &[&str], sep: char, out: &mut Chunker) -> anyhow::Result<()> {
+fn write_csv(c: &Connection, f: &SearchFilter, fields: &[String], sep: char, out: &mut Chunker) -> anyhow::Result<()> {
     out.push("\u{feff}");
+    let o = common::kimlik::gecerli();
+    let basliklar = alanlar(&o);
     let header: Vec<String> = fields
         .iter()
-        .map(|k| FIELDS.iter().find(|(x, _)| x == k).unwrap().1.to_string())
+        .map(|k| basliklar.iter().find(|(x, _)| x == k).map(|(_, h)| h.clone()).unwrap_or_default())
         .collect();
     out.push(&(header.iter().map(|h| csv_cell(h, sep)).collect::<Vec<_>>().join(&sep.to_string()) + "\r\n"));
     let (w, p) = search_where(f);
@@ -109,7 +136,14 @@ fn write_csv(c: &Connection, f: &SearchFilter, fields: &[&str], sep: char, out: 
         };
         let mut cells = Vec::with_capacity(fields.len());
         for k in fields {
-            let v = match *k {
+            if let Some(onek) = k.strip_prefix(EK) {
+                let tags: Vec<String> = get(5).split_whitespace().map(String::from).collect();
+                let i = o.ek.iter().position(|e| e == onek);
+                let v = i.map(|i| o.ek_kimlikler(&tags)[i].join(" ")).unwrap_or_default();
+                cells.push(csv_cell(&v, sep));
+                continue;
+            }
+            let v = match k.as_str() {
                 "proje" => get(0),
                 "branch" => get(1),
                 "kosum" => get(2),
@@ -146,7 +180,7 @@ fn write_csv(c: &Connection, f: &SearchFilter, fields: &[&str], sep: char, out: 
     Ok(())
 }
 
-pub fn stream_csv(st: &AppState, f: SearchFilter, fields: Vec<&'static str>, sep: char, filename: String) -> Response {
+pub fn stream_csv(st: &AppState, f: SearchFilter, fields: Vec<String>, sep: char, filename: String) -> Response {
     let (tx, mut rx) = tokio::sync::mpsc::channel::<Result<String, std::io::Error>>(4);
     let db = st.db.clone();
     tokio::task::spawn_blocking(move || {
@@ -181,19 +215,24 @@ pub struct DoorsRow {
     pub status: String,
     pub jira: String,
     pub date: String,
+    /// her ek önek için o önekli kimlikler, boşlukla (`EK_KIMLIK_ONEKLERI` sırasıyla)
+    pub ekler: Vec<String>,
 }
 
 pub fn doors_rows(c: &Connection, run_id: i64, ayar: &DoorsAyar) -> anyhow::Result<Vec<DoorsRow>> {
     let mut st = c.prepare(
         "SELECT s.doors_ids, s.name, COALESCE(s.feature, ''), s.status,
                 TRIM(s.jira_keys || ' ' || COALESCE((SELECT GROUP_CONCAT(b.jira_key, ' ') FROM bug_links b WHERE b.scenario_id = s.id), '')),
-                s.created_at
+                s.created_at, s.tags
          FROM scenarios s WHERE s.run_id = ?1 AND s.is_latest = 1 AND TRIM(s.doors_ids) <> '' ORDER BY s.id",
     )?;
+    let o = common::kimlik::gecerli();
     let mut out = Vec::new();
     let mut rows = st.query([run_id])?;
     while let Some(r) = rows.next()? {
         let ids: String = r.get(0)?;
+        let tags: Vec<String> = r.get::<_, String>(6)?.split_whitespace().map(String::from).collect();
+        let ekler: Vec<String> = o.ek_kimlikler(&tags).into_iter().map(|v| v.join(" ")).collect();
         for id in ids.split_whitespace() {
             out.push(DoorsRow {
                 doors_id: id.to_string(),
@@ -202,28 +241,33 @@ pub fn doors_rows(c: &Connection, run_id: i64, ayar: &DoorsAyar) -> anyhow::Resu
                 status: ayar.status(&r.get::<_, String>(3)?).to_string(),
                 jira: r.get::<_, String>(4)?.split_whitespace().collect::<Vec<_>>().join(" "),
                 date: r.get(5)?,
+                ekler: ekler.clone(),
             });
         }
     }
     Ok(out)
 }
 
+/// Koşumun gereksinim CSV'si: `YTET,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih` ve her ek önek için
+/// bir sütun (`YGÖ`). İlk sütunun başlığı önek adıdır (varsayılan önekle `DOORS`).
 pub fn doors_csv(rows: &[DoorsRow], run_id: i64) -> String {
-    let mut s = String::from("\u{feff}DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih\r\n");
+    doors_csv_with(&common::kimlik::gecerli(), rows, run_id)
+}
+
+pub fn doors_csv_with(o: &common::kimlik::Onekler, rows: &[DoorsRow], run_id: i64) -> String {
+    let mut basliklar = vec![o.gereksinim_adi()];
+    basliklar.extend(["Senaryo", "Feature", "Sonuç", "Jira", "Koşum", "Tarih"].map(String::from));
+    basliklar.extend(o.ek.iter().map(|e| common::kimlik::ad(e)));
+    let mut s = String::from("\u{feff}");
+    s.push_str(&basliklar.iter().map(|h| csv_cell(h, ',')).collect::<Vec<_>>().join(","));
+    s.push_str("\r\n");
+    let kosum = run_id.to_string();
     for r in rows {
-        s.push_str(
-            &[
-                r.doors_id.as_str(),
-                &r.scenario,
-                &r.feature,
-                &r.status,
-                &r.jira,
-                &run_id.to_string(),
-                &r.date,
-            ]
-            .map(|v| csv_cell(v, ','))
-            .join(","),
-        );
+        let mut v: Vec<&str> = vec![&r.doors_id, &r.scenario, &r.feature, &r.status, &r.jira, &kosum, &r.date];
+        for i in 0..o.ek.len() {
+            v.push(r.ekler.get(i).map(String::as_str).unwrap_or(""));
+        }
+        s.push_str(&v.iter().map(|x| csv_cell(x, ',')).collect::<Vec<_>>().join(","));
         s.push_str("\r\n");
     }
     s
@@ -268,7 +312,7 @@ pub fn doors_dxl(rows: &[DoorsRow], run_id: i64, report_url: &str, a: &DoorsAyar
     s.push_str(
         &rows
             .iter()
-            .map(|r| dxl_str(r.doors_id.trim_start_matches("DOORS-")))
+            .map(|r| dxl_str(common::kimlik::gecerli().numara(&r.doors_id)))
             .collect::<Vec<_>>()
             .join(", "),
     );

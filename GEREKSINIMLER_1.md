@@ -156,6 +156,7 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 - Kabul: SW-2.1, 2.2 ve 4.9 testleri gerçek örneklerle geçer.
 - Test: B
 - Doğrulama: `test_sw_2_7_real_samples_parse`, `test_sw_2_7_doors_and_jira_tags`
+- Ek: gereksinim kimliği öneki ayarlanabilir (`GEREKSINIM_ONEKI`, varsayılan `DOORS-`, sahada `YTET_`; kimlik yazıldığı gibi saklanır) ve ek kimlik önekleri (`EK_KIMLIK_ONEKLERI`, örn. `YGÖ-`: tag'lerden okunur, rozet/arama/CSV sütunu/Jira yer tutucusu; Jira label'ı olmaz). Doğrulama: `test_sw_2_7_gereksinim_oneki_ytet`, `test_sw_2_7_ek_kimlik_ascii_olmayan_onek`, `test_sw_6_4_ytet_ve_ygo_rapor_arama_csv_jira`.
 - Not: Örnekler `ornek-test-projesi`nin gerçek koşusundan (testdata/allure/ornek-giris). Gerçek test projesinin örnekleri eklenince MEVCUT.
 
 ---
@@ -311,10 +312,11 @@ Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 
 Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır.
 
-### SW-6.1 [MEVCUT] Jira istemcisi: bug'da DOORS numarası label'da ve açıklamada
+### SW-6.1 [MEVCUT] Jira istemcisi: bug'da gereksinim numarası açıklamada
+- Gereksinim (YTET/DOORS) ve ek kimlikler (YGÖ) yalnızca yer tutucuyla metne yazılır (`{{YTET}}`, `{{YGÖ}}`, eski `{{doors}}`); label olmaz (karar, `docs/KARARLAR.md`).
 - Jira label'ı reddederse bug label'sız açılır.
 - Bug açılırken ya da senaryo var olan bir bug'a bağlanırken ekran görüntüsü Jira issue'suna eklenir.
-- Kabul: DOORS numarası her iki yerde de görünür; label hatasında bug yine de açılır; ekran görüntüsü Jira issue'sunda görünür.
+- Kabul: gereksinim numarası açıklamada görünür, label'da görünmez; label hatasında bug yine de açılır; ekran görüntüsü Jira issue'sunda görünür.
 - Test: B
 - Doğrulama: `test_sw_6_1_*`
 - Not: Sahte Jira sunucusuyla test edildi.
@@ -337,6 +339,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Kabul: Koşum sonuçları DOORS'a aktarılabilecek CSV ve DXL dosyası olarak indirilir.
 - Test: B
 - Doğrulama: `test_sw_6_4_doors_csv_and_dxl`, e2esmoke
+- Ek: CSV'lerde gereksinim sütununun başlığı önek adıdır (`YTET`; varsayılan önekle `DOORS`), her ek önek için ayrı sütun (`YGÖ`); arayüzde "DOORS" yerine önek adı. Doğrulama: `test_sw_6_4_ytet_ve_ygo_rapor_arama_csv_jira`.
 - Not: DXL betiği gerçek DOORS modülünde denenmedi (pilot listesi).
 - Ek: aktarım CSV ile (kullanıcının kendi aktarım betiği); sonuç değerleri ve DOORS linki şablonu Admin > Ayarlar > DOORS'tan. DXL isteğe bağlı, varsayılan kapalı (`DOORS_DXL=true`). Doğrulama: `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
 

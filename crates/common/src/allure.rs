@@ -220,9 +220,10 @@ impl TestResult {
         Some(self.stop? - self.start?)
     }
 
-    /// `@DOORS-1234` tag'lerinden DOORS numaraları.
+    /// Gereksinim kimlikleri (`@DOORS-1234`, önek ayarlıysa `@YTET_1234`; bkz. `kimlik`).
     pub fn doors_ids(&self) -> Vec<String> {
-        self.tags().into_iter().filter_map(|t| doors_id(&t)).collect()
+        let o = crate::kimlik::gecerli();
+        self.tags().into_iter().filter_map(|t| o.gereksinim_id(&t)).collect()
     }
 
     /// `@JIRA-ABC-12` tag'lerinden Jira issue anahtarları (`ABC-12`).
@@ -244,10 +245,9 @@ impl TestResult {
     }
 }
 
+/// Geçerli gereksinim önekiyle (`kimlik::gecerli`) tag'den gereksinim kimliği.
 pub fn doors_id(tag: &str) -> Option<String> {
-    let t = tag.trim_start_matches('@');
-    let rest = t.strip_prefix("DOORS-").or_else(|| t.strip_prefix("doors-"))?;
-    (!rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')).then(|| format!("DOORS-{rest}"))
+    crate::kimlik::gecerli().gereksinim_id(tag)
 }
 
 pub fn jira_key(tag: &str) -> Option<String> {

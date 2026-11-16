@@ -21,25 +21,39 @@ pub struct JiraSablon {
     /// Jira'ya eklenecek ek alanlar: `{"priority": {"name": "Major"}, "customfield_10200": {"value": "Yazılım"}}`.
     /// Zorunlu alanlar buraya yazılır. Metin değerlerde yer tutucu kullanılabilir.
     pub alanlar: String,
-    /// DOORS numaraları label olarak eklensin mi.
-    pub doors_label: bool,
 }
 
 impl Default for JiraSablon {
     fn default() -> Self {
         JiraSablon {
             ozet: "[Otomasyon] {{senaryo}}: {{hata_ilk_satir}}".into(),
-            aciklama: "Otomatik test senaryosu kaldı: *{{senaryo}}*\n\nFeature: {{feature}}\nDOORS: {{doors}}\nProje: {{proje}} · Branch: {{branch}} · Commit: {{commit}}\nRapor: {{rapor}}\n\n*Hata*\n{noformat}\n{{hata}}\n{noformat}\n\n*Adımlar*\n{{adimlar}}".into(),
+            aciklama: "Otomatik test senaryosu kaldı: *{{senaryo}}*\n\nFeature: {{feature}}\nGereksinim: {{doors}}\nProje: {{proje}} · Branch: {{branch}} · Commit: {{commit}}\nRapor: {{rapor}}\n\n*Hata*\n{noformat}\n{{hata}}\n{noformat}\n\n*Adımlar*\n{{adimlar}}".into(),
             alanlar: "{}".into(),
-            doors_label: true,
         }
     }
+}
+
+/// Yer tutucu → değer. Anahtarlar `String`: önek adları (`YTET`, `YGÖ`) ayara göre değişir.
+pub type Vars = BTreeMap<String, String>;
+
+/// Ayarlar sayfasındaki liste: sabit yer tutucular + gereksinim ve ek kimlik önekleri.
+pub fn yer_tutucular() -> Vec<(String, String)> {
+    let o = common::kimlik::gecerli();
+    let mut v: Vec<(String, String)> = YER_TUTUCULAR.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
+    v.insert(2, (o.gereksinim_adi(), format!("{} numaraları, virgülle", o.gereksinim_adi())));
+    for (i, e) in o.ek.iter().enumerate() {
+        v.insert(
+            3 + i,
+            (common::kimlik::ad(e), format!("{} numaraları, virgülle", common::kimlik::ad(e))),
+        );
+    }
+    v
 }
 
 pub const YER_TUTUCULAR: &[(&str, &str)] = &[
     ("senaryo", "senaryo adı"),
     ("feature", "feature adı"),
-    ("doors", "DOORS numaraları, virgülle"),
+    ("doors", "gereksinim numaraları, virgülle (eski ad)"),
     ("hata", "hata mesajı (en fazla 2000 karakter)"),
     ("hata_ilk_satir", "hata mesajının ilk satırı (120)"),
     ("adimlar", "numaralı adım listesi (Jira biçimi: # adım)"),
@@ -103,10 +117,15 @@ impl DoorsAyar {
     }
 
     pub fn link(&self, doors_id: &str) -> Option<String> {
+        self.link_with(&common::kimlik::gecerli(), doors_id)
+    }
+
+    /// `{{no}}` = önekten sonrası (`YTET_1234` → `1234`), `{{id}}` = kimliğin tamamı.
+    pub fn link_with(&self, o: &common::kimlik::Onekler, doors_id: &str) -> Option<String> {
         if self.link_sablonu.trim().is_empty() {
             return None;
         }
-        let no = doors_id.trim_start_matches("DOORS-");
+        let no = o.numara(doors_id);
         Some(self.link_sablonu.replace("{{no}}", no).replace("{{id}}", doors_id))
     }
 }
@@ -182,7 +201,7 @@ pub fn extra_fields(text: &str) -> Result<Map<String, Value>> {
 }
 
 /// `{{ad}}` yer tutucularını doldurur; bilinmeyenler olduğu gibi kalır.
-pub fn fill(text: &str, vars: &BTreeMap<&str, String>) -> String {
+pub fn fill(text: &str, vars: &Vars) -> String {
     let mut out = text.to_string();
     for (k, v) in vars {
         out = out.replace(&format!("{{{{{k}}}}}"), v);
@@ -191,7 +210,7 @@ pub fn fill(text: &str, vars: &BTreeMap<&str, String>) -> String {
 }
 
 /// JSON değerinin içindeki metinlerde yer tutucuları doldurur (yapı ve kaçışlar bozulmaz).
-pub fn fill_json(v: &Value, vars: &BTreeMap<&str, String>) -> Value {
+pub fn fill_json(v: &Value, vars: &Vars) -> Value {
     match v {
         Value::String(s) => Value::String(fill(s, vars)),
         Value::Array(a) => Value::Array(a.iter().map(|x| fill_json(x, vars)).collect()),
@@ -206,8 +225,8 @@ mod tests {
 
     #[test]
     fn test_sw_6_1_template_fill_keeps_jira_braces_and_json_structure() {
-        let mut v = BTreeMap::new();
-        v.insert("senaryo", "Giriş \"özel\"".to_string());
+        let mut v = Vars::new();
+        v.insert("senaryo".into(), "Giriş \"özel\"".to_string());
         assert_eq!(
             fill("{noformat}{{senaryo}}{noformat} {{yok}}", &v),
             "{noformat}Giriş \"özel\"{noformat} {{yok}}"
@@ -226,6 +245,11 @@ mod tests {
         assert_eq!(d.link("DOORS-1003"), None);
         d.link_sablonu = "doors://srv:36677/?urn=x-{{no}}&k={{id}}".into();
         assert_eq!(d.link("DOORS-1003").unwrap(), "doors://srv:36677/?urn=x-1003&k=DOORS-1003");
+        let ytet = common::kimlik::Onekler::parse(Some("YTET_"), None);
+        assert_eq!(
+            d.link_with(&ytet, "YTET_1234").unwrap(),
+            "doors://srv:36677/?urn=x-1234&k=YTET_1234"
+        );
         d.kaldi = "Failed".into();
         assert_eq!(d.status("broken"), "Failed");
         assert_eq!(d.status("unknown"), "Koşulmadı");

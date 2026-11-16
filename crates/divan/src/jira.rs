@@ -12,7 +12,6 @@ use crate::paths::Paths;
 use anyhow::{bail, Result};
 use rusqlite::{params, Connection};
 use serde_json::{json, Map, Value};
-use std::collections::BTreeMap;
 use std::io::Read;
 
 pub struct Jira {
@@ -251,21 +250,12 @@ impl Jira {
         Ok(fields.iter().map(|(k, f)| parse_meta(k, f)).collect())
     }
 
-    /// Açık bug arama: DOORS label'ı ya da senaryo adı ile.
-    pub fn find_open_bug(&self, doors: &[String], scenario: &str) -> Result<Option<String>> {
-        let mut parts = Vec::new();
-        if !doors.is_empty() {
-            parts.push(format!(
-                "labels in ({})",
-                doors.iter().map(|d| format!("\"{d}\"")).collect::<Vec<_>>().join(",")
-            ));
-        }
+    /// Açık bug arama: senaryo adı ile (gereksinim kimlikleri label olmadığı için aranmaz).
+    pub fn find_open_bug(&self, scenario: &str) -> Result<Option<String>> {
         let name = scenario.replace(['"', '\\'], " ");
-        parts.push(format!("summary ~ \"\\\"{name}\\\"\""));
         let jql = format!(
-            "project = \"{}\" AND statusCategory != Done AND ({}) ORDER BY created DESC",
-            self.project,
-            parts.join(" OR ")
+            "project = \"{}\" AND statusCategory != Done AND summary ~ \"\\\"{name}\\\"\" ORDER BY created DESC",
+            self.project
         );
         let query = format!("maxResults=1&fields=key&jql={}", urlencoding::encode(&jql));
         let (mut st, mut v) = self.call("GET", &format!("/rest/api/2/search?{query}"), None)?;
@@ -394,38 +384,50 @@ pub struct BugInput<'a> {
     pub scenario: &'a str,
     pub feature: &'a str,
     pub doors: &'a [String],
+    /// senaryonun tüm tag'leri (ek kimlikler, örn. `YGÖ-12`, buradan)
+    pub tags: &'a [String],
     pub message: &'a str,
     pub steps: &'a [String],
 }
 
-pub fn vars(c: &Connection, public_url: &str, b: &BugInput) -> Result<BTreeMap<&'static str, String>> {
+pub fn vars(c: &Connection, public_url: &str, b: &BugInput) -> Result<ayarlar::Vars> {
     let (proje, branch, commit, tarih): (String, String, Option<String>, String) = c.query_row(
         "SELECT p.path, r.branch, r.commit_sha, r.started_at FROM runs r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1",
         [b.run_id],
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
     )?;
-    let mut v = BTreeMap::new();
-    v.insert("senaryo", b.scenario.to_string());
-    v.insert("feature", b.feature.to_string());
-    v.insert("doors", b.doors.join(", "));
-    v.insert("hata", crate::logging::truncate(b.message, 2000));
+    let mut v = ayarlar::Vars::new();
+    v.insert("senaryo".into(), b.scenario.to_string());
+    v.insert("feature".into(), b.feature.to_string());
+    v.insert("doors".into(), b.doors.join(", "));
+    // önek adıyla: {{YTET}} (gereksinim), {{YGÖ}} (ek kimlik); yalnızca metne yazılır, label olmaz
+    let o = common::kimlik::gecerli();
+    v.insert(o.gereksinim_adi(), b.doors.join(", "));
+    for (onek, ids) in o.ek.iter().zip(o.ek_kimlikler(b.tags)) {
+        v.insert(common::kimlik::ad(onek), ids.join(", "));
+    }
+    v.insert("hata".into(), crate::logging::truncate(b.message, 2000));
     v.insert(
-        "hata_ilk_satir",
+        "hata_ilk_satir".into(),
         crate::logging::truncate(b.message.lines().next().unwrap_or(""), 120),
     );
-    v.insert("adimlar", b.steps.iter().map(|s| format!("# {s}")).collect::<Vec<_>>().join("\n"));
-    v.insert("rapor", format!("{public_url}/scenarios/{}", b.scenario_id));
-    v.insert("kosum_rapor", format!("{public_url}/runs/{}", b.run_id));
-    v.insert("proje", proje);
-    v.insert("branch", branch);
-    v.insert("commit", commit.map(|c| c.chars().take(8).collect()).unwrap_or_default());
-    v.insert("kosum", b.run_id.to_string());
-    v.insert("tarih", tarih.chars().take(16).collect::<String>().replace('T', " "));
+    v.insert(
+        "adimlar".into(),
+        b.steps.iter().map(|s| format!("# {s}")).collect::<Vec<_>>().join("\n"),
+    );
+    v.insert("rapor".into(), format!("{public_url}/scenarios/{}", b.scenario_id));
+    v.insert("kosum_rapor".into(), format!("{public_url}/runs/{}", b.run_id));
+    v.insert("proje".into(), proje);
+    v.insert("branch".into(), branch);
+    v.insert("commit".into(), commit.map(|c| c.chars().take(8).collect()).unwrap_or_default());
+    v.insert("kosum".into(), b.run_id.to_string());
+    v.insert("tarih".into(), tarih.chars().take(16).collect::<String>().replace('T', " "));
     Ok(v)
 }
 
-/// Şablondan bug: özet, açıklama, DOORS label'ları ve ek alanlar.
-pub fn build_bug(t: &JiraSablon, vars: &BTreeMap<&str, String>, doors: &[String]) -> Result<NewBug> {
+/// Şablondan bug: özet, açıklama ve ek alanlar. Gereksinim/ek kimlikler label olmaz; yalnızca
+/// yer tutucuyla metne yazılır.
+pub fn build_bug(t: &JiraSablon, vars: &ayarlar::Vars) -> Result<NewBug> {
     let extra = match ayarlar::fill_json(&Value::Object(ayarlar::extra_fields(&t.alanlar)?), vars) {
         Value::Object(m) => m,
         _ => Map::new(),
@@ -433,7 +435,7 @@ pub fn build_bug(t: &JiraSablon, vars: &BTreeMap<&str, String>, doors: &[String]
     Ok(NewBug {
         summary: ayarlar::fill(&t.ozet, vars).lines().next().unwrap_or("").trim().to_string(),
         description: ayarlar::fill(&t.aciklama, vars),
-        labels: if t.doors_label { doors.to_vec() } else { vec![] },
+        labels: vec![],
         extra,
     })
 }
@@ -453,6 +455,7 @@ struct Failed {
     name: String,
     feature: String,
     doors: Vec<String>,
+    tags: Vec<String>,
     jira_tags: Vec<String>,
     message: String,
     attempt: i64,
@@ -461,7 +464,7 @@ struct Failed {
 
 fn failed_scenarios(c: &Connection, run_id: i64) -> Result<Vec<Failed>> {
     let mut st = c.prepare(
-        "SELECT id, project_id, scenario_key, name, COALESCE(feature, ''), doors_ids, jira_keys, COALESCE(message, ''), attempt, triage_category
+        "SELECT id, project_id, scenario_key, name, COALESCE(feature, ''), doors_ids, jira_keys, COALESCE(message, ''), attempt, triage_category, tags
          FROM scenarios WHERE run_id = ?1 AND is_latest = 1 AND status = 'failed' ORDER BY id",
     )?;
     let rows = st.query_map([run_id], |r| {
@@ -476,6 +479,7 @@ fn failed_scenarios(c: &Connection, run_id: i64) -> Result<Vec<Failed>> {
             message: r.get(7)?,
             attempt: r.get(8)?,
             category: r.get(9)?,
+            tags: r.get::<_, String>(10)?.split_whitespace().map(String::from).collect(),
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<_>>()?)
@@ -554,7 +558,7 @@ pub fn process_run(
         }
         // 2) Jira'da açık bug ara (Jira bağlıysa; değilse yalnızca taslak hazırlanabilir)
         if let Some(j) = jira {
-            match j.find_open_bug(&f.doors, &f.name) {
+            match j.find_open_bug(&f.name) {
                 Ok(Some(k)) => {
                     link(c, f, &k, "eslesme", Some(&fp))?;
                     record(c, run_id, Some(f.id), "eslesti", Some(&fp), Some(&k), "Jira araması")?;
@@ -607,10 +611,11 @@ pub fn process_run(
             scenario: &f.name,
             feature: &f.feature,
             doors: &f.doors,
+            tags: &f.tags,
             message: &f.message,
             steps: &steps,
         };
-        let bug = match build_bug(sablon, &vars(c, &cfg.public_url, &input)?, &f.doors) {
+        let bug = match build_bug(sablon, &vars(c, &cfg.public_url, &input)?) {
             Ok(b) => b,
             Err(e) => {
                 record(c, run_id, Some(f.id), "hata", Some(&fp), None, &e.to_string())?;
@@ -664,10 +669,11 @@ pub fn draft_for_scenario(c: &Connection, cfg: &Config, sablon: &JiraSablon, sid
         scenario: &s.name,
         feature: s.feature.as_deref().unwrap_or(""),
         doors: &s.doors_ids,
+        tags: &s.tags,
         message: s.message.as_deref().unwrap_or(""),
         steps: &steps,
     };
-    build_bug(sablon, &vars(c, &cfg.public_url, &input)?, &s.doors_ids)
+    build_bug(sablon, &vars(c, &cfg.public_url, &input)?)
 }
 
 /// Admin: tek senaryo için bug aç (gözlem modundan bağımsız). `bug` formdan gelir.
@@ -898,19 +904,22 @@ mod tests {
     }
 
     #[test]
-    fn test_sw_6_1_doors_in_labels_and_description() {
-        let mut v = BTreeMap::new();
-        v.insert("senaryo", "Giriş".to_string());
-        v.insert("doors", "DOORS-1003".to_string());
-        v.insert("hata_ilk_satir", "expected x".to_string());
+    fn test_sw_6_1_gereksinim_yalnizca_aciklamada_label_yok() {
+        let mut v = ayarlar::Vars::new();
+        v.insert("senaryo".into(), "Giriş".to_string());
+        v.insert("doors".into(), "YTET_1003".to_string());
+        v.insert("YTET".into(), "YTET_1003".to_string());
+        v.insert("YGÖ".into(), "YGÖ-12, YGÖ-40".to_string());
+        v.insert("hata_ilk_satir".into(), "expected x".to_string());
         let mut t = JiraSablon::default();
-        let b = build_bug(&t, &v, &["DOORS-1003".into()]).unwrap();
-        assert_eq!(b.labels, vec!["DOORS-1003"]);
-        assert!(b.description.contains("DOORS: DOORS-1003"));
+        let b = build_bug(&t, &v).unwrap();
+        assert!(b.labels.is_empty(), "gereksinim kimlikleri label olmaz");
+        assert!(b.description.contains("Gereksinim: YTET_1003"));
         assert_eq!(b.summary, "[Otomasyon] Giriş: expected x");
-        t.doors_label = false;
+        t.aciklama = "YTET: {{YTET}}\nBağlı: {{YGÖ}}".into();
         t.alanlar = r#"{"priority": {"name": "Major"}, "customfield_10200": "{{senaryo}}"}"#.into();
-        let b = build_bug(&t, &v, &["DOORS-1003".into()]).unwrap();
+        let b = build_bug(&t, &v).unwrap();
+        assert_eq!(b.description, "YTET: YTET_1003\nBağlı: YGÖ-12, YGÖ-40");
         assert!(b.labels.is_empty());
         assert_eq!(b.extra["customfield_10200"], "Giriş");
     }

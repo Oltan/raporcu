@@ -13,7 +13,7 @@
       {% if l.share.is_none() %}<span><a href="/history?project={{ s.project_id }}&branch={{ s.branch|enc }}&key={{ s.scenario_key|enc }}">Geçmiş</a></span>{% endif %}
     </div>
     <div style="margin-top:6px">
-      {% for d in s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}
+      {% for d in s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for d in s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
       {% if l.share.is_none() %}{% for j in jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
       {% for t in s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
     </div>

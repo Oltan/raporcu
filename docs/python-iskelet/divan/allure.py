@@ -1,4 +1,5 @@
 """Allure dosya modeli (allure-cucumber7-jvm 2.x). Rust: crates/common/src/allure.rs"""
+import os
 import re
 
 STATUSES = {"passed", "failed", "broken", "skipped", "unknown"}
@@ -45,9 +46,20 @@ def feature(r: dict):
     return label(r, "feature") or label(r, "suite")
 
 
-def doors_id(tag: str):
-    m = re.fullmatch(r"(?:DOORS|doors)-([A-Za-z0-9_-]+)", tag.lstrip("@"))
-    return f"DOORS-{m.group(1)}" if m else None
+# Gereksinim kimliği öneki (Rust: common::kimlik, .env GEREKSINIM_ONEKI; varsayılan DOORS-).
+GEREKSINIM_ONEKI = os.environ.get("GEREKSINIM_ONEKI", "").strip() or "DOORS-"
+
+
+def doors_id(tag: str, onek: str | None = None):
+    """Gereksinim kimliği. DOORS- için eski davranış (doors- de tanınır, DOORS- olarak);
+    diğer önekler büyük/küçük harfe duyarlı, kimlik yazıldığı gibi (YTET_1234)."""
+    onek = onek or GEREKSINIM_ONEKI
+    t = tag.lstrip("@")
+    if onek == "DOORS-":
+        m = re.fullmatch(r"(?:DOORS|doors)-([A-Za-z0-9_-]+)", t)
+        return f"DOORS-{m.group(1)}" if m else None
+    rest = t[len(onek):] if t.startswith(onek) else ""
+    return t if rest and all(ch.isalnum() or ch in "-_" for ch in rest) else None
 
 
 def jira_key(tag: str):

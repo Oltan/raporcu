@@ -4,8 +4,8 @@
 
 | Uç | Davranış |
 |----|----------|
-| `GET /admin/ayarlar[?alanlar=1][&notice=jira\|doors]` | Jira şablonu formu, DOORS formu; `alanlar=1` ise Jira'dan alan listesi (`Jira::field_meta`, ayrı iş parçacığında) tablo olarak: kimlik, ad, zorunlu (varsayılanı var mı), tür, izinli değerler (ilk 25) |
-| `POST /admin/ayarlar/jira` | form: `ozet`, `aciklama` (CRLF → LF), `alanlar`, `doors_label` (işaretliyse var). Geçersiz JSON → 400 ve form girilen değerlerle yeniden gösterilir. Başarı → kaydet, belleği güncelle, `?notice=jira` |
+| `GET /admin/ayarlar[?alanlar=1][&notice=jira\|doors]` | Jira şablonu formu (yer tutucu listesi `ayarlar::yer_tutucular()`: `{{YTET}}`, `{{YGÖ}}` dahil), gereksinim formu (başlık önek adıyla); `alanlar=1` ise Jira'dan alan listesi (`Jira::field_meta`, ayrı iş parçacığında) tablo olarak: kimlik, ad, zorunlu (varsayılanı var mı), tür, izinli değerler (ilk 25) |
+| `POST /admin/ayarlar/jira` | form: `ozet`, `aciklama` (CRLF → LF), `alanlar`. Geçersiz JSON → 400 ve form girilen değerlerle yeniden gösterilir. Başarı → kaydet, belleği güncelle, `?notice=jira` |
 | `POST /admin/ayarlar/doors` | `DoorsAyar` alanları (boşluklar kırpılır); kimlik özniteliği boşsa hata |
 | `GET /admin/scenarios/{id}/jira` | bug formu: şablondan taslak (`jira::draft_for_scenario`); Jira alan listesi alınabildiyse formda alan kutuları |
 | `POST /admin/scenarios/{id}/jira` | formdan bug, `jira::create_for_scenario`; başarı → senaryo sayfası; hata → 502 ve Jira'nın alan bazlı mesajı |
@@ -25,7 +25,7 @@ Her alan için gizli `tur.<id>` = `tür|öğe|seçenekli(0/1)`; POST'ta Jira'ya 
 - `ozet` yoksa (eski boş POST) taslak aynen kullanılır.
 - `ek` (JSON) ile başlar; `alan.<id>` değerleri (çoklu seçimde aynı ad tekrar eder, virgülle
   birleştirilir) `jira::field_value` ile türüne göre çevrilip üzerine yazılır; boş değer o alanı siler.
-- `doors_label` işaretsizse DOORS label'ları gönderilmez.
+- Gereksinim/ek kimlikler label olarak gönderilmez (eski `doors_label` kutusu kaldırıldı).
 
 ## Testler
 `test_sw_6_1_form_fields_and_values`; `tests/entegrasyon.rs`: `test_sw_6_1_required_fields_listed_and_bug_form_sends_them`,

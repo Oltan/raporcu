@@ -5,8 +5,8 @@
 - `sanitize_text(metin, gizliler)`: önce gizli değerler `***`; sonra kelime kelime: `glpat-`,
   `glrt-`, `glptt-` ile başlayan, `token=`, `password=`, `private-token`, `api_key=` içeren
   kelimeler `***`; `Bearer` / `Authorization:` sonrasındaki kelime `***`; Jira anahtarı biçimindeki
-  kelime (`ABC-123`, DOORS hariç) `[Jira]`. Boşluklar korunur.
-- `is_jira_key(w)`: en az 2 karakterli büyük harf/rakam proje + `-` + rakamlar; `DOORS` değil.
+  kelime (`ABC-123`, DOORS ve gereksinim/ek kimlikler hariç) `[Jira]`. Boşluklar korunur.
+- `is_jira_key(w)`: en az 2 karakterli büyük harf/rakam proje + `-` + rakamlar; `DOORS` ya da `kimlik_mi` değil.
 - `visible_tag(t)`: `JIRA-…` tag'leri gizlenir.
 
 Paylaşım görünümünde ayrıca (web/pages.rs): pipeline/iş/repo linkleri, Jira rozetleri, bug

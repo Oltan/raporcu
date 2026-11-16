@@ -82,8 +82,13 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   şablonu (yer tutuculu özet/açıklama, ek alanlar JSON) ve DOORS öznitelikleri `settings`
   tablosunda, Admin > Ayarlar'dan değişir (`docs/JIRA_DOORS_AYARLARI.md`). Zorunlu alanlar Jira'nın
   createmeta ucundan okunur; şirketten şirkete değişen alanlar için kod değişikliği gerekmez.
-- **DOORS bağı tag ile:** `@DOORS-<no>`, `<no>` = DOORS kimlik özniteliğinin değeri. Önek sabit
-  (`DOORS-`); kimlik özniteliği ayarlanabilir.
+- **Gereksinim bağı tag ile:** `@<önek><no>`; önek `GEREKSINIM_ONEKI` (varsayılan `DOORS-`, sahada
+  `YTET_`, kimlik yazıldığı gibi: `YTET_1234`). Arayüz ve CSV'de "DOORS" yerine önek adı (`YTET`)
+  görünür; iç adlar (`doors_ids`, `/doors.csv`) değişmedi. Ek kimlikler (`EK_KIMLIK_ONEKLERI`, örn.
+  `YGÖ-`) senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşme kaybolmasın diye: saklanan
+  tag'lerden okunur (migration yok), rozet/arama/ayrı CSV sütunu/Jira yer tutucusu. İkisi de Jira'ya
+  yalnızca açıklama yer tutucusuyla gider (`{{YTET}}`, `{{YGÖ}}`): label olmaz, Jira'da alan aranmaz,
+  açık bug araması label'a bakmaz.
 - **Self-healing ajanı ve skill'ler:** OpenCode ajanı `.opencode/agents/fix.md`; skill'ler
   `.claude/skills/` (OpenCode ve Claude Code ikisi de okur, tek kopya). OpenCode runner'da çalışır,
   divan sunucusunda değil; divan'daki düğmeler GitLab API ile fix işini başlatır. Senaryo

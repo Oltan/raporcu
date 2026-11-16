@@ -58,7 +58,7 @@
   <a class="genel-hata" href="{{ taban }}/scenarios/{{ r.s.id }}">
     <div>
       <b>{{ r.s.name }}</b>
-      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in r.s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
       {% if let Some(f) = r.s.feature %}<div class="kucuk">{{ f }}</div>{% endif %}
       <div class="hata-ozet">{{ r.s.short_message() }}</div>
     </div>
@@ -78,7 +78,7 @@
     <a class="genel-senaryo" href="{{ taban }}/scenarios/{{ r.s.id }}">
       <span class="genel-tik" aria-hidden="true">✓</span>
       <span class="ad">{{ r.s.name }}{% if let Some(n) = r.ornek %} <span class="kucuk">Örnek {{ n }}</span>{% endif %}</span>
-      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}
+      {% for d in r.s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in r.s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
       <span class="kucuk sure">{{ r.s.duration() }}</span>
     </a>
     {% endfor %}

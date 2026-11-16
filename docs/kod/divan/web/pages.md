@@ -36,8 +36,9 @@ gerektirmez; admin işlemleri `Admin` çıkarıcısıyla korunur.
   başarı → `?notice=fix`, hata → 502 sayfa (token içermez).
 
 ## Ek (Jira/DOORS ayarları, senaryo düğmesi)
-- `Layout.doors_link` + `doors_url(id)`: DOORS rozeti linki (Ayarlar > DOORS); paylaşım görünümünde yok.
+- `Layout.doors_link` + `doors_url(id)`: gereksinim rozeti linki (Ayarlar > Gereksinim); paylaşım görünümünde yok.
+- `Layout.kimlik_adi()`: gereksinim önekinin görünen adı (`YTET`; varsayılan `DOORS`) — arama etiketi, "YTET CSV" düğmesi, ayarlar başlığı. Rozetler: `doors_ids` + `ScenarioRow::ek_kimlikler()` (YGÖ).
 - Jira bug formu ve ayarlar sayfası `web/ayarlar.rs`'e taşındı (`ayarlar.md`); `message_page` dışarı açık.
 - `POST /admin/runs/{id}/fix` (koşumun tüm adayları) ve `POST /admin/scenarios/{id}/fix` (yalnızca o
   senaryo) → `start_fix` → `gitlab::trigger_fix_pipeline`; senaryo düğmesi `?notice=fix` ile senaryo sayfasına döner.
-- DOORS CSV/DXL ayarlarla üretilir.
+- Gereksinim CSV'si ("YTET CSV") ve DXL ayarlarla üretilir; arama sayfasındaki alan listesi `export::alanlar()`.

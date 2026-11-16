@@ -80,6 +80,8 @@ pub struct Config {
     pub dry_run: bool,
     /// DOORS DXL betiği (SW-6.4). Varsayılan kapalı: aktarım CSV ile yapılıyor.
     pub doors_dxl: bool,
+    /// Gereksinim kimliği öneki ve ek kimlik önekleri (`GEREKSINIM_ONEKI`, `EK_KIMLIK_ONEKLERI`).
+    pub onekler: common::kimlik::Onekler,
 
     /// OpenCode triage kararının admin onayı olmadan geçerli olduğu en düşük güven (SW-4.5)
     pub triage_auto_confidence: f64,
@@ -157,6 +159,7 @@ impl Config {
                 .unwrap_or_default(),
             dry_run: parse("DRY_RUN", false)?,
             doors_dxl: parse("DOORS_DXL", false)?,
+            onekler: common::kimlik::Onekler::parse(var("GEREKSINIM_ONEKI").as_deref(), var("EK_KIMLIK_ONEKLERI").as_deref()),
             triage_auto_confidence: parse("TRIAGE_AUTO_CONFIDENCE", 0.7)?,
             flaky_window: parse("FLAKY_WINDOW", 10)?,
             ulak_dir: var("ULAK_DIR").map(PathBuf::from),
@@ -202,6 +205,7 @@ impl Config {
             mail_to: vec![],
             dry_run: true,
             doors_dxl: false,
+            onekler: Default::default(),
             triage_auto_confidence: 0.7,
             flaky_window: 10,
             ulak_dir: None,

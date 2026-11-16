@@ -1,6 +1,6 @@
-# Jira ve DOORS ayarları
+# Jira ve gereksinim (YTET/DOORS) ayarları
 
-Bağlantı bilgileri (adres, token, proje) `.env`'de durur. **Bug'ın içeriği ve DOORS eşleşmesi**
+Bağlantı bilgileri (adres, token, proje) `.env`'de durur. **Bug'ın içeriği ve gereksinim eşleşmesi**
 arayüzden ayarlanır: **Admin → Ayarlar** (`/admin/ayarlar`). Ayarlar veritabanında saklanır,
 sunucu yeniden başlasa da kalır, kaydedince hemen geçerli olur.
 
@@ -46,14 +46,14 @@ formunun ilk halinde kullanılır.
 | Özet | tek satır, en fazla 250 karakter |
 | Açıklama | Jira wiki biçimi (`*kalın*`, `{noformat}…{noformat}`, `# madde`) |
 | Ek alanlar | JSON nesnesi; Jira REST v2 `fields` biçiminde |
-| DOORS label | DOORS numaraları label olarak eklensin mi |
 
 **Yer tutucular** (iki süslü parantez; tek süslü parantez Jira biçimidir, dokunulmaz):
 
 | | |
 |---|---|
 | `{{senaryo}}`, `{{feature}}` | senaryo ve feature adı |
-| `{{doors}}` | DOORS numaraları (virgülle) |
+| `{{YTET}}` (önek adı) ya da eski `{{doors}}` | gereksinim numaraları (virgülle); label olarak eklenmez |
+| `{{YGÖ}}` (her ek önek için) | ek kimlikler (virgülle), ör. `YGÖ-12, YGÖ-40`; label olarak eklenmez |
 | `{{hata}}`, `{{hata_ilk_satir}}` | hata mesajı (2000) ve ilk satırı (120) |
 | `{{adimlar}}` | `# adım` biçiminde numaralı liste |
 | `{{rapor}}`, `{{kosum_rapor}}` | senaryonun ve koşumun rapor linki |
@@ -79,7 +79,7 @@ formunun ilk halinde kullanılır.
 | Öncelik | `{"name": "Major"}` |
 | Kullanıcı (Server/DC) | `{"name": "kullanici.adi"}` |
 | Metin, sayı, tarih | `"metin"`, `3`, `"2026-12-31"` |
-| Label | `["a", "b"]` (DOORS label'larına eklenir) |
+| Label | `["a", "b"]` |
 
 Geçersiz JSON kaydedilmez; hata mesajı gösterilir, yazdıklarınız kaybolmaz.
 
@@ -144,8 +144,8 @@ olmayan her kalan (`failed`) senaryo için sırayla:
 
 1. `@JIRA-…` tag'i varsa senaryo o issue'ya bağlanır (Jira'ya gidilmez).
 2. Aynı hata (parmak izi) daha önce bir issue'ya bağlandıysa senaryo ona bağlanır (Jira'ya gidilmez).
-3. Jira'da aranır: `JIRA_PROJECT` içinde, kapanmamış, **label'ı senaryonun DOORS numarası olan ya da
-   özetinde senaryo adı geçen** en yeni issue. Bulunursa senaryo ona bağlanır ve **ekran görüntüsü o
+3. Jira'da aranır: `JIRA_PROJECT` içinde, kapanmamış, **özetinde senaryo adı geçen** en yeni issue
+   (gereksinim numaraları label olmadığı için label'a bakılmaz). Bulunursa senaryo ona bağlanır ve **ekran görüntüsü o
    issue'ya eklenir** (`ekran-<senaryo no>.png`). Arama issue türüne bakmaz: aynı projedeki bir iş ya da
    hikâye de eşleşebilir.
 
@@ -170,35 +170,49 @@ DELETE FROM bug_links WHERE source = 'eslesme' AND jira_key = 'ABC-12';         
 `source` değerleri: `tag` (feature'daki tag), `eslesme` (otomatik), `otomatik` (divan'ın açtığı bug),
 `admin` (elle açılan). Jira'ya eklenmiş ekran görüntüleri Jira'dan elle silinir.
 
-## 6. DOORS
+## 6. Gereksinim kimliği (YTET) ve ek kimlikler (YGÖ)
 
-Senaryo DOORS gereksinimine **tag** ile bağlanır:
+Senaryo gereksinime **tag** ile bağlanır. Önek `.env`'de:
+
+```
+GEREKSINIM_ONEKI=YTET_      # varsayılan DOORS-
+EK_KIMLIK_ONEKLERI=YGÖ-     # virgülle birden çok; boşsa yok
+```
 
 ```gherkin
-@DOORS-1003 @JIRA-STAJ-42
+@YTET_1234 @YGÖ-12 @JIRA-STAJ-42
 Senaryo: Yanlış şifrede özel mesaj
 ```
 
-`1003`, DOORS nesnesinin **kimlik özniteliğinin** değeridir (varsayılan `Absolute Number`).
-Bir senaryo birden çok gereksinimi karşılıyorsa birden çok `@DOORS-…` tag'i taşır.
+- `YTET_1234` gereksinim numarasıdır, yazıldığı gibi saklanır. Önek büyük/küçük harfe duyarlıdır;
+  önekten sonrası harf, rakam, `-`, `_` (basamak sınırı yok). Bir senaryo birden çok gereksinimi
+  karşılıyorsa birden çok tag taşır. Arayüzde ve CSV'de "DOORS" yerine önek adı (`YTET`) görünür.
+- `YGÖ-12` senaryonun ek olarak bağlandığı gereksinimi gösterir (eşleşme kaybolmasın diye). Rozet
+  olarak görünür, arama kutusunda aranır (tam eşleşme), CSV'de ayrı sütundur, Jira açıklamasına
+  `{{YGÖ}}` ile yazılır. Saklanan tag'lerden okunduğu için eski koşumlarda da görünür.
+- Önek değişmeden önce yüklenen koşumlarda `@YTET_…` tag'leri gereksinim numarası olarak değil,
+  sıradan tag olarak durur (koşumlar yeniden işlenmez).
+- İkisi de Jira'ya **label olarak gitmez**; yalnızca yer tutucuyla açıklamaya/özete yazılır.
 
-**Aktarım CSV ile yapılır:** koşum sayfası → **DOORS CSV** (`/runs/<koşum>/doors.csv`), kendi
-aktarım betiğinizle DOORS'a alınır. Sütunlar (UTF-8 BOM, virgül):
+**Aktarım CSV ile yapılır:** koşum sayfası → **YTET CSV** (`/runs/<koşum>/doors.csv`), kendi
+aktarım betiğinizle alınır. Sütunlar (UTF-8 BOM, virgül; ek kimlik sütunları sonda):
 
 ```
-DOORS ID,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih
-DOORS-1003,Yanlış şifrede özel mesaj,Giriş ekranı,Kaldı,STAJ-42,12,2026-10-30T02:14:05Z
+YTET,Senaryo,Feature,Sonuç,Jira,Koşum,Tarih,YGÖ
+YTET_1003,Yanlış şifrede özel mesaj,Giriş ekranı,Kaldı,STAJ-42,12,2026-10-30T02:14:05Z,YGÖ-12
 ```
 
-Bir senaryo birden çok DOORS numarası taşıyorsa her numara ayrı satırdır; Jira sütunu tag'deki ve
-bağlanan bug'ları boşlukla birleştirir.
+Önceki sürümde ilk sütunun başlığı `DOORS ID` idi; aktarım betiğiniz başlığa bakıyorsa güncelleyin.
+Bir senaryo birden çok gereksinim numarası taşıyorsa her numara ayrı satırdır; Jira sütunu tag'deki
+ve bağlanan bug'ları boşlukla birleştirir. Arama sayfasındaki alan seçmeli CSV'de de gereksinim
+sütunu `YTET`, ek kimlikler ayrı sütundur (`fields=senaryo,doors,ek:YGÖ-`).
 
-Admin → Ayarlar → **DOORS**:
+Admin → Ayarlar → **Gereksinim (YTET)**:
 
 | Ayar | Varsayılan | Açıklama |
 |------|-----------|----------|
 | Sonuç değerleri | `Geçti`, `Kaldı`, `Atlandı`, `Koşulmadı` | CSV'nin Sonuç sütununa yazılır; aktarım betiğinizin beklediği değerleri girin (ör. `Passed` / `Failed`) |
-| DOORS linki şablonu | (boş) | rapordaki DOORS rozetlerini tıklanabilir yapar; `{{no}}` = 1003, `{{id}}` = DOORS-1003 |
+| Gereksinim linki şablonu | (boş) | rapordaki YTET rozetlerini tıklanabilir yapar; `{{no}}` = önekten sonrası (1234), `{{id}}` = YTET_1234 |
 
 **DOORS linki:** DOORS'ta bir nesneye sağ tık → *Copy URL* ile alınan adreste nesne numarasının
 geçtiği yeri `{{no}}` ile değiştirin. Ör.:

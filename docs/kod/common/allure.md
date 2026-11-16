@@ -42,11 +42,11 @@ başlamaz. Güvensiz adlı ek kaydı atlanır (SW-2.1 zip güvenliği).
 | `feature()` | `feature` label'ı, yoksa `suite` |
 | `message()`, `trace()` | statusDetails'ten |
 | `duration_ms()` | `stop - start` (biri yoksa yok) |
-| `doors_ids()` | `DOORS-xxx` tag'leri (`doors-` küçük harf de) → `DOORS-xxx` |
+| `doors_ids()` | gereksinim kimlikleri, geçerli önekle (`kimlik.md`; varsayılan `DOORS-xxx`, `doors-` küçük harf de) |
 | `jira_keys()` | `JIRA-ABC-12` tag'leri → `ABC-12` (proje büyük harfe çevrilir; son parça rakam olmalı) |
 | `all_attachments()` | sonucun ve tüm (iç içe) adımların ekleri |
 
-`doors_id(tag)` / `jira_key(tag)` tek tag için aynı kural (paylaşımda Jira tag'ini gizlemek için de kullanılır).
+`doors_id(tag)` (geçerli önekle, `kimlik::gecerli()`) / `jira_key(tag)` tek tag için aynı kural (paylaşımda Jira tag'ini gizlemek için de kullanılır).
 
 ## Önemli gerçek-çıktı davranışları
 - `@After` hook'unda `scenario.attach(...)` ile eklenen ekran görüntüsü/video **result dosyasında

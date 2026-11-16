@@ -284,7 +284,7 @@ async fn upload_zip(app: &TestApp, zip: Vec<u8>) -> i64 {
 }
 
 #[tokio::test]
-async fn test_sw_6_1_bug_has_doors_in_label_and_description_and_screenshot() {
+async fn test_sw_6_1_bug_has_doors_in_description_not_label_and_screenshot() {
     let log: JL = Default::default();
     let url = fake_jira(log.clone()).await;
     let app = app_with(jira_cfg(url, divan::config::JiraMode::Off));
@@ -294,7 +294,7 @@ async fn test_sw_6_1_bug_has_doors_in_label_and_description_and_screenshot() {
     assert_eq!(r.status(), StatusCode::SEE_OTHER);
     let g = log.lock().unwrap();
     let f = &g.created[0]["fields"];
-    assert_eq!(f["labels"][0], "DOORS-1003");
+    assert!(f.get("labels").is_none(), "gereksinim numarası label olmaz: {f}");
     assert!(f["description"].as_str().unwrap().contains("DOORS-1003"));
     assert_eq!(g.attachments, vec!["BUG-1"], "ekran görüntüsü issue'ya eklendi");
     assert!(g.auth[0].starts_with("Bearer "));
@@ -352,7 +352,12 @@ async fn test_sw_6_2_auto_match_after_upload() {
     let (_, page) = app.get(&format!("/scenarios/{sid2}")).await;
     assert!(page.contains("STAJ-77"), "açık bug'a bağlandı");
     let g = log.lock().unwrap();
-    assert!(g.searches[0].contains("DOORS-1003"));
+    assert!(
+        !g.searches[0].contains("labels in"),
+        "gereksinim label'ı aranmaz: {}",
+        g.searches[0]
+    );
+    assert!(g.searches[0].contains("summary ~"));
     assert_eq!(g.attachments, vec!["STAJ-77"]);
     assert!(g.created.is_empty());
     drop(g);
@@ -815,7 +820,7 @@ async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {
 
     // şablon: özet biçimi + ek alanlar (öncelik, yer tutuculu metin)
     let form = format!(
-        "ozet={}&aciklama={}&alanlar={}&doors_label=on",
+        "ozet={}&aciklama={}&alanlar={}",
         urlencoding::encode("[E2E] {{senaryo}} ({{branch}})"),
         urlencoding::encode("Rapor: {{rapor}}\n{noformat}{{hata}}{noformat}"),
         urlencoding::encode(r#"{"priority": {"name": "Major"}, "components": [{"name": "UI"}]}"#)
@@ -836,7 +841,7 @@ async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {
     assert!(f.contains(&format!("/scenarios/{sid}")), "rapor linki açıklamada");
 
     let send = format!(
-        "ozet={}&aciklama=a&doors_label=on&ek=&alan.customfield_10200=10301&tur.customfield_10200={}&alan.components=500&alan.components=501&tur.components={}&alan.priority=Critical&tur.priority={}",
+        "ozet={}&aciklama=a&ek=&alan.customfield_10200=10301&tur.customfield_10200={}&alan.components=500&alan.components=501&tur.components={}&alan.priority=Critical&tur.priority={}",
         urlencoding::encode("Elle özet"),
         urlencoding::encode("option||1"),
         urlencoding::encode("array|component|1"),
@@ -850,7 +855,7 @@ async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {
     assert_eq!(f["customfield_10200"], json!({ "id": "10301" }));
     assert_eq!(f["components"], json!([{ "id": "500" }, { "id": "501" }]));
     assert_eq!(f["priority"], json!({ "name": "Critical" }), "formdaki değer şablonu ezer");
-    assert_eq!(f["labels"], json!(["DOORS-1003"]));
+    assert!(f.get("labels").is_none(), "gereksinim numarası label olmaz");
     assert_eq!(f["project"]["key"], "STAJ");
 }
 
@@ -861,7 +866,7 @@ async fn test_sw_6_3_auto_bug_uses_template_fields() {
     let url = fake_jira(log.clone()).await;
     let app = app_with(jira_cfg(url, divan::config::JiraMode::On));
     let form = format!(
-        "ozet={}&aciklama=x&doors_label=on&alanlar={}",
+        "ozet={}&aciklama=x&alanlar={}",
         urlencoding::encode("{{proje}}: {{senaryo}}"),
         urlencoding::encode(r#"{"customfield_10200": {"value": "Yazılım"}, "labels": ["otomasyon"]}"#)
     );
@@ -882,7 +887,11 @@ async fn test_sw_6_3_auto_bug_uses_template_fields() {
     assert_eq!(f["customfield_10200"]["value"], "Yazılım");
     assert!(f["summary"].as_str().unwrap().starts_with("ekip/javafx: "), "{f}");
     let labels = f["labels"].as_array().unwrap();
-    assert!(labels.contains(&json!("otomasyon")) && labels.iter().any(|l| l.as_str().unwrap().starts_with("DOORS-")));
+    assert_eq!(
+        labels,
+        &vec![json!("otomasyon")],
+        "yalnızca şablondaki label; gereksinim numarası değil"
+    );
 }
 
 #[tokio::test]
@@ -963,7 +972,7 @@ async fn test_sw_6_3_draft_prepared_then_opened_with_one_click() {
     let app = app_with(jira_cfg(url, divan::config::JiraMode::Observe));
     let cookie = app.admin_cookie();
     let form = format!(
-        "ozet={}&aciklama=x&doors_label=on&alanlar={}",
+        "ozet={}&aciklama=x&alanlar={}",
         urlencoding::encode("[E2E] {{senaryo}}"),
         urlencoding::encode(r#"{"priority": {"name": "Major"}}"#)
     );

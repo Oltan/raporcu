@@ -27,6 +27,7 @@ log/hata/Debug çıktısında `***` görünür (SW-9.2).
 | `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `MAIL_TO` (`,` ya da `;` ayrılmış), `DRY_RUN` | e-posta | port 25 |
 | `TRIAGE_AUTO_CONFIDENCE`, `FLAKY_WINDOW` | triage eşiği, flaky penceresi (koşum) | 0.7, 10 |
 | `DOORS_DXL` | doors_dxl: DXL betiği ucu ve düğmesi | false |
+| `GEREKSINIM_ONEKI`, `EK_KIMLIK_ONEKLERI` | onekler (`common::kimlik::Onekler`); `AppState::new` genel ayara yazar | `DOORS-`, boş |
 | `ULAK_DIR` | ulak ikililerinin klasörü | `DATA_DIR/tools` |
 
 Geçersiz sayı ya da `JIRA_AUTO_CREATE` değeri açılışta açık hata mesajıyla durdurur.
