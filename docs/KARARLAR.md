@@ -82,6 +82,10 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   şablonu (yer tutuculu özet/açıklama, ek alanlar JSON) ve DOORS öznitelikleri `settings`
   tablosunda, Admin > Ayarlar'dan değişir (`docs/JIRA_DOORS_AYARLARI.md`). Zorunlu alanlar Jira'nın
   createmeta ucundan okunur; şirketten şirkete değişen alanlar için kod değişikliği gerekmez.
+- **Jira eşleşmesi daraltıldı (SW-6.2):** açık bug araması `issuetype = JIRA_ISSUE_TYPE` ve
+  `labels = JIRA_MATCH_LABEL` (varsayılan `divan`) koşullarını ekler; divan bu label'ı açtığı her bug'a
+  koyar. Sahada story'ye fotoğraf eklendiği görüldü. Etiketsiz eski bug'lar Jira aramasıyla eşleşmez
+  (yerel parmak izi bağı sürer); `JIRA_MATCH_LABEL=off` label koşulunu kaldırır.
 - **Gereksinim bağı tag ile:** `@<önek><no>`; önek `GEREKSINIM_ONEKI` (varsayılan `DOORS-`, sahada
   `YTET_`, kimlik yazıldığı gibi: `YTET_1234`). Arayüz ve CSV'de "DOORS" yerine önek adı (`YTET`)
   görünür; iç adlar (`doors_ids`, `/doors.csv`) değişmedi. Ek kimlikler (`EK_KIMLIK_ONEKLERI`, örn.

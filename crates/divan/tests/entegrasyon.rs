@@ -294,7 +294,11 @@ async fn test_sw_6_1_bug_has_doors_in_description_not_label_and_screenshot() {
     assert_eq!(r.status(), StatusCode::SEE_OTHER);
     let g = log.lock().unwrap();
     let f = &g.created[0]["fields"];
-    assert!(f.get("labels").is_none(), "gereksinim numarası label olmaz: {f}");
+    assert_eq!(
+        f["labels"],
+        json!(["divan"]),
+        "yalnızca eşleşme label'ı; gereksinim numarası label olmaz"
+    );
     assert!(f["description"].as_str().unwrap().contains("DOORS-1003"));
     assert_eq!(g.attachments, vec!["BUG-1"], "ekran görüntüsü issue'ya eklendi");
     assert!(g.auth[0].starts_with("Bearer "));
@@ -855,7 +859,7 @@ async fn test_sw_6_1_required_fields_listed_and_bug_form_sends_them() {
     assert_eq!(f["customfield_10200"], json!({ "id": "10301" }));
     assert_eq!(f["components"], json!([{ "id": "500" }, { "id": "501" }]));
     assert_eq!(f["priority"], json!({ "name": "Critical" }), "formdaki değer şablonu ezer");
-    assert!(f.get("labels").is_none(), "gereksinim numarası label olmaz");
+    assert_eq!(f["labels"], json!(["divan"]), "gereksinim numarası label olmaz");
     assert_eq!(f["project"]["key"], "STAJ");
 }
 
@@ -889,8 +893,8 @@ async fn test_sw_6_3_auto_bug_uses_template_fields() {
     let labels = f["labels"].as_array().unwrap();
     assert_eq!(
         labels,
-        &vec![json!("otomasyon")],
-        "yalnızca şablondaki label; gereksinim numarası değil"
+        &vec![json!("divan"), json!("otomasyon")],
+        "eşleşme label'ı + şablondaki label; gereksinim numarası değil"
     );
 }
 

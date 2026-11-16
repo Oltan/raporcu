@@ -22,6 +22,7 @@ log/hata/Debug çıktısında `***` görünür (SW-9.2).
 | `LOG_MAX_DAYS`, `LOG_MAX_MB`, `LOG_STDOUT` | log dönüşümü | 14, 500, true |
 | `DISK_WARN_PCT`, `DISK_CLEAN_PCT` | disk eşikleri | 80, 90 |
 | `JIRA_URL`, `JIRA_USER`, `JIRA_TOKEN`, `JIRA_PROJECT`, `JIRA_ISSUE_TYPE` | Jira | issue type `Bug` |
+| `JIRA_MATCH_LABEL` | jira_match_label: açılan bug'a eklenen ve aramada aranan label; `off`/`kapali` → yok | `divan` |
 | `JIRA_AUTO_CREATE` | `off`/`kapali`, `observe`/`gozlem` (varsayılan), `on`/`acik` | observe |
 | `JIRA_MAX_BUGS_PER_RUN`, `JIRA_REQUIRE_RETRY` | otomatik bug sınırları | 3, true |
 | `SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `MAIL_TO` (`,` ya da `;` ayrılmış), `DRY_RUN` | e-posta | port 25 |

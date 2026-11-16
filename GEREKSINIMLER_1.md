@@ -326,6 +326,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Kabul: Yükleme sonrasında açık bug'ı olan senaryolar bağlanmış görünür.
 - Test: B, E
 - Doğrulama: `test_sw_6_2_auto_match_after_upload`
+- Ek: Jira araması yalnızca `JIRA_ISSUE_TYPE` türünde ve `JIRA_MATCH_LABEL` (varsayılan `divan`) label'lı issue'larla eşleşir; divan bu label'ı açtığı her bug'a ekler (story/task'a fotoğraf gitmez). Doğrulama: `test_sw_6_2_acik_bug_jql_tur_ve_label`, `test_sw_6_2_auto_match_after_upload`.
 - Not: Sahte Jira ile B/E testleri geçer; gerçek Jira ile E testi bekliyor.
 
 ### SW-6.3 [MEVCUT] Sınırlı otomatik bug açma

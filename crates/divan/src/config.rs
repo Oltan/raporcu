@@ -69,6 +69,9 @@ pub struct Config {
     pub jira_token: Option<Secret>,
     pub jira_project: Option<String>,
     pub jira_issue_type: String,
+    /// SW-6.2: divan'ın açtığı her bug'a eklenen ve açık bug aramasında aranan label
+    /// (`JIRA_MATCH_LABEL`, varsayılan `divan`; `off` ile kapalı).
+    pub jira_match_label: Option<String>,
     pub jira_mode: JiraMode,
     pub jira_max_per_run: usize,
     pub jira_require_retry: bool,
@@ -143,6 +146,11 @@ impl Config {
             jira_token: var("JIRA_TOKEN").map(Secret),
             jira_project: var("JIRA_PROJECT"),
             jira_issue_type: var("JIRA_ISSUE_TYPE").unwrap_or_else(|| "Bug".into()),
+            jira_match_label: match var("JIRA_MATCH_LABEL").as_deref() {
+                None => Some("divan".into()),
+                Some("off") | Some("kapali") => None,
+                Some(l) => Some(l.to_string()),
+            },
             jira_mode,
             jira_max_per_run: parse("JIRA_MAX_BUGS_PER_RUN", 3)?,
             jira_require_retry: parse("JIRA_REQUIRE_RETRY", true)?,
@@ -196,6 +204,7 @@ impl Config {
             jira_token: None,
             jira_project: None,
             jira_issue_type: "Bug".into(),
+            jira_match_label: Some("divan".into()),
             jira_mode: JiraMode::Observe,
             jira_max_per_run: 3,
             jira_require_retry: true,

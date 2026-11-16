@@ -11,6 +11,7 @@ JIRA_URL=https://jira.sirket.local
 JIRA_TOKEN=<kişisel erişim tokenı (PAT)>     # JIRA_USER verilirse Basic kimlik doğrulama
 JIRA_PROJECT=STAJ
 JIRA_ISSUE_TYPE=Bug
+JIRA_MATCH_LABEL=divan                         # açılan bug'a eklenir, aramada aranır; off = kapalı
 JIRA_AUTO_CREATE=observe                      # off | observe (yalnızca kayıt) | on
 JIRA_MAX_BUGS_PER_RUN=3
 JIRA_REQUIRE_RETRY=true
@@ -144,10 +145,14 @@ olmayan her kalan (`failed`) senaryo için sırayla:
 
 1. `@JIRA-…` tag'i varsa senaryo o issue'ya bağlanır (Jira'ya gidilmez).
 2. Aynı hata (parmak izi) daha önce bir issue'ya bağlandıysa senaryo ona bağlanır (Jira'ya gidilmez).
-3. Jira'da aranır: `JIRA_PROJECT` içinde, kapanmamış, **özetinde senaryo adı geçen** en yeni issue
-   (gereksinim numaraları label olmadığı için label'a bakılmaz). Bulunursa senaryo ona bağlanır ve **ekran görüntüsü o
-   issue'ya eklenir** (`ekran-<senaryo no>.png`). Arama issue türüne bakmaz: aynı projedeki bir iş ya da
-   hikâye de eşleşebilir.
+3. Jira'da aranır: `JIRA_PROJECT` içinde, türü `JIRA_ISSUE_TYPE` (varsayılan `Bug`), label'ı
+   `JIRA_MATCH_LABEL` (varsayılan `divan`), kapanmamış ve **özetinde senaryo adı geçen** en yeni issue.
+   Bulunursa senaryo ona bağlanır ve **ekran görüntüsü o issue'ya eklenir** (`ekran-<senaryo no>.png`).
+   Story/task eşleşmez; fotoğraf yalnızca divan'ın açtığı ya da elle `divan` label'ı verilen bug'a gider.
+   divan'ın açtığı her bug'a bu label eklenir (Jira label'ı reddederse bug label'sız açılır ve sonraki
+   aramalarda Jira'dan bulunmaz; 2. adımdaki yerel bağ yine çalışır). Bu sürümden önce açılmış etiketsiz
+   bug'lar da Jira aramasıyla bulunmaz; eşleşmesini istediğiniz bug'a Jira'da `divan` label'ını ekleyin.
+   Gereksinim numaraları label olmadığı için aranmaz.
 
 `JIRA_AUTO_CREATE=off` ya da `observe` bunu **durdurmaz**. Yanlış bir eşleşme 2. adım yüzünden sonraki
 koşumlarda da tekrarlanır.
@@ -157,7 +162,8 @@ koşumlarda da tekrarlanır.
 | Ne istiyorsunuz | Ayar | Kaybedilen |
 |-----------------|------|------------|
 | Jira'ya hiç gidilmesin | `JIRA_URL` satırını yorum yapın (sistem ortam değişkeni olarak da tanımlı olmamalı) | "Jira'ya bug aç…" ve "Jira'da aç" düğmeleri çalışmaz; taslak da istemiyorsanız `JIRA_AUTO_CREATE=off` |
-| Yanlış eşleşme olmasın, düğmeler çalışsın | `JIRA_PROJECT` yalnızca otomasyon bug'larının durduğu ayrı bir Jira projesi olsun | bug'lar o projede açılır |
+| Yanlış eşleşme olmasın, düğmeler çalışsın | `JIRA_MATCH_LABEL` açık kalsın (varsayılan); daha da daraltmak için `JIRA_PROJECT` yalnızca otomasyon bug'larının durduğu ayrı bir Jira projesi olsun | etiketsiz bug'lar Jira aramasıyla eşleşmez |
+| Label'a bakmadan arasın (eski davranışa yakın) | `JIRA_MATCH_LABEL=off` | aynı türdeki etiketsiz bug'lar da eşleşebilir |
 
 **Yanlış bağlantıyı silmek:** arayüzde düğmesi yoktur. divan'ı durdurun, `DATA_DIR/divan.db` dosyasını
 yedekleyin, sonra `sqlite3` ile:

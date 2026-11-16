@@ -6,13 +6,15 @@
 - Kimlik: `JIRA_USER` varsa **Basic** (`kullanıcı:token` base64), yoksa **Bearer** (PAT).
 - Bağlantı: `gitlab::agent()` (şirket CA'sı dahil); bağlantı hatası sertifikadansa mesaja `tls::hint` eklenir.
 - `create_bug(NewBug)`: `POST /rest/api/2/issue` (`project`, `issuetype`, `summary` ≤250,
-  `description`, `labels`). **400 ve hata `labels` alanındaysa** label'sız tekrar dener (WARN).
+  `description`, `labels`: önce `JIRA_MATCH_LABEL`, sonra bug'ın ve şablonun label'ları). **400 ve hata
+  `labels` alanındaysa** label'sız tekrar dener (WARN).
   Başarısızsa hata metni gizli değerlerden temizlenir.
 - `attach(key, ad, bayt)`: `POST /rest/api/2/issue/<key>/attachments`, multipart, başlık
   `X-Atlassian-Token: no-check`.
-- `find_open_bug(senaryo)`: JQL `project = "<P>" AND statusCategory != Done AND summary ~
-  "\"<senaryo>\"" ORDER BY created DESC`, ilk sonuç (gereksinim numaraları label olmadığından label'a
-  bakılmaz). Önce
+- `find_open_bug(senaryo)`: `open_bug_jql` — `project = "<P>" AND issuetype = "<JIRA_ISSUE_TYPE>"
+  [AND labels = "<JIRA_MATCH_LABEL>"] AND statusCategory != Done AND summary ~ "\"<senaryo>\"" ORDER BY
+  created DESC`, ilk sonuç (değerlerdeki `"` ve `\` boşluk olur; gereksinim numaraları label olmadığından
+  aranmaz). Önce
   `/rest/api/2/search` denenir; Jira Cloud bu ucu kaldırdığı için 410 dönerse `/rest/api/2/search/jql`.
 
 ## Bug içeriği — şablon (Admin > Ayarlar, `ayarlar.md`)

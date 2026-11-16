@@ -20,6 +20,7 @@ pub struct Jira {
     token: String,
     project: String,
     issue_type: String,
+    match_label: Option<String>,
     secrets: Vec<String>,
     agent: ureq::Agent,
 }
@@ -67,6 +68,7 @@ impl Jira {
             token: cfg.jira_token.as_ref()?.expose().to_string(),
             project: cfg.jira_project.clone()?,
             issue_type: cfg.jira_issue_type.clone(),
+            match_label: cfg.jira_match_label.clone(),
             secrets: cfg.secrets(),
             agent: crate::gitlab::agent(),
         })
@@ -128,7 +130,9 @@ impl Jira {
             "summary": crate::logging::truncate(&bug.summary, 250),
             "description": bug.description,
         });
-        let mut labels: Vec<Value> = bug.labels.iter().map(|l| Value::String(l.clone())).collect();
+        // eşleşme label'ı (SW-6.2) önce; label reddedilirse aşağıda label'sız tekrar denenir
+        let mut labels: Vec<Value> = self.match_label.iter().map(|l| Value::String(l.clone())).collect();
+        labels.extend(bug.labels.iter().map(|l| Value::String(l.clone())));
         for (k, v) in &bug.extra {
             if k == "project" {
                 continue;
@@ -250,13 +254,11 @@ impl Jira {
         Ok(fields.iter().map(|(k, f)| parse_meta(k, f)).collect())
     }
 
-    /// Açık bug arama: senaryo adı ile (gereksinim kimlikleri label olmadığı için aranmaz).
+    /// Açık bug arama (SW-6.2): aynı issue türü, divan'ın label'ı (`JIRA_MATCH_LABEL`) ve senaryo
+    /// adı. Story/task eşleşmez; etiketsiz eski bug'lar Jira aramasıyla bulunmaz (yerel parmak izi
+    /// bağı sürer). Gereksinim kimlikleri label olmadığı için aranmaz.
     pub fn find_open_bug(&self, scenario: &str) -> Result<Option<String>> {
-        let name = scenario.replace(['"', '\\'], " ");
-        let jql = format!(
-            "project = \"{}\" AND statusCategory != Done AND summary ~ \"\\\"{name}\\\"\" ORDER BY created DESC",
-            self.project
-        );
+        let jql = open_bug_jql(&self.project, &self.issue_type, self.match_label.as_deref(), scenario);
         let query = format!("maxResults=1&fields=key&jql={}", urlencoding::encode(&jql));
         let (mut st, mut v) = self.call("GET", &format!("/rest/api/2/search?{query}"), None)?;
         if st == 410 {
@@ -269,6 +271,23 @@ impl Jira {
         }
         Ok(v["issues"][0]["key"].as_str().map(String::from))
     }
+}
+
+fn jql_str(s: &str) -> String {
+    s.replace(['"', '\\'], " ")
+}
+
+/// Açık bug JQL'i: proje, issue türü, (varsa) eşleşme label'ı, kapanmamış, özette senaryo adı.
+pub fn open_bug_jql(project: &str, issue_type: &str, label: Option<&str>, scenario: &str) -> String {
+    let mut jql = format!("project = \"{}\" AND issuetype = \"{}\"", jql_str(project), jql_str(issue_type));
+    if let Some(l) = label {
+        jql.push_str(&format!(" AND labels = \"{}\"", jql_str(l)));
+    }
+    jql.push_str(&format!(
+        " AND statusCategory != Done AND summary ~ \"\\\"{}\\\"\" ORDER BY created DESC",
+        jql_str(scenario)
+    ));
+    jql
 }
 
 fn base64(s: &str) -> String {
@@ -901,6 +920,16 @@ mod tests {
         assert_eq!(base64("ab"), "YWI=");
         assert_eq!(fingerprint(1, "Timeout after 30 s\nat x"), fingerprint(1, "Timeout after 45 s"));
         assert_ne!(fingerprint(1, "a"), fingerprint(2, "a"));
+    }
+
+    #[test]
+    fn test_sw_6_2_acik_bug_jql_tur_ve_label() {
+        let j = open_bug_jql("STAJ", "Bug", Some("divan"), "Yanlış \"şifre\"");
+        assert_eq!(
+            j,
+            "project = \"STAJ\" AND issuetype = \"Bug\" AND labels = \"divan\" AND statusCategory != Done AND summary ~ \"\\\"Yanlış  şifre \\\"\" ORDER BY created DESC"
+        );
+        assert!(!open_bug_jql("STAJ", "Hata", None, "x").contains("labels"), "JIRA_MATCH_LABEL=off");
     }
 
     #[test]
