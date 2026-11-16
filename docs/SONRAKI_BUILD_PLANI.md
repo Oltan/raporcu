@@ -3,8 +3,8 @@
 ## Context
 
 Pilot kullanımda çıkan eksikler tek build'de toplanıyor. Flaky kuralı zaten yazıldı (`ad23659`).
-Kullanıcının onayladığı dört kalem: gereksinim öneki (YTET_) ve ek kimlikler (YGÖ-), Jira arama kriteri, doğrulama filtresi (tag),
-Claude yolu + ağaç sınırı. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
+Kullanıcının onayladığı kalemler: gereksinim öneki (YTET_) ve ek kimlikler (YGÖ-), Jira arama kriteri, doğrulama filtresi (tag),
+Claude yolu + ağaç sınırı; kalem 5 (auto-fix'te yalnızca düzeltilen senaryo) öneri. Dal: `llm-degerlendirme`. Durum: **onay bekliyor** (kalem 1: YTET_ gereksinim no, YGÖ- ek kimlik), henüz uygulanmadı.
 
 ## Sorularının kod gerektirmeyen yanıtları
 
@@ -50,7 +50,7 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
   girmez; değer saklanan `tags` sütunundan okunur (migration yok, eski koşumlarda da görünür).
   `ek_kimlik(tag, onek)` önek büyük/küçük harfe duyarlı, kimlik yazıldığı gibi.
   - CSV: her önek için ayrı sütun, başlık önekin sondaki `-`/`_` atılmış hâli (`YGÖ`), alan
-    anahtarı `ek:YGÖ-`; DOORS sütunundan sonra. `parse_fields` bu dinamik alanları tanır.
+    anahtarı `ek:YGÖ-`; YTET sütunundan sonra. `parse_fields` bu dinamik alanları tanır.
   - Jira şablonunda yer tutucu (aşağıda, "Jira'da YTET/YGÖ").
   - Rapor: rozet (`queries.rs:157` "sıradan tag" süzgeci bunları da ayırır) ve arama (tam tag
     eşleşmesi, `YGÖ-12` `YGÖ-123`'ü getirmez).
@@ -63,6 +63,14 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
     ayarda `true` olsa da yok sayılır).
   - `find_open_bug` `labels in (<YTET…>)` koşulunu bırakır; eşleşme senaryo adı + kalem 2'deki
     issuetype/`divan` label'ı ile yapılır.
+- **Arayüz ve çıktıda "DOORS" adı kalkar** (karar: kafa karıştırıyor; çıktıda YTET görünsün):
+  kullanıcıya görünen "DOORS" yazıları önek adını kullanır (önekin sondaki `-`/`_` atılmış hâli,
+  `YTET`). Koşum sayfası düğmesi "YTET CSV", o CSV'nin "DOORS ID" sütunu "YTET", arama CSV'sinin
+  "DOORS numarası" sütunu "YTET", arama kutusu etiketi/örneği (`YTET_1001`), rozet ipucu,
+  ayarlar sayfasındaki DOORS bölümü ("Gereksinim (YTET)", link şablonu açıklaması). Adres
+  (`/runs/{id}/doors.csv`), alan anahtarı (`doors`), veritabanı sütunu ve `.env` adları
+  değişmez (iç adlar). Kullanıcının aktarım betiği "DOORS ID" başlığına bakıyorsa güncellenmeli
+  (`docs/JIRA_DOORS_AYARLARI.md`'de not).
 - Eski koşumlar yeniden işlenmez: önek değişmeden önce yüklenen koşumlarda `YTET_` tag'leri
   gereksinim numarası olarak görünmez (tag olarak durur).
 - Testler: `YTET_` önekiyle tanıma, `{{YTET}}`/`{{YGÖ}}`/`{{doors}}` doldurma, bug'da label
@@ -102,8 +110,27 @@ senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşmenin kaybolma
 - `ULAK_CLAUDE_BIN` boşluklu yol olabilir (`C:\Program Files\…`): şablona tırnaklı girer
   (`split_command` bölmesin); testle doğrulanır.
 
+### 5. auto-fix branch'inde yalnızca düzeltilen senaryo (şablon + ulak.exe)
+Durum: sahada fix push'undan sonra tüm testler koşuyor. Depodaki şablon auto-fix/ branch'inde
+test/report işlerini zaten hiç koşturmuyor (düzeltme fix işinde tek senaryoyla doğrulanıyor);
+projedeki `.gitlab-ci.yml` eski kopya olduğu için bu kural yok. Yeni seçenek: hiç koşmamak ile
+hepsini koşmak arasında, yalnızca düzeltilen senaryo.
+- `ULAK_FIX_PIPELINE`: `off` (varsayılan, bugünkü: auto-fix'te test yok) | `senaryo` (yeni) |
+  `on` (hepsi). Şablon kuralı `!= "on"` → `== "off"` olmayan durumlarda test/report koşar;
+  fix işi auto-fix'te yine asla koşmaz (döngü yok).
+- `ulak fix` commit mesajına git trailer'ları yazar: `Ulak-Senaryo: <ad>`, `Ulak-Tag: <tag'ler>`,
+  `Ulak-Kosum: <id>`. Aynı koşumda birden çok senaryo aynı branch'e giderse her biri bir trailer.
+- `ulak start`: `CI_COMMIT_BRANCH` auto-fix/ ile başlıyor ve `ULAK_FIX_PIPELINE=senaryo` ise
+  HEAD commit'inin trailer'larını okur, `mvn test`'e doğrulama koşusuyla aynı filtreyi verir
+  (kalem 3: `name` ya da `tags`); beklenen senaryo sayısı da bu kadardır (SW-3.x sayımı ile
+  çelişmesin). Trailer yoksa uyarı + tüm testler (güvenli taraf).
+- Sonuç divan'da auto-fix branch'inin koşumu olarak görünür; MR açıklamasına rapor linki.
+- Test: `test_sw_7_2_fix_pipeline_yalnizca_senaryo` (trailer okuma, filtre), rehearse'e
+  `ck.check("SW-7.2", …)` (auto-fix branch'i + `senaryo` → yalnızca o senaryo koşar).
+- Belge: `docs/KURULUM.md`'de eski kopya kullananlar için eklenecek kural satırları.
+
 ## Her kalemde ortak işler
-- Test adı `test_sw_<bölüm>_<madde>_…`: 1 → SW-6.4 (CSV) / 2.x, 2 → SW-6.2, 3 → SW-7.2, 4 → SW-7.2/7.6.
+- Test adı `test_sw_<bölüm>_<madde>_…`: 1 → SW-6.4 (CSV) / 2.x, 2 → SW-6.2, 3 → SW-7.2, 4 → SW-7.2/7.6, 5 → SW-7.2 (fix pipeline).
   Mevcut `test_sw_6_2_auto_match_after_upload` sahte Jira'sı yeni JQL'e göre güncellenir.
 - Belgeler: `GEREKSINIMLER_1.md`, `docs/KARARLAR.md`, `docs/JIRA_DOORS_AYARLARI.md`,
   `docs/KOD_AJANI_VLLM.md`, `docs/KURULUM.md`, ilgili `docs/kod/*`, `.env.example`,
