@@ -370,11 +370,40 @@ fn report(c: &Ctx, run_id: i64, r: &FixResult) {
 /// Kod ajanı: `ULAK_FIX_AGENT=opencode` (varsayılan) ya da `claude` (Claude Code).
 /// Komutun tamamı `ULAK_FIX_CMD` (eski adı `ULAK_OPENCODE_CMD`) ile ezilebilir.
 /// Yer tutucular: `{istem}` istem metni, `{ekran}` ekran görüntüsü yolu, `{istem_dosyasi}`.
+/// Doğrulama koşusunun filtresi: `ULAK_FIX_VALIDATE_FILTER=name` (varsayılan) senaryo adı,
+/// `tags` adayın tag'leri (`@a and @b`; ASCII olmayanlar atılır, hiç kalmazsa uyarıyla ada düşülür).
+/// Aynı tag kümesini taşıyan başka senaryolar da koşar; senaryoya özgü tag (YTET no) varsa tek senaryo.
+pub fn validate_filter(name: &str, tags: &[String]) -> crate::filtre::Filtre {
+    validate_filter_mode(&env_or("ULAK_FIX_VALIDATE_FILTER", "name"), name, tags)
+}
+
+fn validate_filter_mode(mode: &str, name: &str, tags: &[String]) -> crate::filtre::Filtre {
+    use crate::filtre::{atilan_taglar, tag_ifadesi, Filtre};
+    if mode != "tags" {
+        return Filtre::Ad(name.to_string());
+    }
+    let atilan = atilan_taglar(tags);
+    if !atilan.is_empty() {
+        say(format!(
+            "UYARI: doğrulama filtresine girmeyen tag'ler (ASCII dışı): {}",
+            atilan.join(" ")
+        ));
+    }
+    match tag_ifadesi(tags) {
+        Some(t) => Filtre::Taglar(t),
+        None => {
+            say("UYARI: adayın kullanılabilir tag'i yok; doğrulama senaryo adıyla");
+            Filtre::Ad(name.to_string())
+        }
+    }
+}
+
 /// Doğrulama koşusu: test işiyle aynı komut (ULAK_TEST_COMMAND, mvn.cmd, bellek sınırları, Xvfb),
-/// yalnızca bu senaryo. `ULAK_FIX_VALIDATE_CMD` verilirse o komut olduğu gibi.
-fn validate_command(c: &Ctx, scenario: &str) -> crate::runner::TestCommand {
+/// yalnızca bu senaryo (`validate_filter`). `ULAK_FIX_VALIDATE_CMD` verilirse o komut; içinde
+/// `{senaryo}` (`^ad$` düzenli ifadesi) ve `{taglar}` (tag ifadesi, yoksa boş) yer tutucuları.
+fn validate_command(c: &Ctx, cand: &FixCandidate) -> crate::runner::TestCommand {
     if let Some(t) = env("ULAK_FIX_VALIDATE_CMD") {
-        let mut vt = crate::ctx::split_command(&t);
+        let mut vt = validate_subst(&t, &cand.name, &cand.tags);
         let program = crate::runner::program_for_os(vt.remove(0));
         return crate::runner::wrap_display(crate::runner::TestCommand {
             program,
@@ -384,8 +413,19 @@ fn validate_command(c: &Ctx, scenario: &str) -> crate::runner::TestCommand {
     }
     let mut cmd = crate::runner::build_test_command(c, None);
     // xvfb-run sarmalıyorsa ek argümanlar yine Maven'a geçer (komutun sonuna eklenir)
-    cmd.args.push(format!("-Dcucumber.filter.name=^{}$", regex_quote(scenario)));
+    cmd.args.push(validate_filter(&cand.name, &cand.tags).arguman());
     cmd
+}
+
+/// `ULAK_FIX_VALIDATE_CMD` şablonu: her argümanda `{senaryo}` ve `{taglar}` değiştirilir (bölme
+/// yer tutucudan önce yapılır, değerdeki boşluklar argümanı bölmez).
+pub fn validate_subst(template: &str, name: &str, tags: &[String]) -> Vec<String> {
+    let senaryo = crate::filtre::ad_ifadesi(name);
+    let taglar = crate::filtre::tag_ifadesi(tags).unwrap_or_default();
+    crate::ctx::split_command(template)
+        .into_iter()
+        .map(|p| p.replace("{senaryo}", &senaryo).replace("{taglar}", &taglar))
+        .collect()
 }
 
 /// `-Dcucumber.filter.name` için senaryo adı → düzenli ifade. Cucumber adı tam eşleşmeyle
@@ -612,7 +652,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                 result.warnings.push(format!("Dikkat: düzeltme assertion satırlarını değiştiriyor ({} satır). Testin doğruladığı davranışın değişmediğini inceleyin.", asserts.len()));
             }
             // doğrulama koşusu
-            let vcmd = validate_command(c, &cand.name);
+            let vcmd = validate_command(c, cand);
             let (vcode, _) = crate::runner::run_streaming(&vcmd, dir).unwrap_or((1, false));
             let passed = vcode == 0;
             result.validation_passed = Some(passed);
@@ -785,6 +825,30 @@ mod tests {
         };
         let p = build_prompt(&c, "src/test/resources/", None, "http://r");
         assert!(p.contains("daha önce birleştirilmiş düzeltmeler") && p.contains("#yeni"));
+    }
+
+    #[test]
+    fn test_sw_7_2_dogrulama_filtresi_ad_ya_da_tag() {
+        use crate::filtre::Filtre;
+        let tags: Vec<String> = ["giris", "YTET_1234", "YGÖ-12"].map(String::from).to_vec();
+        assert_eq!(validate_filter_mode("name", "Giriş", &tags), Filtre::Ad("Giriş".into()));
+        assert_eq!(
+            validate_filter_mode("tags", "Giriş", &tags),
+            Filtre::Taglar("@giris and @YTET_1234".into())
+        );
+        let yalniz_turkce: Vec<String> = vec!["YGÖ-12".into()];
+        assert_eq!(
+            validate_filter_mode("tags", "Giriş", &yalniz_turkce),
+            Filtre::Ad("Giriş".into()),
+            "tag kalmazsa ada düşer"
+        );
+        let a = validate_subst(
+            "mvn -B test -Dcucumber.filter.name={senaryo} \"-Dcucumber.filter.tags={taglar}\"",
+            "Geçersiz şifre",
+            &tags,
+        );
+        assert_eq!(a[3], "-Dcucumber.filter.name=^Ge.ersiz .ifre$");
+        assert_eq!(a[4], "-Dcucumber.filter.tags=@giris and @YTET_1234", "boşluklu değer tek argüman");
     }
 
     #[test]

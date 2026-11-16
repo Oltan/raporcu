@@ -47,8 +47,12 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
       `verify(`, `Verify`, `.should`, `expect(` → uyarı "assertion satırlarını değiştiriyor".
    8. Doğrulama (`validate_command`): `ULAK_FIX_VALIDATE_CMD` ya da test işiyle **aynı komut**
       (`build_test_command`: `ULAK_TEST_COMMAND`, Windows'ta `mvn.cmd`, bellek sınırları, Xvfb, UTF-8 dil ayarı)
-      + `-Dcucumber.filter.name=^<ad>$`. Ad `regex_quote` ile: düzenli ifade karakterleri kaçırılır, ASCII
-      olmayan harfler `.` olur (Cucumber tam eşleşme yapar; POSIX dil ayarında Java Türkçe argümanı bozar). Geçti mi.
+      + senaryo filtresi (`validate_filter`, `filtre.md`): `ULAK_FIX_VALIDATE_FILTER=name` (varsayılan)
+      `-Dcucumber.filter.name=^<ad>$` — ad `regex_quote` ile: düzenli ifade karakterleri kaçırılır, ASCII
+      olmayan harfler `.` olur (Cucumber tam eşleşme yapar; POSIX dil ayarında Java Türkçe argümanı bozar);
+      `tags` ise `-Dcucumber.filter.tags=@a and @b` (adayın ASCII tag'leri, ASCII dışı olanlar uyarıyla
+      atılır; hiç kalmazsa ada düşülür). `ULAK_FIX_VALIDATE_CMD` verilirse o komut, `validate_subst` ile
+      `{senaryo}` (`^ad$`) ve `{taglar}` (tag ifadesi) yer tutucuları doldurularak. Geçti mi.
    9. Commit (`ulak-opencode` adına), push: `ULAK_PUSH_REMOTE` ya da
       `<CI_SERVER_URL şeması>://oauth2:<ULAK_FIX_TOKEN>@<host>/<CI_PROJECT_PATH>.git` (`-f`,
       `HEAD:refs/heads/<branch>`). Push hatasında token mesajdan silinir, sertifika hatasına ipucu
