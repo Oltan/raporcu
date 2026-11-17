@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>divan sunumu</title>
+<style>
+:root {
+  --bg: #eef1f5;
+  --kart: #ffffff;
+  --metin: #1d2430;
+  --soluk: #5b6676;
+  --cizgi: #d9dee6;
+  --vurgu: #2457c5;
+  --vurgu-acik: #e6edfb;
+  --yesil: #1f7a4d;
+  --yesil-acik: #e3f3ea;
+  --kirmizi: #b3261e;
+  --kirmizi-acik: #fbe7e6;
+  --sari: #8a5a00;
+  --sari-acik: #fdf1d8;
+  --mor: #6b3fb5;
+  --mor-acik: #efe8fa;
+  --kod-bg: #f4f6f9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--metin);
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; }
+body { overflow: hidden; }
+
+/* 16:9 sahne, pencereye ölçeklenir */
+#sahne { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px;
+  transform-origin: center center; }
+.slayt { position: absolute; inset: 0; background: var(--kart); border-radius: 14px;
+  box-shadow: 0 6px 30px rgba(20, 30, 50, .12); padding: 56px 72px 64px; display: none;
+  flex-direction: column; overflow: hidden; }
+.slayt.aktif { display: flex; }
+.slayt h1 { font-size: 46px; margin: 0 0 8px; letter-spacing: -.5px; }
+.slayt h2 { font-size: 34px; margin: 0 0 6px; letter-spacing: -.3px; }
+.slayt .alt { color: var(--soluk); font-size: 20px; margin: 0 0 26px; }
+.slayt p, .slayt li { font-size: 21px; line-height: 1.45; }
+.slayt ul { margin: 0; padding-left: 26px; }
+.slayt li { margin: 6px 0; }
+.slayt li::marker { color: var(--vurgu); }
+.kucuk { font-size: 16px !important; color: var(--soluk); }
+code, .kod { font-family: Consolas, "Cascadia Mono", "DejaVu Sans Mono", monospace; }
+code { background: var(--kod-bg); border: 1px solid var(--cizgi); border-radius: 5px; padding: 1px 6px; font-size: .88em; }
+pre.kod { background: var(--kod-bg); border: 1px solid var(--cizgi); border-radius: 10px; padding: 16px 20px;
+  font-size: 17px; line-height: 1.5; margin: 0; white-space: pre; overflow: hidden; }
+.alt-bilgi { position: absolute; left: 72px; right: 72px; bottom: 22px; display: flex; justify-content: space-between;
+  color: var(--soluk); font-size: 14px; }
+.izgara { display: grid; gap: 22px; }
+.iki { grid-template-columns: 1fr 1fr; }
+.uc { grid-template-columns: 1fr 1fr 1fr; }
+.dort { grid-template-columns: repeat(4, 1fr); }
+.kutu { border: 1px solid var(--cizgi); border-radius: 12px; padding: 18px 20px; background: #fbfcfd; }
+.kutu h3 { margin: 0 0 8px; font-size: 21px; }
+.kutu p, .kutu li { font-size: 17px; margin: 4px 0; }
+.kutu.mavi { background: var(--vurgu-acik); border-color: #c4d3f3; }
+.kutu.yesil { background: var(--yesil-acik); border-color: #bfe0cc; }
+.kutu.kirmizi { background: var(--kirmizi-acik); border-color: #f0c7c4; }
+.kutu.sari { background: var(--sari-acik); border-color: #f0dcae; }
+.kutu.mor { background: var(--mor-acik); border-color: #d7c8f0; }
+.rakam { font-size: 44px; font-weight: 700; color: var(--vurgu); line-height: 1.1; }
+.etiket { display: inline-block; font-size: 14px; font-weight: 600; padding: 2px 10px; border-radius: 999px;
+  background: var(--vurgu-acik); color: var(--vurgu); margin-right: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 18px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--cizgi); vertical-align: top; }
+th { color: var(--soluk); font-weight: 600; font-size: 15px; text-transform: uppercase; letter-spacing: .4px; }
+.ekran-kap > div { height: 400px; overflow: hidden; border: 1px solid var(--cizgi); border-radius: 10px; }
+.ekran { width: 100%; height: 100%; object-fit: cover; object-position: left top; display: block; }
+.akis { display: flex; align-items: stretch; gap: 10px; }
+.akis .adim { flex: 1; border: 1px solid var(--cizgi); border-radius: 12px; padding: 14px 14px; background: #fbfcfd; }
+.akis .adim b { display: block; font-size: 18px; margin-bottom: 4px; }
+.akis .adim span { font-size: 15px; color: var(--soluk); line-height: 1.4; display: block; }
+.akis .ok { align-self: center; color: var(--soluk); font-size: 26px; }
+.kapak { justify-content: center; background: linear-gradient(135deg, #1f3f8f 0%, #2457c5 60%, #3a76e0 100%); color: #fff; }
+.kapak h1 { font-size: 72px; }
+.kapak .alt { color: #dbe6ff; font-size: 26px; }
+.kapak p { color: #e8efff; }
+.ara { justify-content: center; }
+.ara h1 { font-size: 54px; }
+svg text { font-family: "Segoe UI", system-ui, Arial, sans-serif; }
+
+#ilerleme { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--vurgu); transition: width .2s; }
+#yardim { position: fixed; right: 12px; bottom: 10px; font-size: 12px; color: var(--soluk); }
+
+@media print {
+  @page { size: 1280px 720px; margin: 0; }
+  html, body { overflow: visible; background: #fff; height: auto; }
+  #sahne { position: static; transform: none !important; width: 1280px; height: auto; }
+  .slayt { position: relative; display: flex !important; width: 1280px; height: 720px; border-radius: 0;
+    box-shadow: none; page-break-after: always; break-after: page; }
+  #ilerleme, #yardim { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="sahne">
+
+<!-- 1 -->
+<section class="slayt kapak">
+  <h1>divan</h1>
+  <p class="alt">GitLab CI'daki JavaFX e2e testleri için test sonuç merkezi</p>
+  <p style="font-size:22px;max-width:900px">Gece koşan Cucumber + TestFX testlerinin sonuçlarını canlı izler, raporlar,
+    kalanların nedenine karar verir, ürün hatasını Jira'ya, test kodu hatasını otomatik düzeltmeye yollar.</p>
+  <p style="font-size:18px;margin-top:40px;opacity:.85">divan (sunucu) · ulak (CI aracı)</p>
+</section>
+
+<!-- 2 -->
+<section class="slayt">
+  <h2>Neden?</h2>
+  <p class="alt">Gece testleri koşuyor; sabah asıl iş başlıyor.</p>
+  <div class="izgara iki">
+    <div class="kutu kirmizi">
+      <h3>Bugünkü durum</h3>
+      <ul>
+        <li>Sonuçlar GitLab işlerinin loglarında ve artifact'larda dağınık</li>
+        <li>Kalan her senaryo için ekran görüntüsü, log, adım elle aranıyor</li>
+        <li>"Ürün mü bozuk, test mi?" kararı her sabah yeniden veriliyor</li>
+        <li>Seçici değişince onlarca test kırılıyor, düzeltmek el işi</li>
+        <li>Jira'ya aynı hata için tekrar tekrar bug açılıyor</li>
+      </ul>
+    </div>
+    <div class="kutu yesil">
+      <h3>divan ile</h3>
+      <ul>
+        <li>Tek adreste canlı durum ve kalıcı rapor</li>
+        <li>Hata anının ekran görüntüsü, videosu, sahne ağacı senaryonun yanında</li>
+        <li>Her kalan senaryo için kural + yapay zekâ kararı</li>
+        <li>Test kodu hatasına otomatik düzeltme ve MR</li>
+        <li>Ürün hatasına Jira taslağı; aynı hata tekrar açılmaz</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slayt">
+  <h2>İki parça</h2>
+  <p class="alt">Aynı makinede, iç ağda, ek kurulum gerektirmeyen iki program</p>
+  <div class="izgara iki">
+    <div class="kutu mavi">
+      <h3>divan — sunucu</h3>
+      <ul>
+        <li>Rapor sitesi, canlı ekran, arama, paylaşım, ayarlar</li>
+        <li>Sonuçları SQLite'ta saklar, dosyaları diskte</li>
+        <li>Jira, GitLab ve e-posta bağlantıları</li>
+        <li>Tek dosya: <code>divan.exe</code> (~6 MB), bellek hedefi &lt; 100 MB</li>
+      </ul>
+    </div>
+    <div class="kutu mor">
+      <h3>ulak — CI aracı</h3>
+      <ul>
+        <li>Pipeline yalnızca onun komutlarını çağırır</li>
+        <li><code>preflight</code> · <code>start</code> · <code>watch</code> · <code>upload</code> · <code>finish</code> ·
+          <code>degerlendir</code> · <code>fix</code></li>
+        <li>Runner her koşumda sunucudan güncel sürümünü indirir</li>
+        <li>Tek dosya: <code>ulak.exe</code> (~2 MB)</li>
+      </ul>
+    </div>
+  </div>
+  <p class="kucuk" style="margin-top:22px">Ubuntu ve Windows'ta aynı çalışır. Rust ile yazıldı; çalışma ortamı (JVM, Python, Node) gerektirmez.</p>
+</section>
+
+<!-- 4 -->
+<section class="slayt">
+  <h2>Mimari</h2>
+  <p class="alt">Testleri divan değil GitLab runner koşar; divan sonuçları alır ve işler</p>
+  <svg viewBox="0 0 1136 470" width="1136" height="470" role="img" aria-label="Mimari şema">
+    <defs>
+      <marker id="ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5b6676"/>
+      </marker>
+    </defs>
+    <!-- runner kutusu -->
+    <rect x="10" y="20" width="430" height="430" rx="14" fill="#f7f9fc" stroke="#d9dee6"/>
+    <text x="30" y="50" font-size="18" font-weight="700" fill="#1d2430">GitLab runner (Ubuntu / Windows)</text>
+    <rect x="35" y="72" width="380" height="120" rx="10" fill="#fff" stroke="#c4d3f3"/>
+    <text x="55" y="100" font-size="17" font-weight="600" fill="#2457c5">Test projesi (Java)</text>
+    <text x="55" y="126" font-size="15" fill="#5b6676">Cucumber + TestFX + Allure</text>
+    <text x="55" y="150" font-size="15" fill="#5b6676">mvn test — Xvfb / masaüstü oturumu</text>
+    <text x="55" y="174" font-size="15" fill="#5b6676">ekran görüntüsü · video · sahne ağacı</text>
+    <rect x="35" y="222" width="380" height="96" rx="10" fill="#efe8fa" stroke="#d7c8f0"/>
+    <text x="55" y="250" font-size="17" font-weight="600" fill="#6b3fb5">ulak</text>
+    <text x="55" y="276" font-size="15" fill="#5b6676">canlı olaylar + sonuç dosyaları → divan</text>
+    <text x="55" y="300" font-size="15" fill="#5b6676">kod ajanını çalıştırır (OpenCode / Claude Code)</text>
+    <rect x="35" y="348" width="380" height="80" rx="10" fill="#fff" stroke="#d9dee6"/>
+    <text x="55" y="376" font-size="17" font-weight="600" fill="#1d2430">Kod ajanı</text>
+    <text x="55" y="402" font-size="15" fill="#5b6676">yalnızca src/test/ değiştirebilir</text>
+    <line x1="225" y1="192" x2="225" y2="220" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <line x1="225" y1="318" x2="225" y2="346" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+
+    <!-- divan -->
+    <rect x="520" y="150" width="260" height="170" rx="14" fill="#e6edfb" stroke="#2457c5" stroke-width="2"/>
+    <text x="545" y="185" font-size="22" font-weight="700" fill="#2457c5">divan</text>
+    <text x="545" y="214" font-size="15" fill="#1d2430">rapor · canlı ekran · arama</text>
+    <text x="545" y="238" font-size="15" fill="#1d2430">triage · Jira · self-healing</text>
+    <text x="545" y="262" font-size="15" fill="#1d2430">SQLite + dosyalar</text>
+    <text x="545" y="296" font-size="13" fill="#5b6676">aynı makine, http://127.0.0.1:8080</text>
+    <line x1="415" y1="265" x2="516" y2="240" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <text x="430" y="232" font-size="13" fill="#5b6676">HTTP</text>
+
+    <!-- dış servisler -->
+    <rect x="860" y="30" width="260" height="70" rx="10" fill="#fff" stroke="#d9dee6"/>
+    <text x="880" y="60" font-size="17" font-weight="600" fill="#1d2430">Tarayıcı</text>
+    <text x="880" y="84" font-size="14" fill="#5b6676">ekip, yöneticiler, paylaşım linki</text>
+    <rect x="860" y="130" width="260" height="70" rx="10" fill="#fff" stroke="#d9dee6"/>
+    <text x="880" y="160" font-size="17" font-weight="600" fill="#1d2430">Jira</text>
+    <text x="880" y="184" font-size="14" fill="#5b6676">bug eşleştirme / taslak / açma</text>
+    <rect x="860" y="230" width="260" height="70" rx="10" fill="#fff" stroke="#d9dee6"/>
+    <text x="880" y="260" font-size="17" font-weight="600" fill="#1d2430">GitLab</text>
+    <text x="880" y="284" font-size="14" fill="#5b6676">pipeline · auto-fix MR</text>
+    <rect x="860" y="330" width="260" height="70" rx="10" fill="#fff" stroke="#d9dee6"/>
+    <text x="880" y="360" font-size="17" font-weight="600" fill="#1d2430">E-posta</text>
+    <text x="880" y="384" font-size="14" fill="#5b6676">gece özeti</text>
+    <line x1="782" y1="190" x2="856" y2="70" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <line x1="782" y1="215" x2="856" y2="165" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <line x1="782" y1="245" x2="856" y2="265" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <line x1="782" y1="275" x2="856" y2="360" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+    <!-- LLM -->
+    <rect x="520" y="372" width="260" height="70" rx="10" fill="#fdf1d8" stroke="#f0dcae"/>
+    <text x="540" y="402" font-size="17" font-weight="600" fill="#8a5a00">Dil modeli (vLLM)</text>
+    <text x="540" y="426" font-size="14" fill="#5b6676">şirket içinde, OpenAI uyumlu</text>
+    <line x1="415" y1="390" x2="516" y2="405" stroke="#5b6676" stroke-width="2" marker-end="url(#ok)"/>
+  </svg>
+</section>
+
+<!-- 5 -->
+<section class="slayt">
+  <h2>Bir gece koşusu</h2>
+  <p class="alt">Pipeline üç aşama; her satır yalnızca bir <code>ulak</code> komutu</p>
+  <div class="akis">
+    <div class="adim"><b>1. preflight</b><span>pom, Allure eklentisi, features.txt, Xvfb / masaüstü oturumu, ajan ve skill dosyaları kontrol edilir</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>2. start</b><span>beklenen senaryolar sayılır, koşum açılır, <code>mvn test</code> koşar; izleyici sonuçları anında gönderir</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>3. upload · finish</b><span>kalan dosyalar toplu gönderilir; sunucu yoksa kuyruğa alınır, sonra tamamlanır</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>4. degerlendir</b><span>kod ajanı her kalan senaryonun nedenine karar verir (salt okunur)</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>5. fix</b><span>test kodu hatası düzeltilir, tek senaryoyla doğrulanır, MR açılır</span></div>
+  </div>
+  <div class="izgara uc" style="margin-top:28px">
+    <div class="kutu"><h3>Test aşaması</h3><p>preflight + start. Test kalsa bile sonraki aşamalar çalışır.</p></div>
+    <div class="kutu"><h3>Report aşaması</h3><p>upload + finish. Rapor linki işin çıktısında ve GitLab ortam linkinde.</p></div>
+    <div class="kutu"><h3>Fix aşaması</h3><p>degerlendir + fix. <code>ULAK_FIX=off</code> ile kapanır.</p></div>
+  </div>
+  <p class="kucuk" style="margin-top:18px">Çıkış kodları anlamlı: 1 test/yükleme hatası · 2 sürüm uyumsuz · 3 bellek (OOM) · 4 Windows hizmet oturumu.
+    Test projesi CI'a tek <code>include</code> satırıyla bağlanır.</p>
+</section>
+
+<!-- 6 -->
+<section class="slayt">
+  <h2>Canlı izleme</h2>
+  <p class="alt">Testler bitmeden "şu an hangi senaryo, hangi adımda" görünür</p>
+  <div class="izgara iki">
+    <div>
+      <div class="kutu mavi" style="margin-bottom:16px">
+        <h3>Kanal 1 — anlık olaylar</h3>
+        <p>Java tarafındaki küçük eklenti Cucumber olaylarını bir dosyaya yazar; <code>ulak watch</code> satırları sunucuya iletir.
+          "Giriş ekranı → Şifre alanına yazılır" gibi.</p>
+      </div>
+      <div class="kutu yesil">
+        <h3>Kanal 2 — sonuçlar</h3>
+        <p>Senaryo biter bitmez Allure dosyaları ve ekleri gönderilir; birkaç saniye içinde raporda.</p>
+      </div>
+    </div>
+    <div>
+      <ul>
+        <li>Sayfa WebSocket ile kendini yeniler; yenile tuşuna gerek yok</li>
+        <li>İlerleme: <b>47 / 120</b> senaryo</li>
+        <li>Sunucu kısa süre kapansa bile sonuçlar kaybolmaz: kuyruğa alınır, sonra gönderilir</li>
+        <li>Tekrar koşan (rerun) senaryo aynı senaryonun ikinci denemesi olarak sayılır, çift sayılmaz</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slayt">
+  <h2>Rapor</h2>
+  <p class="alt">Dashboard → koşum → senaryo</p>
+  <div class="izgara uc ekran-kap">
+    <div><img class="ekran" src="../img/dashboard.png" alt="Dashboard"></div>
+    <div><img class="ekran" src="../img/kosum-raporu.png" alt="Koşum raporu"></div>
+    <div><img class="ekran" src="../img/senaryo-detayi.png" alt="Senaryo detayı"></div>
+  </div>
+  <div class="izgara uc" style="margin-top:10px">
+    <p class="kucuk">Son koşumlar, başarı oranı, gidişat, flaky listesi</p>
+    <p class="kucuk">Feature'lara göre gruplu senaryolar, süreler, triage, Jira ve düzeltme rozetleri</p>
+    <p class="kucuk">Adımlar, hata ve yığın izi, ekran görüntüsü, video, sahne ağacı, denemeler, geçmiş</p>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slayt">
+  <h2>Arama, dışa aktarma, paylaşım</h2>
+  <p class="alt">Rapor yalnızca bakmak için değil, kullanmak için</p>
+  <div class="izgara uc">
+    <div class="kutu">
+      <h3>Arama</h3>
+      <p>Tag, feature, gereksinim no (YTET), Jira, triage kategorisi, durum, hata metni</p>
+    </div>
+    <div class="kutu">
+      <h3>CSV</h3>
+      <p>Alan seçmeli, Excel'de Türkçe karakterler doğru açılır. Gereksinim CSV'si (YTET, YGÖ sütunları) aktarım betiği için.</p>
+    </div>
+    <div class="kutu">
+      <h3>Paylaşım linkleri</h3>
+      <p><b>Ekip linki:</b> ayrıntılı, iç bilgiler gizli.<br><b>Genel rapor:</b> yalnızca doğrulanan senaryolar ve ürün hataları.<br><b>Genel ana sayfa:</b> proje/branch için tek kalıcı link.</p>
+    </div>
+  </div>
+  <div class="kutu mavi" style="margin-top:22px">
+    <h3>Gece özeti e-postası</h3>
+    <p>Pipeline bitince tek e-posta: kaç senaryo geçti/kaldı, koşumların rapor linkleri, otomatik açılan MR'lar.</p>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slayt ara">
+  <h1>Kalan senaryoya ne olur?</h1>
+  <p class="alt">Triage → Jira ya da otomatik düzeltme</p>
+</section>
+
+<!-- 10 -->
+<section class="slayt">
+  <h2>Triage: "neden kaldı?"</h2>
+  <p class="alt">Üç kaynak, açık bir öncelik sırası</p>
+  <table>
+    <tr><th style="width:18%">Kaynak</th><th style="width:44%">Nasıl karar verir</th><th>Ne zaman geçerli</th></tr>
+    <tr><td><span class="etiket">1</span>Admin</td><td>İnsan rapordan kategoriyi seçer</td><td>Her zaman; diğerlerini ezer</td></tr>
+    <tr><td><span class="etiket">2</span>Kod ajanı</td><td><code>ulak degerlendir</code>: ekran görüntüsü, sahne ağacı, adım tanımları okunur, gerekçe ve güven yazılır</td><td>Güven ≥ 0,70 ise</td></tr>
+    <tr><td><span class="etiket">3</span>Kural</td><td><code>failed</code> → ürün hatası · <code>broken</code> → test kodu hatası · aynı commit'te kalıp geçen → flaky</td><td>Başka karar yoksa</td></tr>
+  </table>
+  <div class="izgara dort" style="margin-top:24px">
+    <div class="kutu mavi"><h3>Test kodu</h3><p>→ otomatik düzeltme</p></div>
+    <div class="kutu kirmizi"><h3>Ürün</h3><p>→ Jira</p></div>
+    <div class="kutu sari"><h3>Ortam</h3><p>→ bildirim</p></div>
+    <div class="kutu mor"><h3>Flaky</h3><p>→ izlenir</p></div>
+  </div>
+  <p class="kucuk" style="margin-top:14px">Değerlendiren ajan dosya değiştiremez; değiştirirse değişiklik geri alınır ve kararı kullanılmaz.</p>
+</section>
+
+<!-- 11 -->
+<section class="slayt">
+  <h2>Jira</h2>
+  <p class="alt">Aynı hata için ikinci bug açılmaz; ekran görüntüsü issue'ya eklenir</p>
+  <div class="izgara iki">
+    <div>
+      <p style="margin-top:0"><b>Kalan (ürün hatası) senaryo için sırayla:</b></p>
+      <ol style="font-size:20px;line-height:1.5;padding-left:26px;margin:0">
+        <li>Senaryoda <code>@JIRA-ABC-12</code> tag'i varsa ona bağlanır</li>
+        <li>Aynı hata daha önce bir issue'ya bağlandıysa ona</li>
+        <li>Jira'da açık bug aranır: <b>Bug</b> türü, <b><code>divan</code></b> label'ı, özette senaryo adı</li>
+        <li>Bulunmazsa bug taslağı hazırlanır ya da açılır</li>
+      </ol>
+    </div>
+    <div>
+      <div class="kutu">
+        <h3>Güvenli varsayılanlar</h3>
+        <ul>
+          <li><b>Gözlem modu:</b> bug açılmaz, taslak hazırlanır; admin tek tıkla açar</li>
+          <li>Koşum başına en fazla 3 bug</li>
+          <li>İkinci denemede de kalması şartı</li>
+          <li>Bug şablonu arayüzden: özet, açıklama, zorunlu alanlar</li>
+          <li>Story/task'a fotoğraf gitmez</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slayt">
+  <h2>Gereksinim izlenebilirliği</h2>
+  <p class="alt">Senaryo ↔ gereksinim bağı tag ile</p>
+  <div class="izgara iki">
+    <div>
+      <pre class="kod">@YTET_1234 @YGÖ-12 @JIRA-STAJ-42
+Senaryo: Yanlış şifrede özel mesaj</pre>
+      <table style="margin-top:18px">
+        <tr><th>Tag</th><th>Anlamı</th></tr>
+        <tr><td><code>@YTET_…</code></td><td>Gereksinim numarası</td></tr>
+        <tr><td><code>@YGÖ-…</code></td><td>Ek olarak bağlı gereksinim</td></tr>
+        <tr><td><code>@JIRA-…</code></td><td>Bilinen bug'a doğrudan bağ</td></tr>
+      </table>
+    </div>
+    <div>
+      <ul>
+        <li>Raporda rozet olarak görünür, aranabilir</li>
+        <li><b>YTET CSV:</b> gereksinim başına satır, sonuç sütunu aktarım betiğinin beklediği değerlerle (<code>Passed</code> / <code>Failed</code>)</li>
+        <li>YGÖ CSV'de ayrı sütun</li>
+        <li>Jira açıklamasına <code>{{YTET}}</code>, <code>{{YGÖ}}</code> ile yazılır</li>
+        <li>Önekler ayardan: <code>GEREKSINIM_ONEKI</code>, <code>EK_KIMLIK_ONEKLERI</code></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slayt">
+  <h2>Self-healing: test kodu kendini onarır</h2>
+  <p class="alt"><code>ulak fix</code> — test kodu hatası olan her senaryo için</p>
+  <div class="akis">
+    <div class="adim"><b>Branch</b><span><code>auto-fix/run-…</code> açılır</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>Ajan</b><span>hata, ekran görüntüsü, sahne ağacı, benzer eski düzeltmeler verilir</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>Denetim</b><span><code>src/test/</code> dışına dokunduysa hepsi geri alınır</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>Doğrulama</b><span>yalnızca o senaryo koşar</span></div>
+    <div class="ok">→</div>
+    <div class="adim"><b>MR</b><span>geçtiyse normal, geçmediyse Draft; açıklamada rapor linki</span></div>
+  </div>
+  <div class="izgara uc" style="margin-top:26px">
+    <div class="kutu"><h3>İnsan karar verir</h3><p>Hiçbir şey kendiliğinden birleşmez. MR'ı ekip inceler.</p></div>
+    <div class="kutu"><h3>Tekrar yok</h3><p>Açık MR'ı olan senaryo için yenisi açılmaz. Koşum başına en fazla 3 deneme.</p></div>
+    <div class="kutu"><h3>Öğrenir</h3><p>Birleştirilen düzeltmeler benzer hatalarda ajana örnek olarak verilir.</p></div>
+  </div>
+  <p class="kucuk" style="margin-top:14px">Rapordan tek senaryo için "OpenCode ile düzelt" düğmesi · auto-fix branch'inde yalnızca düzeltilen senaryo koşar · başarı paneli: deneme / MR / birleştirilen / reddedilen</p>
+</section>
+
+<!-- 14 -->
+<section class="slayt">
+  <h2>Güvenlik ve korumalar</h2>
+  <p class="alt">Yapay zekâ yardımcı; yetkisi dar, her adımı denetleniyor</p>
+  <div class="izgara iki">
+    <div class="kutu">
+      <h3>Kod ajanı</h3>
+      <ul>
+        <li>Yalnızca <code>src/test/</code> değişebilir; ulak ayrıca denetler</li>
+        <li>Komut satırı (Bash), internet kapalı</li>
+        <li>Assertion değişikliği MR'da uyarı olarak işaretlenir</li>
+        <li>Test çıktısı istemde "veri" bloklarında: içindeki talimat gibi metinlere uyulmaz</li>
+        <li>Zaman aşımında ajanın tüm alt süreçleri kapatılır</li>
+      </ul>
+    </div>
+    <div class="kutu">
+      <h3>Sistem</h3>
+      <ul>
+        <li>Tokenlar yalnızca <code>.env</code> ve CI değişkenlerinde; log ve hata mesajına yazılmaz (testle denetleniyor)</li>
+        <li>CI uçları token korumalı, ulak ↔ sunucu sürüm uyumu kontrolü</li>
+        <li>Paylaşım linklerinde iç bilgiler gizli</li>
+        <li>Model şirket içinde (vLLM); veri dışarı çıkmaz</li>
+        <li>Şirket CA'sı desteği (GitLab, Jira, model)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slayt">
+  <h2>Kod ajanları ve skill'ler</h2>
+  <p class="alt">OpenCode ya da Claude Code — aynı skill'ler, aynı kurallar</p>
+  <div class="izgara iki">
+    <div>
+      <table>
+        <tr><th>Ajan</th><th>Görevi</th><th>Yetki</th></tr>
+        <tr><td><code>degerlendir</code></td><td>Neden kaldı? Karar + güven</td><td>Yalnızca okur</td></tr>
+        <tr><td><code>fix</code></td><td>Test kodunu düzeltir</td><td>Yalnızca <code>src/test/</code></td></tr>
+      </table>
+      <p class="kucuk" style="margin-top:14px">Tanımlar test projesinde: <code>.opencode/agents/</code> ya da <code>CLAUDE.md</code> + <code>.claude/settings.json</code></p>
+    </div>
+    <div>
+      <table>
+        <tr><th>Skill</th><th>Ne zaman</th></tr>
+        <tr><td><code>hata-siniflandirma</code></td><td>Her zaman, ilk iş</td></tr>
+        <tr><td><code>testfx-secici</code></td><td>Seçici / bekleme hatası</td></tr>
+        <tr><td><code>cucumber-adim</code></td><td>Adım tanımı hatası</td></tr>
+        <tr><td><i>projenize özel</i></td><td><code>.claude/skills/&lt;ad&gt;/</code></td></tr>
+      </table>
+      <p class="kucuk" style="margin-top:14px"><code>ulak preflight</code> ajan ve skill dosyalarını her koşumda denetler.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slayt">
+  <h2>Test yazarken: ajana yardım edin</h2>
+  <p class="alt">Self-healing'in başarısı büyük ölçüde test projesinin düzenine bağlı</p>
+  <div class="izgara iki">
+    <div class="kutu yesil">
+      <h3>Yapın</h3>
+      <ul>
+        <li>Her kontrolde <code>fx:id</code>; seçici <code>#kaydetButonu</code> gibi</li>
+        <li>Senaryo kendi başına koşabilsin: ihtiyaç duyduğu durumu <code>Background</code> / <code>@Before</code> ile kursun</li>
+        <li>Koşullu bekleme (<code>WaitForAsyncUtils</code>)</li>
+        <li>Gereksinim tag'i: <code>@YTET_…</code></li>
+      </ul>
+    </div>
+    <div class="kutu kirmizi">
+      <h3>Kaçının</h3>
+      <ul>
+        <li>Metne ya da sıraya bağlı seçiciler</li>
+        <li><code>Thread.sleep</code></li>
+        <li>Başka senaryonun bıraktığı duruma güvenmek</li>
+        <li>Koşum sırasına güvenmek (Cucumber dosya yoluna göre sıralar)</li>
+      </ul>
+    </div>
+  </div>
+  <p class="kucuk" style="margin-top:16px">Doğrulama koşusu ve auto-fix pipeline'ı senaryoyu tek başına koşturur: başkasına bağlı senaryo orada kalır.</p>
+</section>
+
+<!-- 17 -->
+<section class="slayt">
+  <h2>Teknik özet</h2>
+  <p class="alt">Küçük, bağımsız, iki işletim sisteminde aynı</p>
+  <div class="izgara dort">
+    <div class="kutu"><div class="rakam">~6 MB</div><p>sunucu, tek dosya</p></div>
+    <div class="kutu"><div class="rakam">&lt;100 MB</div><p>bellek hedefi (testle ölçülür)</p></div>
+    <div class="kutu"><div class="rakam">0</div><p>ek çalışma ortamı: JVM, Python, Node, veritabanı sunucusu yok</p></div>
+    <div class="kutu"><div class="rakam">2</div><p>işletim sistemi: Ubuntu, Windows</p></div>
+  </div>
+  <div class="izgara iki" style="margin-top:22px">
+    <ul>
+      <li>Rust: axum, askama + htmx, WebSocket</li>
+      <li>SQLite (dosya), WAL; veritabanı güncellemeleri açılışta kendiliğinden, önce yedek</li>
+      <li>Grafikler sunucuda SVG; ağır JavaScript yok</li>
+    </ul>
+    <ul>
+      <li>Büyük yüklemeler akış hâlinde işlenir, belleğe alınmaz</li>
+      <li>Gece yedeği, log ve disk temizliği</li>
+      <li>Her kaynak dosyanın dilden bağımsız açıklaması ve çalışan bir Python iskeleti</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slayt">
+  <h2>Nasıl doğrulanıyor?</h2>
+  <p class="alt">Her gereksinimin numarası var; her numaranın testi var</p>
+  <div class="izgara uc">
+    <div class="kutu mavi"><div class="rakam">152</div><p>birim ve entegrasyon testi — gerçek Allure çıktılarıyla</p></div>
+    <div class="kutu mavi"><div class="rakam">60</div><p>CI provası: gerçek divan + ulak süreçleri, sahte Maven / GitLab / ajan</p></div>
+    <div class="kutu mavi"><div class="rakam">18</div><p>uçtan uca kontrol (kurulu sunucuya karşı da)</p></div>
+  </div>
+  <div class="kutu" style="margin-top:22px">
+    <p style="margin:0">Test adları gereksinimi söyler: <code>test_sw_6_2_acik_bug_jql_tur_ve_label</code> → SW-6.2.
+      Gereksinimler ve durumları <code>GEREKSINIMLER_1.md</code>'de; varsayımlar <code>docs/KARARLAR.md</code>'de.</p>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slayt">
+  <h2>Durum ve sıradakiler</h2>
+  <p class="alt">58 yazılım gereksinimi</p>
+  <div class="izgara iki">
+    <div>
+      <div class="izgara uc">
+        <div class="kutu yesil"><div class="rakam" style="color:var(--yesil)">34</div><p>tamam</p></div>
+        <div class="kutu sari"><div class="rakam" style="color:var(--sari)">23</div><p>kısmen</p></div>
+        <div class="kutu kirmizi"><div class="rakam" style="color:var(--kirmizi)">1</div><p>yapılacak</p></div>
+      </div>
+      <p class="kucuk" style="margin-top:12px">"Kısmen" olanların kodu hazır; eksik olan gerçek ortamda (GitLab, Windows runner,
+        Jira, SMTP, model) pilot doğrulaması. Liste: <code>docs/PILOT_KONTROL_LISTESI.md</code>.</p>
+    </div>
+    <div class="kutu">
+      <h3>Sıradakiler</h3>
+      <ul>
+        <li>Pilot projede gece koşularıyla doğrulama</li>
+        <li><code>fx:id</code> taraması: ajanın seçici yazamadığı yerleri önceden göster</li>
+        <li>Model yanıt vermezse fix'in de erken durması</li>
+        <li>Senaryo kimliğinin satır kaymasından etkilenmemesi</li>
+        <li>divan deposunun şirket GitLab'ına taşınması</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slayt">
+  <h2>Projenizi bağlamak</h2>
+  <p class="alt">Beş adım</p>
+  <div class="izgara iki">
+    <div>
+      <ol style="font-size:20px;line-height:1.55;padding-left:26px;margin:0">
+        <li><code>pom.xml</code>'e Allure ve destek jar'ı</li>
+        <li><code>Hooks.java</code>: hata anında ekran görüntüsü + sahne ağacı</li>
+        <li><code>.gitlab-ci.yml</code>'e tek <code>include</code> satırı</li>
+        <li>CI değişkeni: <code>CI_API_TOKEN</code> (ve isterseniz <code>ULAK_FIX_TOKEN</code>)</li>
+        <li><code>ulak preflight</code> ile kontrol</li>
+      </ol>
+    </div>
+    <pre class="kod">include:
+  - project: 'ekip/divan'
+    ref: main
+    file: '/ci/gitlab/template/.gitlab-ci.yml'
+variables:
+  ULAK_OS: windows</pre>
+  </div>
+  <p class="kucuk" style="margin-top:20px">Rehberler: <code>docs/YENI_PROJE_EKLEME.md</code> · <code>docs/TEST_PROJESI_GEREKSINIMLERI.md</code> ·
+    <code>docs/KURULUM.md</code> · çalışan örnek: <code>ornek-test-projesi/</code></p>
+</section>
+
+<!-- 21 -->
+<section class="slayt kapak">
+  <h1>Sorular</h1>
+  <p class="alt">divan · ulak</p>
+  <p style="font-size:20px">Belgeler: <code style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff">README.md</code> ve <code style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff">docs/</code></p>
+</section>
+
+</div>
+<div id="ilerleme"></div>
+<div id="yardim">← → sayfa · F tam ekran · Ctrl+P PDF</div>
+
+<script>
+(function () {
+  var slaytlar = Array.prototype.slice.call(document.querySelectorAll('.slayt'));
+  var sahne = document.getElementById('sahne');
+  var ilerleme = document.getElementById('ilerleme');
+  var i = 0;
+
+  slaytlar.forEach(function (s, n) {
+    if (s.classList.contains('kapak') || s.classList.contains('ara')) return;
+    var a = document.createElement('div');
+    a.className = 'alt-bilgi';
+    a.innerHTML = '<span>divan — test sonuç merkezi</span><span>' + (n + 1) + ' / ' + slaytlar.length + '</span>';
+    s.appendChild(a);
+  });
+
+  function olcekle() {
+    var k = Math.min(window.innerWidth / 1320, window.innerHeight / 760);
+    sahne.style.transform = 'translate(-50%, -50%) scale(' + k + ')';
+  }
+  function goster(n) {
+    i = Math.max(0, Math.min(slaytlar.length - 1, n));
+    slaytlar.forEach(function (s, k) { s.classList.toggle('aktif', k === i); });
+    ilerleme.style.width = ((i + 1) / slaytlar.length * 100) + '%';
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.addEventListener('keydown', function (e) {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].indexOf(e.key) >= 0) { goster(i + 1); e.preventDefault(); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].indexOf(e.key) >= 0) { goster(i - 1); e.preventDefault(); }
+    else if (e.key === 'Home') goster(0);
+    else if (e.key === 'End') goster(slaytlar.length - 1);
+    else if (e.key === 'f' || e.key === 'F') {
+      if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen();
+    }
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('a')) return;
+    goster(e.clientX > window.innerWidth / 3 ? i + 1 : i - 1);
+  });
+  window.addEventListener('resize', olcekle);
+  window.addEventListener('hashchange', function () {
+    var n = parseInt(location.hash.slice(1), 10);
+    if (!isNaN(n) && n - 1 !== i) goster(n - 1);
+  });
+  var bas = parseInt((location.hash || '#1').slice(1), 10);
+  olcekle();
+  goster(isNaN(bas) ? 0 : bas - 1);
+})();
+</script>
+</body>
+</html>
