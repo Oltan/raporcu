@@ -72,6 +72,32 @@ curl -s http://127.0.0.1:8080/api/health                 # {"durum":"ok",...}
 
 Log: `journalctl -u divan -f` · Yeniden başlatma: `sudo systemctl restart divan`.
 
+## 2b. Windows'taki divan'dan taşıma (Windows kapatılacaksa)
+
+Veritabanı ve dosyalar işletim sisteminden bağımsız; klasörün tamamı taşınır. Geçmiş, triage kararları,
+Jira bağları, paylaşım linkleri ve Admin → Ayarlar'daki şablonlar gelir.
+
+1. **Windows'ta** divan'ı durdurun (pencereyi kapatın / hizmeti durdurun). Düzgün kapanınca veritabanı
+   tek dosyaya yazılır (`divan.db`; yanında `-wal` kalmamalı).
+2. **Windows'tan** kopyalayın (PowerShell; `backup` klasörü gerekmez, büyükse atlayın):
+   ```powershell
+   scp -r C:\divan\veri\divan.db C:\divan\veri\runs <kullanici>@<makine>:/tmp/divan-kurulum/veri/
+   ```
+   Önce Linux'ta: `mkdir -p /tmp/divan-kurulum/veri`. Eski `.env`'den `ADMIN_PASSWORD_HASH`,
+   `CI_API_TOKEN`, `GITLAB_WEBHOOK_TOKEN`, `JIRA_…`, `GITLAB_…`, `SMTP_…`, `GEREKSINIM_ONEKI`,
+   `EK_KIMLIK_ONEKLERI` satırlarını da yeni `.env`'e taşıyın (aynı token'lar = GitLab'da değişiklik yok).
+3. **Linux'ta**, §2'deki hizmeti başlatmadan önce:
+   ```bash
+   sudo cp -r /tmp/divan-kurulum/veri/. /var/lib/divan/
+   sudo chown -R divan:divan /var/lib/divan
+   ```
+   Sonra §2'nin geri kalanı (`set-admin-password` gerekmez, hash taşındıysa).
+4. Adres değiştiği için:
+   - `.env`'de `PUBLIC_URL` yeni adres olmalı.
+   - GitLab'da Merge request webhook'u (Settings → Webhooks) yeni adrese: `http://<makine>:8080/api/gitlab/webhook`.
+   - Eski MR açıklamalarındaki ve Jira bug'larındaki rapor linkleri eski adresi gösterir; Windows
+     kapanınca açılmaz. Yeni rapor linkleri yeni adresle yazılır.
+
 ## 3. GitLab runner
 
 ```bash
