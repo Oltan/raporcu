@@ -172,3 +172,29 @@ ekran görüntüsü ve videosu buradan görünür; VNC'ye gerek yok.
 
 Güncelleme: `sudo systemctl stop divan`, yeni `divan`'ı `/opt/divan/`'a, yeni `ulak`'ı
 `/var/lib/divan/tools/ulak-linux`'a kopyalayın, `sudo systemctl start divan`.
+
+## 8. Birden çok kişi, her birinin kendi Linux VM'i
+
+Tek merkezi divan (yukarıdaki §2), her VM'de yalnızca runner. VM'lere divan kurulmaz.
+
+1. **Merkezi divan:** `.env`'de `BIND_ADDR=0.0.0.0:8080`, `PUBLIC_URL=http://<divan-makinesi>:8080`;
+   güvenlik duvarında 8080 açık (`sudo ufw allow 8080/tcp`, ufw kullanılıyorsa).
+2. **Her VM için GitLab'da runner oluşturun** (proje ya da grup → Settings → CI/CD → Runners → New runner):
+   etiketler `linux,<kişinin-adı>` (ör. `linux,ahmet`); opencode kurulu ve modele erişen VM'lere
+   ayrıca `ajan`. Verilen `glrt-…` token'ı not edin.
+3. **Her VM'de** (SSH ile; `runner-kur.sh` ve isteğe bağlı `java/m2` kopyalandıktan sonra):
+   ```bash
+   sudo ./runner-kur.sh --gitlab https://<gitlab-adresi> --divan http://<divan-makinesi>:8080 --m2 ./java/m2
+   ```
+   Paketleri kurar, runner'ı kaydeder (token'ı sorar), `concurrent = 1` yapar, Maven deposunu kopyalar,
+   divan'a erişimi ve ulak indirmesini dener. Tekrar çalıştırılabilir.
+4. **Test projesinin `.gitlab-ci.yml`'ı:** `ornek.gitlab-ci.yml` (bu klasörde). Fark: `ULAK_SERVER`
+   merkezi adres, işler `tags: [$RUNNER]` ile seçilir (varsayılan `linux` = boştaki herhangi bir VM),
+   fix işi `ajan` etiketli VM'de koşar.
+5. **Herkes kendi VM'inde:** Build → Pipelines → Run pipeline → değişken `RUNNER=ahmet`; kişisel gece
+   schedule'ında da `RUNNER=ahmet`.
+
+Raporlar ortak: aynı proje + branch'in koşumları hangi VM'den gelirse gelsin aynı geçmişe yazılır.
+VM'ler arasında ortam farkı (Java sürümü, çözünürlük, uygulamanın bağlandığı servis) flaky gibi
+görünebilir; kişisel denemeler için kişisel branch kullanın. Hangi VM'de koştuğu koşum sayfasındaki
+GitLab iş linkinden görülür.

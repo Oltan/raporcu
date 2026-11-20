@@ -1,0 +1,134 @@
+# Test projesi pipeline'ı: build → test → report → fix
+# Merkezi divan + her kişinin kendi Linux VM'i (runner). İşin hangi VM'de koşacağını RUNNER seçer:
+#   - varsayılan "linux": etiketi linux olan boştaki herhangi bir VM (ortak havuz)
+#   - kendi VM'inde koşturmak için: Run pipeline / schedule değişkeni RUNNER=<kendi etiketin>
+# fix işi yalnızca "ajan" etiketli VM'lerde koşar (opencode kurulu ve modele erişen makineler).
+#
+# Gerekli proje (ya da grup) CI değişkeni:
+#   CI_API_TOKEN   masked; divan .env'indeki CI_API_TOKEN ile aynı
+# İsteğe bağlı CI değişkenleri: ULAK_FIX_TOKEN (auto-fix MR), VLLM_BASE_URL / VLLM_API_KEY / VLLM_MODEL,
+#   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX, ULAK_FIX_PIPELINE ("senaryo")
+
+# --- Pipeline ne zaman başlar ----------------------------------------------------------------
+workflow:
+  rules:
+    # MR pipeline'ı açılmasın: aynı commit'in branch pipeline'ı zaten koşuyor
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    # main'e push (MR merge'i dahil) pipeline başlatmasın; main'i gece schedule'ı test eder
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: never
+    - when: always
+
+stages:
+  - build
+  - test
+  - report
+  - fix
+
+variables:
+  # merkezi divan (bütün VM'ler sonuçları buraya gönderir)
+  ULAK_SERVER: "http://divan.sirket.local:8080"
+  # işin koşacağı runner etiketi; Run pipeline / schedule'da değiştirilir
+  RUNNER: "linux"
+  ULAK_RESULTS_DIR: "target/allure-results"
+  # ulak start bu komutu Xvfb sanal ekranında çalıştırır; fix'in doğrulama koşusu da bunu kullanır
+  ULAK_TEST_COMMAND: "mvn --batch-mode -s ci/settings.xml test -Dscenario.timeout.seconds=300 -Dreport.video.enabled=true"
+  ULAK_XVFB: "on"
+  ULAK_SCREEN: "1920x1080"
+  # bellek sınırları: Maven ve test JVM'i
+  ULAK_MAVEN_XMX: "512m"
+  ULAK_TEST_XMX: "768m"
+  ULAK_VIDEO_FPS: "5"
+  # ağ kısa süre koparsa işler kod/artifact çekerken düşmesin
+  GET_SOURCES_ATTEMPTS: "5"
+  ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
+  # ULAK_TAGS: "@smoke"            # boşsa features.txt kullanılır
+  # ULAK_FIX: "off"                # self-healing'i ve LLM değerlendirmesini kapatır
+  # ULAK_FIX_PIPELINE: "senaryo"   # auto-fix branch'inde yalnızca düzeltilen senaryo koşar
+
+# --- Ortak: ulak'ı divan'dan indir ------------------------------------------------------------
+.ulak:
+  tags: [$RUNNER]
+  before_script:
+    - curl -fsS -o ulak "$ULAK_SERVER/api/tools/ulak?os=linux"
+    - chmod +x ulak
+    - export PATH="$PWD:$PATH"
+
+# --- build -----------------------------------------------------------------------------------
+build:
+  stage: build
+  tags: [$RUNNER]
+  script:
+    - mvn --batch-mode -s ci/settings.xml clean package -DskipTests
+  rules:
+    # rapordaki "düzelt" düğmesi: yalnızca fix işi
+    - if: '$ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+# --- test ------------------------------------------------------------------------------------
+test:
+  extends: .ulak
+  stage: test
+  script:
+    - ulak preflight
+    - ulak start
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - target/allure-results/
+      - .ulak/
+    reports:
+      dotenv: ulak.env
+  rules:
+    - if: '$ULAK_FIX_ONLY == "true"'
+      when: never
+    # auto-fix branch'i: düzeltme fix işinde zaten doğrulandı; ULAK_FIX_PIPELINE=on (ya da ulak fix'in
+    # push'ta verdiği on + filtre) gelirse koşar
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    - when: on_success
+
+# --- report ----------------------------------------------------------------------------------
+report:
+  extends: .ulak
+  stage: report
+  script:
+    - ulak upload
+    - ulak finish
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      # gönderilemeyen sonuçlar burada saklanır → ulak upload --resume
+      - .ulak/queue/
+  environment:
+    name: rapor/$CI_COMMIT_REF_SLUG
+    url: $ULAK_REPORT_URL
+  rules:
+    - if: '$ULAK_FIX_ONLY == "true"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    # test kalsa da rapor gönderilir
+    - when: always
+
+# --- fix -------------------------------------------------------------------------------------
+fix:
+  extends: .ulak
+  stage: fix
+  # opencode kurulu VM'ler; ULAK_FIX=off ise iş hiç oluşmaz
+  tags: [ajan]
+  script:
+    - ulak degerlendir
+    - ulak fix
+  allow_failure: true
+  rules:
+    # auto-fix branch'inde fix asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'
+      when: never
+    - if: '$ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on"'
+      when: never
+    - when: always
