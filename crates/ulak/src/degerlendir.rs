@@ -98,7 +98,14 @@ fn run(c: &Ctx) -> Result<()> {
     };
     crate::ctx::set_run_id(run_id);
     let all = fix::candidates(c, run_id)?;
-    let max: usize = env("ULAK_DEGERLENDIR_MAX").and_then(|v| v.parse().ok()).unwrap_or(20);
+    let (max, max_kaynak) = crate::ctx::sayi_ayari("ULAK_DEGERLENDIR_MAX", 20);
+    let max = max as usize;
+    let (sn, sn_kaynak) = crate::ctx::sayi_ayari("ULAK_DEGERLENDIR_TIMEOUT", 300);
+    let sinir = fix::art_arda_zaman_asimi_siniri();
+    say(format!(
+        "ayarlar: ULAK_DEGERLENDIR_MAX={max} ({max_kaynak}), ULAK_DEGERLENDIR_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, art arda zaman aşımı sınırı: {sinir}",
+        env_or("ULAK_FIX_AGENT", "opencode")
+    ));
     let (todo, skipped): (Vec<_>, Vec<_>) = all.iter().partition(|x| evaluable(x));
     for s in skipped {
         say(format!("değerlendirilmedi: {} (hedef: {})", s.name, s.target));
@@ -122,10 +129,19 @@ fn run(c: &Ctx) -> Result<()> {
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work)?;
     let report_url = env("ULAK_REPORT_URL").unwrap_or_else(|| format!("{}/runs/{run_id}", c.server.trim_end_matches('/')));
-    let timeout = Duration::from_secs(env("ULAK_DEGERLENDIR_TIMEOUT").and_then(|v| v.parse().ok()).unwrap_or(300));
+    let timeout = Duration::from_secs(sn);
     let client = c.client();
     let mut done = 0;
-    for cand in todo.iter().take(max) {
+    let mut art_arda = 0;
+    let secilen: Vec<_> = todo.iter().take(max).collect();
+    for (sira, cand) in secilen.iter().enumerate() {
+        if art_arda >= sinir {
+            say(format!(
+                "UYARI: art arda {art_arda} zaman aşımı; kalan {} senaryo kural kararıyla kalıyor (model yanıt vermiyor gibi; ULAK_ART_ARDA_ZAMAN_ASIMI={sinir})",
+                secilen.len() - sira
+            ));
+            break;
+        }
         say(format!("LLM değerlendirmesi: {}", cand.name));
         let name = fix::slug(&cand.name);
         let shot = cand
@@ -142,7 +158,7 @@ fn run(c: &Ctx) -> Result<()> {
         std::fs::write(&prompt_file, &prompt)?;
         // ajan karar yazmadan bitebilir (ör. reddedilen araç oturumu kapatır): bir kez daha sorulur
         let mut verdict = None;
-        let mut stalled = false;
+        let mut zaman_asimi = false;
         for deneme in 1..=2 {
             let (code, out) = fix::run_agent(c, &evaluation_command(), &prompt_file, &prompt, shot.as_deref(), timeout);
             let _ = std::fs::write(work.join(format!("{name}-ajan.log")), &out);
@@ -154,9 +170,10 @@ fn run(c: &Ctx) -> Result<()> {
                 break;
             }
             if code == -1 {
-                // kota dolunca OpenCode hata vermeden yeniden dener: model yanıt vermiyorsa diğer
-                // senaryolar da bekler, iş boşuna kilitlenmesin
-                stalled = true;
+                // zaman aşımı: bu senaryo atlanır (ikinci deneme yok), sıradakine geçilir; art arda
+                // sınır aşılırsa yukarıda durulur (kota dolunca OpenCode hata vermeden bekleyebilir)
+                say(fix::zaman_asimi_mesaji(&cand.name, timeout, &out, "ULAK_DEGERLENDIR_TIMEOUT"));
+                zaman_asimi = true;
                 break;
             }
             verdict = parse_triage(&out);
@@ -168,12 +185,9 @@ fn run(c: &Ctx) -> Result<()> {
                 fix::tail_lines(&out, 15)
             ));
         }
-        if stalled {
-            say(format!(
-                "UYARI: ajan {} sn içinde bitmedi (model yanıt vermiyor ya da kota doldu); değerlendirme durduruldu, kalan senaryolar kural kararıyla kalıyor",
-                timeout.as_secs()
-            ));
-            break;
+        art_arda = if zaman_asimi { art_arda + 1 } else { 0 };
+        if zaman_asimi {
+            continue;
         }
         let Some(triage) = verdict else {
             continue;

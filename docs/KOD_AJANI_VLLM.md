@@ -108,8 +108,10 @@ ve kuralın flaky dedikleri dahil; `@sample-fail` ve açık MR'ı olanlar hariç
   desteklemeyen modelde komuttan `--file {ekran}` kaldırılır; ajan karara ekran görüntüsüz varır.
 - OpenCode `run` etkileşimsizdir: `ask` izni otomatik reddedilir ve oturumu karar yazılmadan kapatabilir.
   Şablonda proje dışı erişim bu yüzden `external_directory: deny`; karar çıkmazsa ulak bir kez daha sorar.
-- Model yanıt vermezse (kota dolduysa OpenCode hata vermeden bekler) ilk zaman aşımında değerlendirme durur;
-  kalan senaryolar kural kararıyla kalır. Nedeni OpenCode logundadır (`~/.local/share/opencode/log`).
+- Zaman aşımına düşen senaryo atlanır (kural kararı kalır) ve sıradakine geçilir; logda ajanın o ana kadar
+  çıktı verip vermediği yazar (verdiyse süre yetmemiştir, `ULAK_DEGERLENDIR_TIMEOUT` artırılır ya da steps
+  düşürülür). Model hiç yanıt vermiyorsa (kota dolduysa OpenCode hata vermeden bekler) art arda
+  `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) zaman aşımından sonra kalan senaryolar denenmez. Nedeni OpenCode logundadır (`~/.local/share/opencode/log`).
 
 ## Ajan tanımı (OpenCode)
 

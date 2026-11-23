@@ -24,9 +24,15 @@ geçerli karar değişirse `fix-candidates` hedefleri de değişir. Ayrıntı: `
 5. **Koruma:** ajandan sonra `fix::changed_files`; değişiklik varsa `fix::restore` ile geri alınır,
    karar kullanılmaz.
 6. `ULAK_TRIAGE` satırı okunur. Karar yoksa uyarı + bir deneme daha (reddedilen araç oturumu kapatabilir).
-   Zaman aşımında yeniden denenmez ve değerlendirme durur: kota dolunca OpenCode hata vermeden bekler,
-   model yanıt vermiyorsa kalan senaryolar da bekleyecektir; onlar kural kararıyla kalır. Ajanın
-   başlattığı alt süreçler de sonlandırılır (`fix.md`, süreç ağacı).
+   Zaman aşımında o senaryo yeniden denenmez, **atlanır** (kural kararı kalır) ve sıradakine geçilir.
+   Log satırı (`fix::zaman_asimi_mesaji`) ajanın o ana kadarki çıktı satır sayısını da yazar: çıktı varsa
+   ajan çalışıyordu, süre yetmedi; hiç yoksa model yanıt vermiyor olabilir (Claude Code metin çıktısını
+   yalnızca sonunda yazar, onda çıktı olmaması tek başına kanıt değildir). **Art arda**
+   `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) zaman aşımında kalanlar denenmez (kota dolunca OpenCode hata vermeden
+   bekler; her senaryo yine aynı süreyi bekletirdi). Ajanın başlattığı alt süreçler de sonlandırılır
+   (`fix.md`, süreç ağacı).
+   İşin başında `ayarlar:` satırı kullanılan sınırları ve kaynaklarını yazar (`ctx::sayi_ayari`:
+   "CI değişkeni" / "varsayılan" / sayı değilse uyarı + "varsayılan; değişken geçersiz").
 7. `POST /api/ci/runs/{id}/triage` (`AgentTriage`).
 
 Hatalar uyarıdır, çıkış kodu her zaman 0: değerlendirme kurulamazsa `ulak fix` yine çalışır ve kural

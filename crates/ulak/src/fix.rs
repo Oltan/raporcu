@@ -386,6 +386,25 @@ pub fn pipeline_push_options(mode: &str, cand: &FixCandidate) -> Vec<String> {
     vec!["ci.variable=ULAK_FIX_PIPELINE=on".into(), filtre]
 }
 
+/// Art arda bu kadar zaman aşımından sonra kalan senaryolar denenmez (model büyük ihtimalle yanıt
+/// vermiyor; her biri yine aynı süreyi bekletirdi). `ULAK_ART_ARDA_ZAMAN_ASIMI`, varsayılan 3.
+pub fn art_arda_zaman_asimi_siniri() -> u64 {
+    crate::ctx::sayi_ayari("ULAK_ART_ARDA_ZAMAN_ASIMI", 3).0.max(1)
+}
+
+/// Zaman aşımı satırı: senaryo atlandı; ajanın o ana kadarki çıktısının satır sayısı da yazılır.
+/// Çıktı varsa ajan çalışıyordu ve süre yetmedi; hiç yoksa model yanıt vermiyor olabilir (Claude Code
+/// `--output-format text` ile yalnızca sonunda yazdığı için onda çıktı olmaması tek başına kanıt değil).
+pub fn zaman_asimi_mesaji(ad: &str, sure: Duration, out: &str, sure_degiskeni: &str) -> String {
+    let satir = out.lines().filter(|l| !l.trim().is_empty()).count();
+    let durum = if satir == 0 {
+        "ajan hiç çıktı vermedi: model yanıt vermiyor olabilir".to_string()
+    } else {
+        format!("ajan {satir} satır çıktı vermişti: çalışıyordu, süre yetmedi ({sure_degiskeni} artırılabilir ya da ajanın steps değeri düşürülebilir)")
+    };
+    format!("UYARI: zaman aşımı ({} sn), atlandı: {ad} — {durum}", sure.as_secs())
+}
+
 /// Doğrulama koşusunun filtresi: `ULAK_FIX_VALIDATE_FILTER=name` (varsayılan) senaryo adı,
 /// `tags` adayın tag'leri (`@a and @b`; ASCII olmayanlar atılır, hiç kalmazsa uyarıyla ada düşülür).
 /// Aynı tag kümesini taşıyan başka senaryolar da koşar; senaryoya özgü tag (YTET no) varsa tek senaryo.
@@ -578,7 +597,8 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     let report_url = env("ULAK_REPORT_URL").unwrap_or(report_url);
     let client = c.client();
     let all = candidates(c, run_id)?;
-    let max: usize = env("ULAK_FIX_MAX").and_then(|v| v.parse().ok()).unwrap_or(3);
+    let (max, max_kaynak) = crate::ctx::sayi_ayari("ULAK_FIX_MAX", 3);
+    let max = max as usize;
     // divan'daki senaryo düğmesi: yalnızca o senaryo, triage hedefinden bağımsız
     let only: Option<i64> = env("ULAK_FIX_SCENARIO_ID").and_then(|v| v.parse().ok());
     let chosen = |c: &FixCandidate| match only {
@@ -616,10 +636,26 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     let work = c.state_dir.join("fix");
     std::fs::create_dir_all(&work)?;
     let allowed = allowed_prefixes();
-    let timeout = Duration::from_secs(env("ULAK_OPENCODE_TIMEOUT").and_then(|v| v.parse().ok()).unwrap_or(900));
+    let (sn, sn_kaynak) = crate::ctx::sayi_ayari("ULAK_OPENCODE_TIMEOUT", 900);
+    let timeout = Duration::from_secs(sn);
+    let sinir = art_arda_zaman_asimi_siniri();
+    say(format!(
+        "ayarlar: ULAK_FIX_MAX={max} ({max_kaynak}), ULAK_OPENCODE_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, ULAK_FIX_PIPELINE={}",
+        env_or("ULAK_FIX_AGENT", "opencode"),
+        env_or("ULAK_FIX_PIPELINE", "off")
+    ));
     let gitlab = Gitlab::from_env();
     let mut opened = 0;
-    for cand in todo {
+    let mut art_arda = 0;
+    let toplam = todo.len();
+    for (sira, cand) in todo.into_iter().enumerate() {
+        if art_arda >= sinir {
+            say(format!(
+                "UYARI: art arda {art_arda} zaman aşımı; kalan {} senaryo denenmedi (model yanıt vermiyor gibi; ULAK_ART_ARDA_ZAMAN_ASIMI={sinir})",
+                toplam - sira
+            ));
+            break;
+        }
         let started = Instant::now();
         let _ = client.post_json(
             &format!("/api/ci/runs/{run_id}/fix-started"),
@@ -652,15 +688,16 @@ pub fn fix(c: &Ctx) -> Result<i32> {
         result.triage = parse_marker(&out, "ULAK_TRIAGE:").and_then(|j| serde_json::from_str::<TriageSuggestion>(j).ok());
         let files = changed_files(dir)?;
         let outside = outside_allowed(&files, &allowed);
-        if code != 0 && files.is_empty() {
+        art_arda = if code == -1 { art_arda + 1 } else { 0 };
+        if code == -1 {
+            // zaman aşımı: yarım kalmış değişiklik doğrulanıp push edilmez, senaryo atlanır
             result.outcome = "error".into();
-            result.summary.get_or_insert_with(|| {
-                if code == -1 {
-                    "OpenCode zaman aşımına uğradı".into()
-                } else {
-                    format!("OpenCode çıkış kodu {code}")
-                }
-            });
+            result.summary = Some(format!("zaman aşımı ({} sn)", timeout.as_secs()));
+            say(zaman_asimi_mesaji(&cand.name, timeout, &out, "ULAK_OPENCODE_TIMEOUT"));
+            restore(dir);
+        } else if code != 0 && files.is_empty() {
+            result.outcome = "error".into();
+            result.summary.get_or_insert_with(|| format!("OpenCode çıkış kodu {code}"));
             say(format!("OpenCode başarısız ({code}), son çıktı:\n{}", tail_lines(&out, 15)));
             restore(dir);
         } else if !outside.is_empty() {
@@ -884,6 +921,31 @@ mod tests {
         };
         let p = build_prompt(&c, "src/test/resources/", None, "http://r");
         assert!(p.contains("daha önce birleştirilmiş düzeltmeler") && p.contains("#yeni"));
+    }
+
+    #[test]
+    fn test_sw_4_5_zaman_asimi_mesaji_yavas_ile_yanitsizi_ayirir() {
+        let t = Duration::from_secs(300);
+        let bos = zaman_asimi_mesaji("Giriş", t, "  \n", "ULAK_DEGERLENDIR_TIMEOUT");
+        assert!(bos.contains("atlandı: Giriş") && bos.contains("hiç çıktı vermedi") && bos.contains("300 sn"));
+        let dolu = zaman_asimi_mesaji("Giriş", t, "Read x\nGrep y\n", "ULAK_DEGERLENDIR_TIMEOUT");
+        assert!(dolu.contains("2 satır") && dolu.contains("süre yetmedi") && dolu.contains("ULAK_DEGERLENDIR_TIMEOUT"));
+    }
+
+    #[test]
+    fn test_sw_4_5_sayi_ayari_kaynagini_soyler() {
+        // değişken adları yalnızca bu teste özgü (testler paralel koşar)
+        unsafe {
+            std::env::set_var("ULAK_TEST_SAYI_A", " 100 ");
+            std::env::set_var("ULAK_TEST_SAYI_B", "yüz");
+            std::env::remove_var("ULAK_TEST_SAYI_C");
+        }
+        assert_eq!(crate::ctx::sayi_ayari("ULAK_TEST_SAYI_A", 20), (100, "CI değişkeni"));
+        assert_eq!(
+            crate::ctx::sayi_ayari("ULAK_TEST_SAYI_B", 20),
+            (20, "varsayılan; değişken geçersiz")
+        );
+        assert_eq!(crate::ctx::sayi_ayari("ULAK_TEST_SAYI_C", 20), (20, "varsayılan"));
     }
 
     #[test]

@@ -986,16 +986,23 @@ fn evaluation_steps(ck: &mut Checks, server: &Server, ulak: &Path, proj: &Path, 
     let _ = std::fs::remove_file(&torun);
     s.set("ULAK_FAKE_MODE", "asili")
         .set("ULAK_DEGERLENDIR_TIMEOUT", "1")
+        .set("ULAK_ART_ARDA_ZAMAN_ASIMI", "2")
         .set("ULAK_FAKE_TORUN_DOSYASI", torun.display().to_string());
     let t = std::time::Instant::now();
     let o = s.run(&["degerlendir"])?;
     let sure = t.elapsed().as_secs();
+    let sorulan = o.text.matches("LLM değerlendirmesi:").count();
     ck.check(
         "SW-4.5",
-        "model yanıt vermezse değerlendirme durur, iş kilitlenmez, kural kararı kalır",
-        o.code == 0 && o.text.contains("değerlendirme durduruldu") && o.text.matches("LLM değerlendirmesi:").count() == 1 && sure < 20,
+        "zaman aşımında senaryo atlanır (iş kilitlenmez), kural kararı kalır, ayarlar logda",
+        o.code == 0
+            && o.text.matches("zaman aşımı (1 sn), atlandı:").count() == sorulan
+            && sorulan >= 1
+            && o.text.contains("ULAK_DEGERLENDIR_MAX=")
+            && sure < 20,
         format!("{sure} sn\n{}", o.text),
     );
+    s.set("ULAK_ART_ARDA_ZAMAN_ASIMI", "3");
     // torun yaşıyorsa başlamasından 4 sn sonra dosyayı yazar
     std::thread::sleep(std::time::Duration::from_secs(6u64.saturating_sub(sure)));
     ck.check(

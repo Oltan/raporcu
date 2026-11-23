@@ -24,6 +24,21 @@ pub fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
 }
 
+/// Sayı ayarı ve nereden geldiği (logda gösterilir). Değişken var ama sayı değilse uyarı verilir,
+/// varsayılan kullanılır; böylece "değişkeni görmedi mi?" sorusu logdan cevaplanır.
+pub fn sayi_ayari(name: &str, default: u64) -> (u64, &'static str) {
+    match env(name) {
+        None => (default, "varsayılan"),
+        Some(v) => match v.parse::<u64>() {
+            Ok(n) => (n, "CI değişkeni"),
+            Err(_) => {
+                say(format!("UYARI: {name}={v:?} sayı değil; varsayılan {default} kullanılıyor"));
+                (default, "varsayılan; değişken geçersiz")
+            }
+        },
+    }
+}
+
 pub fn env_or(name: &str, default: &str) -> String {
     env(name).unwrap_or_else(|| default.to_string())
 }

@@ -244,6 +244,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Test: B, P
 - Doğrulama: `test_sw_4_5_*`
 - Not: Açık soru 3 yanıtlanmadan varsayımlarla uygulandı (docs/KARARLAR.md). Testler geçer.
+- Ek: zaman aşımına düşen senaryo atlanır, sıradakine geçilir (ilk aşımda tüm değerlendirme durmaz); art arda `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) aşımdan sonra kalanlar denenmez; log satırı ajanın çıktı verip vermediğini yazar; işin başında kullanılan sınırlar kaynaklarıyla yazılır. Aynı kural `ulak fix`'te (yarım değişiklik geri alınır). Doğrulama: `test_sw_4_5_zaman_asimi_mesaji_yavas_ile_yanitsizi_ayirir`, `test_sw_4_5_sayi_ayari_kaynagini_soyler`, rehearse SW-4.5.
 
 ### SW-4.6 [MEVCUT] Proje ve branch ayrımı
 - Her koşum bir test projesine ve branch'e bağlıdır. Dashboard, geçmiş ve flaky tespiti proje ve branch bazında yapılır.

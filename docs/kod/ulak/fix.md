@@ -26,7 +26,10 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
       - `claude`: `<ULAK_CLAUDE_BIN, claude> -p {istem} --permission-mode acceptEdits --allowedTools Read,Edit,Write,Glob,Grep,Skill --disallowedTools Bash,WebFetch,WebSearch --max-turns 40 --output-format text`
       Program yolu boşluk içeriyorsa `bin_arg` ile tırnaklanır (`split_command` bölmesin).
       Yer tutucular: `{istem}`, `{ekran}` (yoksa kendisi ve önceki bayrak atılır), `{istem_dosyasi}`;
-      ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn). Şirket CA'sı
+      ortamda `ULAK_FIX_PROMPT_FILE`. Zaman aşımı `ULAK_OPENCODE_TIMEOUT` (900 sn); aşımda o senaryo
+      atlanır (yarım değişiklik geri alınır, doğrulama/push yok, sonuç `error`), art arda
+      `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) aşımda kalan adaylar denenmez. İşin başında `ayarlar:` satırı
+      (`ULAK_FIX_MAX`, zaman aşımı, ajan, `ULAK_FIX_PIPELINE`; kaynaklarıyla). Şirket CA'sı
       tanımlıysa ajana `NODE_EXTRA_CA_CERTS=.ulak/sirket-ca.pem` verilir (kullanıcı tanımlamadıysa).
       Zaman aşımında (`run_with_timeout`, kod `-1`) yalnızca ajan değil **süreç ağacı** sonlandırılır:
       ajan sarmalayıcıyla başlar (`opencode.cmd` → node) ve torun süreç çıktı borusunu açık tutar.
