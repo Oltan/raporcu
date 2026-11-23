@@ -277,6 +277,62 @@ fn zip_without_jira_tag() -> Vec<u8> {
     zip_dir(tmp.path())
 }
 
+/// Gerçek örnek, bir sonucu JUnit testine çevrilmiş: `gherkin_uri` yok, `framework` junit-platform
+/// (aynı `mvn test`te koşan JUnit testi Allure JUnit eklentisiyle böyle gelir).
+fn zip_with_junit_result(name: &str) -> Vec<u8> {
+    let tmp = tempfile::tempdir().unwrap();
+    for e in std::fs::read_dir(sample_dir()).unwrap() {
+        let p = e.unwrap().path();
+        let n = p.file_name().unwrap().to_string_lossy().to_string();
+        let mut data = std::fs::read(&p).unwrap();
+        if n.ends_with("-result.json") {
+            let mut v: Value = serde_json::from_slice(&data).unwrap();
+            if v["name"] == name {
+                let labels: Vec<Value> = v["labels"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|l| l["name"] != "gherkin_uri")
+                    .map(|l| {
+                        if l["name"] == "framework" {
+                            json!({ "name": "framework", "value": "junit-platform" })
+                        } else {
+                            l.clone()
+                        }
+                    })
+                    .collect();
+                v["labels"] = Value::Array(labels);
+                data = v.to_string().into_bytes();
+            }
+        }
+        std::fs::write(tmp.path().join(&n), data).unwrap();
+    }
+    zip_dir(tmp.path())
+}
+
+#[tokio::test]
+async fn test_sw_7_1_cucumber_disi_test_degerlendirme_ve_fix_disi() {
+    let app = app();
+    let id = upload_zip(&app, zip_with_junit_result("Şifremi unuttum bağlantısı")).await;
+    let r = app
+        .send(
+            axum::http::Request::get(format!("/api/ci/runs/{id}/fix-candidates"))
+                .header("authorization", format!("Bearer {CI_TOKEN}"))
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await;
+    let list: Value = serde_json::from_str(&body_string(r).await).unwrap();
+    let hedef = |ad: &str| {
+        list.as_array().unwrap().iter().find(|c| c["name"] == ad).unwrap()["target"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    // değiştirilmemiş hâli kural kararıyla "opencode" hedefi alır (test_sw_4_5_* içinde doğrulanıyor)
+    assert_eq!(hedef("Şifremi unuttum bağlantısı"), "atla", "feature dosyası yok: ajan dışı");
+}
+
 async fn upload_zip(app: &TestApp, zip: Vec<u8>) -> i64 {
     let (st, b) = app.ci_post(&format!("/api/ci/runs?{Q}"), "application/zip", zip).await;
     assert_eq!(st, StatusCode::OK, "{b}");

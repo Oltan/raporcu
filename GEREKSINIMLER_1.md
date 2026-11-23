@@ -356,6 +356,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Kabul: Her durum için doğru hedef seçilir.
 - Test: B
 - Doğrulama: `test_sw_7_1_*`
+- Ek: feature dosyası olmayan sonuç (Cucumber dışı, ör. JUnit testi) hedef `atla`: değerlendirilmez, düzeltilmez; raporda görünmeye devam eder. Doğrulama: `test_sw_7_1_cucumber_disi_test_degerlendirme_ve_fix_disi`.
 
 ### SW-7.2 [KISMEN] OpenCode düzeltmesi (`ulak fix`)
 - Yalnızca `src/test/` altında değişiklik yapar, doğrulama koşusu çalıştırır, auto-fix branch'i ve MR açar (doğrulama geçmezse Draft MR).

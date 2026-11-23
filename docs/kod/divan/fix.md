@@ -5,6 +5,8 @@ geçmiş düzeltme örnekleri.
 
 ## `target(durum, tag'ler, triage) -> hedef`
 - `@sample-fail` tag'i → `atla`.
+- (`candidates` içinde) feature dosyası olmayan sonuç → `atla`: Cucumber senaryosu değil (ör. aynı `mvn test`te koşan
+  JUnit testi, Allure JUnit eklentisiyle rapora girer); ulak ne değerlendirir ne düzeltir.
 - Triage: `test_kodu` → `opencode`, `urun` → `jira`, `flaky` → `flaky` (düzeltilmez, bug taslağı yok; `ulak degerlendir` bakar), `ortam` → `bildirim`.
 - Triage yok / `bilinmiyor`: `broken` → `opencode`, `failed` → `jira`, diğer → `atla`.
 

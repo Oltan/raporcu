@@ -165,6 +165,12 @@ pub fn candidates(c: &Connection, paths: &crate::Paths, run_id: i64, public_url:
     for (id, key, name, feature, ffile, status, msg, trace, tags, cat) in rows {
         let tags: Vec<String> = tags.split_whitespace().map(String::from).collect();
         let mut t = target(&status, &tags, cat.as_deref());
+        // Cucumber senaryosu değil (feature dosyası yok: ör. aynı `mvn test`te koşan JUnit testi,
+        // Allure JUnit eklentisi ekliyse rapora girer): ajan ne değerlendirir ne düzeltir.
+        // "atla" eski ulak sürümlerinde de değerlendirme ve düzeltme dışıdır.
+        if ffile.as_deref().is_none_or(|f| f.trim().is_empty()) {
+            t = "atla";
+        }
         // Aynı senaryo için açık bir auto-fix MR'ı varsa yenisi açılmaz (MR birleşene kadar her gece
         // yeni MR birikmesin). Webhook gelmezse mr_state boş kalır: 14 günden eski MR açık sayılmaz.
         if t == "opencode" && open_fix_mr(c, project_id, &key)?.is_some() {
