@@ -18,7 +18,7 @@
 <dependency>
     <groupId>com.divan</groupId>
     <artifactId>divan-test-destek</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>  <!-- eklentiler/java/pom.xml ile aynı -->
     <scope>test</scope>
 </dependency>
 <dependency>

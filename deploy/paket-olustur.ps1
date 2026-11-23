@@ -48,23 +48,19 @@ foreach ($s in "cucumber-adim", "hata-siniflandirma", "testfx-secici") { Copy-It
 Copy-Item "$kok\ci\claude\template" "$p\claude-code" -Recurse
 Copy-Item "$kok\ci\opencode\template\.opencode\agents\fix.md" "$p\ozel\agents\ORNEK-ajan.md"
 Copy-Item "$kok\ci\skills\testfx-secici\SKILL.md" "$p\ozel\skills\ornek-skill\SKILL.md"
-Copy-Item "$kok\ci\java-destek\pom-eklentisi.xml" "$p\java\"
+Copy-Item "$kok\eklentiler\java\pom-eklentisi.xml" "$p\java\"
 
 Write-Host "== Java destek jar'ı ve çevrimdışı Maven deposu"
 $is = Join-Path $env:TEMP "divan-java-paket"
 if (Test-Path $is) { Remove-Item $is -Recurse -Force }
-$kod = "$is\destek\src\main\java\divan\destek"
-New-Item -ItemType Directory -Force $kod | Out-Null
-Copy-Item "$kok\ci\java-destek\pom.xml" "$is\destek\"
-foreach ($f in "$kok\ornek-test-projesi\src\test\java\com\ornek\test\CanliOlayEklentisi.java", "$kok\ornek-test-projesi\src\test\java\com\ornek\test\VideoKaydi.java", "$kok\ci\java-sablon\DivanKanit.java") {
-  $metin = [IO.File]::ReadAllText($f).Replace("com.ornek.test", "divan.destek")
-  [IO.File]::WriteAllText("$kod\$(Split-Path $f -Leaf)", $metin)
-}
+# Tek kaynak: eklentiler\java (sürüm pom.xml'de; jar adı ve MANIFEST sürümü taşır)
+Copy-Item "$kok\eklentiler\java" "$is\destek" -Recurse -Exclude target
+$commit = (git -C $kok rev-parse --short HEAD)
 $m2 = "$p\java\m2"
 $mvn = Join-Path $MavenKoku "bin\mvn.cmd"
-& $mvn -B -q -f "$is\destek\pom.xml" "-Dmaven.repo.local=$m2" install
+& $mvn -B -q -f "$is\destek\pom.xml" "-Dmaven.repo.local=$m2" "-Ddivan.commit=$commit" install
 if ($LASTEXITCODE -ne 0) { throw "destek jar'ı derlenemedi" }
-Copy-Item "$is\destek\target\divan-test-destek-1.0.0.jar" "$p\java\"
+Copy-Item "$is\destek\target\divan-test-destek-*.jar" "$p\java\"
 # Örnek proje iki platformun bağımlılıklarını ve surefire sağlayıcılarını depoya indirir; senaryo seçilmez.
 Copy-Item "$kok\ornek-test-projesi" "$is\ornek" -Recurse -Exclude target
 foreach ($os in "win", "linux") {

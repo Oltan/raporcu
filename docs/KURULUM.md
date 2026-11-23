@@ -10,7 +10,7 @@ bölümün sonundaki **Kontrol** geçmeden sonrakine geçmeyin.
 |--------|--------|
 | `windows/` | `divan.exe` (sunucu), `ulak.exe` (CI aracı). Ek çalışma zamanı istemez |
 | `linux/` | `divan`, `ulak`. Statik derlendi, her Ubuntu sürümünde çalışır |
-| `java/` | `divan-test-destek-1.0.0.jar`, `m2/` (çevrimdışı Maven deposu), `maven/` (Maven 3.9.16), `pom-eklentisi.xml` |
+| `java/` | `divan-test-destek-1.1.0.jar`, `m2/` (çevrimdışı Maven deposu), `maven/` (Maven 3.9.16), `pom-eklentisi.xml` |
 | `test-projesi/` | `.gitlab-ci.yml`, `opencode.json`, `AGENTS.md`, `fix` ve `degerlendir` ajanları, üç skill |
 | `claude-code/` | Claude Code kullanılacaksa test projesine kopyalanan dosyalar: `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` (bölüm 6) |
 | `ozel/` | Kendi ajanlarınız ve skill'leriniz, örnekleriyle |
@@ -130,7 +130,7 @@ Maven'ın dışarı çıkmaya çalışmaması için `~/.m2/settings.xml`:
 **B) Nexus varsa:** Yalnızca jar'ı yükleyin, gerisini Nexus sağlar.
 
 ```bash
-mvn deploy:deploy-file -Dfile=java/divan-test-destek-1.0.0.jar -DgroupId=com.divan -DartifactId=divan-test-destek -Dversion=1.0.0 -Dpackaging=jar -DrepositoryId=<id> -Durl=<nexus-adresi>
+mvn deploy:deploy-file -Dfile=java/divan-test-destek-1.1.0.jar -DgroupId=com.divan -DartifactId=divan-test-destek -Dversion=1.1.0 -Dpackaging=jar -DrepositoryId=<id> -Durl=<nexus-adresi>
 ```
 
 **Önemli sınır:** `m2` yalnızca örnek projedeki sürümleri içerir (Cucumber 7.34.9, TestFX 4.0.18,

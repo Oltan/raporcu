@@ -169,21 +169,17 @@ Eklentiler runner sınıfında `@ConfigurationParameter` ile veriliyorsa aynı a
 ```bash
 HEDEF=src/test/java/$(echo "$PAKET" | tr . /)
 mkdir -p "$HEDEF"
-for f in ornek-test-projesi/src/test/java/com/ornek/test/CanliOlayEklentisi.java \
-         ornek-test-projesi/src/test/java/com/ornek/test/VideoKaydi.java \
-         ci/java-sablon/DivanKanit.java; do
-  sed "s/com\.ornek\.test/$PAKET/g" "$DIVAN/$f" > "$HEDEF/$(basename "$f")"
+for f in CanliOlayEklentisi VideoKaydi DivanKanit; do
+  sed "s/divan\.destek/$PAKET/g" "$DIVAN/eklentiler/java/src/main/java/divan/destek/$f.java" > "$HEDEF/$f.java"
 done
 ```
 
 ```powershell
 $HEDEF = "src\test\java\" + ($PAKET -replace '\.', '\')
 New-Item -ItemType Directory -Force $HEDEF | Out-Null
-foreach ($f in "ornek-test-projesi\src\test\java\com\ornek\test\CanliOlayEklentisi.java",
-               "ornek-test-projesi\src\test\java\com\ornek\test\VideoKaydi.java",
-               "ci\java-sablon\DivanKanit.java") {
-  $metin = [IO.File]::ReadAllText("$DIVAN\$f").Replace("com.ornek.test", $PAKET)
-  [IO.File]::WriteAllText("$PWD\$HEDEF\$(Split-Path $f -Leaf)", $metin)
+foreach ($f in "CanliOlayEklentisi", "VideoKaydi", "DivanKanit") {
+  $metin = [IO.File]::ReadAllText("$DIVAN\eklentiler\java\src\main\java\divan\destek\$f.java").Replace("divan.destek", $PAKET)
+  [IO.File]::WriteAllText("$PWD\$HEDEF\$f.java", $metin)
 }
 ```
 

@@ -17,7 +17,7 @@ eşleştirmesi ve `switch ->` kullanılıyor; Java 11 ise sorun giderme tablosun
 ## Yol A: destek jar'ı (paketle kurulum)
 
 `docs/KURULUM.md` §4'te `java/pom-eklentisi.xml` parçaları `pom.xml`'e eklenince
-`com.divan:divan-test-destek:1.0.0` bağımlılığı gelir. Jar'ın içinde `divan.destek.CanliOlayEklentisi`,
+`com.divan:divan-test-destek:1.1.0` bağımlılığı gelir. Jar'ın içinde `divan.destek.CanliOlayEklentisi`,
 `divan.destek.VideoKaydi` ve `divan.destek.DivanKanit` vardır; jar ve bağımlılıklar paketteki
 `java/m2` çevrimdışı Maven deposundan çözülür (`docs/KURULUM.md` §3).
 

@@ -1,7 +1,15 @@
 # CI şablonu ve dağıtım dosyaları
 
-## ci/java-sablon/DivanKanit.java
-Test projesine kopyalanan yardımcı sınıf (`docs/LLM_JAVA_ENTEGRASYON.md`, adım 3). Senaryo kaldıysa
+## eklentiler/java (divan-test-destek jar'ı)
+Test projesinin içine giren Java kodunun **tek kaynağı**: `divan.destek` paketinde `DivanKanit`,
+`CanliOlayEklentisi`, `VideoKaydi`; `pom.xml` (sürüm), `pom-eklentisi.xml` (test projesinin pom'una eklenecek
+parçalar, aynı sürüm). Jar'ın MANIFEST'inde `Implementation-Version` ve `Divan-Commit` yazar; sahadaki jar'ın
+hangi kaynaktan olduğu buradan görülür. Nexus yok: jar derlenip elle dağıtılır (`surum/java/`). Örnek
+projedeki `CanliOlayEklentisi` ve `VideoKaydi` kopyaları eklentiyle aynı kalmalı
+(`crates/common/tests/java_eklenti.rs`).
+
+### DivanKanit
+Test projesine kopyalanan ya da jar'dan gelen yardımcı sınıf (`docs/LLM_JAVA_ENTEGRASYON.md`, adım 3). Senaryo kaldıysa
 pencere bölgesinin ekran görüntüsünü ve TestFX sahne ağacını Cucumber ekine koyar; geçen senaryoda
 hiçbir şey yapmaz. Kanıt alınamazsa yalnızca `System.err`'e yazar, senaryonun gerçek hatası değişmez.
 İki kanıt bağımsızdır: ekran görüntüsü alınamasa da ağaç eklenir. Ağaç JavaFX iş parçacığında okunur
@@ -72,7 +80,7 @@ x86_64-pc-windows-gnu`); clippy `type-complexity-threshold = 600`; biçim ayarla
 Çevrimdışı kurulum paketini üretir (`dist/divan-kurulum.zip`; içeriği `docs/KURULUM.md`). Windows
 ikilileri statik C çalışma zamanıyla (`+crt-static`) derlenir, yanında VC++ çalışma zamanı istemez.
 Linux ikilileri WSL'de musl hedefiyle derlenir; `musl-gcc` yoksa sudo gerektirmeyen `cargo-zigbuild`
-kullanılır. Java kaynakları `divan.destek` paketine taşınıp `ci/java-destek/pom.xml` ile jar yapılır.
+kullanılır. Java destek jar'ı `eklentiler/java`'dan derlenir (sürüm `pom.xml`'den, commit MANIFEST'e).
 Maven deposuna iki platformun bağımlılıkları iner; depo kimliği kayıtları (`_remote.repositories`)
 silinir, yoksa başka `settings.xml` ile çevrimdışı çözümleme reddedilir.
 

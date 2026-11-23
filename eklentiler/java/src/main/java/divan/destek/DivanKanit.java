@@ -1,4 +1,4 @@
-package com.ornek.test;
+package divan.destek;
 
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
