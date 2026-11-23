@@ -151,12 +151,12 @@ ulaşıp ulaşmadığı jar sürümünden görülür.
 
 | Öncelik | İş | Neden |
 |---|---|---|
-| 1 | `eklentiler/java` Maven modülü, sürüm = depo etiketi, Nexus'a yayın (aşama 2) | sahadaki jar'ın hangi kaynaktan olduğu bilinmiyor; sahne ağacı düzeltmesi buna takıldı |
+| 1 ✅ | `eklentiler/java` Maven modülü (1.1.0, MANIFEST'te sürüm + commit); **Nexus yok**, jar `surum/java/`'dan elle dağıtılır (kullanıcı kararı) | sahadaki jar'ın hangi kaynaktan olduğu bilinmiyor; sahne ağacı düzeltmesi buna takıldı |
 | 2 | Senaryo kimliği satır kaymasına dayanıklı (Allure `historyId` = dosya yolu + satır; `testCaseId` = yol + ad) | feature dosyasına satır eklemek geçmişi, flaky tespitini ve açık MR takibini koparıyor |
-| 3 | Model yanıt vermezse `ulak fix` de ilk zaman aşımında dursun; "yavaş" ile "yanıt yok" ayrılsın | gece işi boşuna 45 dk'ya kadar bekleyebiliyor; yavaş model değerlendirmeyi toptan kesiyor |
-| 4 | ulak işin başında kullandığı sınırları ve kaynaklarını yazsın (`ULAK_FIX_MAX=… (CI değişkeni / varsayılan)`), sayı olmayan değerde uyarsın | "değişkeni görmedi mi?" sorusu logdan cevaplansın |
-| 5 | `fx:id` taraması (preflight uyarısı) | ajanın güvenilir seçici yazamadığı kontroller önceden görünsün |
-| 6 | Sahne ağacı için Java birim testi (eklenti modülünde) | düzeltme ileride sessizce bozulmasın |
+| 3 ✅ | Zaman aşımında senaryo atlanır, art arda `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) aşımda durulur; logda ajanın çıktı verip vermediği (kullanıcı kararı: atla) | gece işi boşuna 45 dk'ya kadar bekleyebiliyor; yavaş model değerlendirmeyi toptan kesiyor |
+| 4 ✅ | ulak işin başında kullandığı sınırları ve kaynaklarını yazsın (`ULAK_FIX_MAX=… (CI değişkeni / varsayılan)`), sayı olmayan değerde uyarsın | "değişkeni görmedi mi?" sorusu logdan cevaplansın |
+| 5 ✗ | `fx:id` taraması (preflight uyarısı) — şimdilik yapılmıyor (kullanıcı kararı) | ajanın güvenilir seçici yazamadığı kontroller önceden görünsün |
+| 6 ✗ | Sahne ağacı için Java birim testi — kullanıcı kendi test projesine ekledi | düzeltme ileride sessizce bozulmasın |
 | 7 | Koşumu başlatan kullanıcı ve runner adı raporda (`GITLAB_USER_LOGIN`, `CI_RUNNER_DESCRIPTION`) | birden çok VM'de "kimin koşumu, hangi makine" |
 
 ## Açık sorular
