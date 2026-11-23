@@ -159,6 +159,21 @@ ulaşıp ulaşmadığı jar sürümünden görülür.
 | 6 ✗ | Sahne ağacı için Java birim testi — kullanıcı kendi test projesine ekledi | düzeltme ileride sessizce bozulmasın |
 | 7 | Koşumu başlatan kullanıcı ve runner adı raporda (`GITLAB_USER_LOGIN`, `CI_RUNNER_DESCRIPTION`) | birden çok VM'de "kimin koşumu, hangi makine" |
 
+## Uygulama durumu (2026-11-23, `depo-yapisi`)
+
+| Aşama | Durum |
+|---|---|
+| 0 Şirket GitLab'ına taşıma | yapılmadı (kullanıcı yapacak) |
+| 1 divan deposunun pipeline'ı | yapılmadı (0'a bağlı; Windows runner hazırlanabilir) |
+| 2 `eklentiler/java` | **yapıldı** (1.1.0, MANIFEST'te sürüm + commit). Örnek proje kopyaları korundu, ayrışmayı test yakalıyor; örnek projenin jar'ı bağımlılık olarak kullanması yapılmadı |
+| 3 Sürüm pipeline'ı | yapılmadı. Nexus kullanılmayacak (kullanıcı kararı): ikililer ve jar `surum/` altında, elle dağıtım. Etiketler bu oturumdan gönderilemiyor (kullanıcı atar) |
+| 4 `include … ref:` | yapılmadı (3'e bağlı; tek proje, şimdilik kopya + `surum/linux/ornek.gitlab-ci.yml`) |
+| 5 `docs/SOZLESME.md` | yapılmadı |
+| 6–7 Profiller | bekliyor (önce Java) |
+
+Java için sıradakiler: 1, 3, 4 yapıldı; 5, 6 çıkarıldı; 2 (senaryo kimliği) ve 7 (kim/hangi runner) bekliyor.
+Ek: Cucumber dışı sonuçlar (JUnit) değerlendirme ve fix dışı (0.1.2).
+
 ## Açık sorular
 
 1. **Paket deposu:** Şirkette Nexus/Artifactory var mı (Maven, PyPI, NuGet)? Yoksa GitLab Package
