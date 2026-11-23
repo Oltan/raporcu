@@ -1,6 +1,6 @@
 # Depo yapısı, dağıtım ve çok dilli test projeleri — plan
 
-Durum: **taslak, değerlendirme bekliyor**. Dal: `depo-yapisi`. Onaylanınca gereksinimler
+Durum: **taslak, değerlendirme bekliyor** (yanıtlar işlendi, aşağıda). Dal: `depo-yapisi`. Onaylanınca gereksinimler
 `GEREKSINIMLER_1.md`'ye SYS-11 olarak eklenir, kararlar `docs/KARARLAR.md`'ye yazılır.
 
 ## Amaç
@@ -135,6 +135,29 @@ Her aşama ayrı MR; her aşamadan sonra sistem bugünkü gibi çalışmaya deva
 
 Aşama 2 tek başına bile değerli: sahne ağacı düzeltmesi gibi Java tarafı değişikliklerinin sahaya
 ulaşıp ulaşmadığı jar sürümünden görülür.
+
+## Kullanıcının yanıtları (2026-11-23)
+
+| Soru | Yanıt | Plana etkisi |
+|---|---|---|
+| Paket deposu | Şirkette **Nexus var** | Java jar'ı (ve ileride PyPI/NuGet paketleri) Nexus'a; GitLab Package Registry gerekmez |
+| İlk dil | **Önce Java** tamamlanacak | Aşama 6–7 (yeni profiller) bekler; Java tarafı eksikleri öne alınır (aşağıda "Java için sıradakiler") |
+| divan deposunun runner'ı | **Windows runner kurulabilir** | Aşama 1'de Linux runner (derleme, test, prova) + Windows runner (Windows testleri, Windows provası) |
+| Proje sayısı | Şu an **tek proje** | Eski kopya geçişi (aşama 4) tek projede yapılır |
+| Sürüm etiketi | Etiket **deponun tamamı** içindir (divan + ulak + eklentiler + şablon) | İlk etiket: `v0.1.0` → `33c04cb` (sahadaki ikililerle aynı kod) |
+| Ayrı ekip | Şu an yok | Tek depo kararı kesinleşir |
+
+## Java için sıradakiler (yeni profillerden önce)
+
+| Öncelik | İş | Neden |
+|---|---|---|
+| 1 | `eklentiler/java` Maven modülü, sürüm = depo etiketi, Nexus'a yayın (aşama 2) | sahadaki jar'ın hangi kaynaktan olduğu bilinmiyor; sahne ağacı düzeltmesi buna takıldı |
+| 2 | Senaryo kimliği satır kaymasına dayanıklı (Allure `historyId` = dosya yolu + satır; `testCaseId` = yol + ad) | feature dosyasına satır eklemek geçmişi, flaky tespitini ve açık MR takibini koparıyor |
+| 3 | Model yanıt vermezse `ulak fix` de ilk zaman aşımında dursun; "yavaş" ile "yanıt yok" ayrılsın | gece işi boşuna 45 dk'ya kadar bekleyebiliyor; yavaş model değerlendirmeyi toptan kesiyor |
+| 4 | ulak işin başında kullandığı sınırları ve kaynaklarını yazsın (`ULAK_FIX_MAX=… (CI değişkeni / varsayılan)`), sayı olmayan değerde uyarsın | "değişkeni görmedi mi?" sorusu logdan cevaplansın |
+| 5 | `fx:id` taraması (preflight uyarısı) | ajanın güvenilir seçici yazamadığı kontroller önceden görünsün |
+| 6 | Sahne ağacı için Java birim testi (eklenti modülünde) | düzeltme ileride sessizce bozulmasın |
+| 7 | Koşumu başlatan kullanıcı ve runner adı raporda (`GITLAB_USER_LOGIN`, `CI_RUNNER_DESCRIPTION`) | birden çok VM'de "kimin koşumu, hangi makine" |
 
 ## Açık sorular
 
