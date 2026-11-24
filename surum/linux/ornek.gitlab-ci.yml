@@ -10,15 +10,15 @@
 #   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX, ULAK_FIX_PIPELINE ("senaryo")
 
 # --- Pipeline ne zaman başlar ----------------------------------------------------------------
+# Push'larda test koşmaz. Koşum yalnızca: zamanlama (schedule), elle "Run pipeline", divan'ın
+# "OpenCode ile düzelt" düğmesi (api) ve ulak fix'in açtığı auto-fix branch'leri.
 workflow:
   rules:
-    # MR pipeline'ı açılmasın: aynı commit'in branch pipeline'ı zaten koşuyor
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-      when: never
-    # main'e push (MR merge'i dahil) pipeline başlatmasın; main'i gece schedule'ı test eder
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: never
-    - when: always
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_PIPELINE_SOURCE == "api" || $CI_PIPELINE_SOURCE == "trigger"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH =~ /^auto-fix\//'
+    - when: never
 
 stages:
   - build
@@ -27,6 +27,11 @@ stages:
   - fix
 
 variables:
+  # Koşulacak senaryolar. "Run pipeline" formunda bu açıklamayla, boş kutu olarak çıkar.
+  # Boş: hepsi (features.txt yoksa). Schedule'lar formu görmez: kendi değişkeni yoksa hepsi koşar.
+  ULAK_TAGS:
+    value: ""
+    description: "Koşulacak senaryolar (Cucumber tag ifadesi). Boş = hepsi. Ör: @giris · @giris or @siparis · @siparis and not @yavas · @YTET_1234"
   # merkezi divan (bütün VM'ler sonuçları buraya gönderir)
   ULAK_SERVER: "http://divan.sirket.local:8080"
   # işin koşacağı runner etiketi; Run pipeline / schedule'da değiştirilir
