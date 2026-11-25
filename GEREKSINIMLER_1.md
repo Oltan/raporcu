@@ -226,6 +226,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Test: B
 - Doğrulama: `test_sw_4_3_*`
 - Ek: test edilen uygulamanın sürümü (`UYGULAMA_SURUMU` → `runs.app_version`, migration 0007) koşum başlığında, dashboard'da, paylaşımda; aramada `uygulama` süzgeci, CSV'de `uygulama` sütunu. Doğrulama: `test_sw_4_3_uygulama_surumu_raporda_aramada_csvde`, rehearse SW-4.3.
+- Ek (0.1.5): sürüm her yerde yer tutar (yoksa `—`): dashboard'da ayrı Uygulama sütunu, koşum başlığı, ekip/genel rapor linki, genel ana sayfa Raporlar tablosu, gece e-postası (konu ve her rapor satırı). `UYGULAMA_SURUMU` boşsa `ULAK_EXTRA_ARGS`'taki `-Duygulama.version=` ya da `pom.xml`'deki `<uygulama.version>` gönderilir; `ulak start` `uygulama sürümü: X (kaynak)` yazar. Doğrulama: `test_sw_4_3_uygulama_surumu_kaynaklari`, rehearse SW-4.3 (CI değişkeni → dashboard ve koşum sayfası; pom varsayılanı).
 
 ### SW-4.4 [MEVCUT] OpenCode düzeltme kutusu ve senaryo rozeti
 - SW-7.3'e bağlıdır.
@@ -335,6 +336,7 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
   tarayıcı adresi de olur; Jira'da yoksa bağlanmaz) ve bağı kaldırır. Hata parmak izi saklandığı için sonraki
   koşumlarda aynı hatayla kalan senaryo kendiliğinden o issue'ya bağlanır; kaldırılan bağ geri gelmez.
   Doğrulama: `test_sw_6_2_elle_girilen_issue_anahtari`, `test_sw_6_2_elle_baglama_sonraki_kosumda_ayni_hataya_tasinir`.
+- Ek (0.1.5): koşumda bağlı issue'lar (tag + bağ) raporda "Jira issue'ları" kartında: anahtar, başlık, durum, bağlı senaryolar. Koşum sayfasında Jira ve senaryo linkleri, tür, atanan da var; ekip linkinde link ve atanan yok; genel rapor linkinde yalnızca görünen ürün hatalarınınki; gece e-postasında bölüm. Doğrulama: `test_sw_6_2_bagli_jira_issuelari_raporda`, `test_sw_5_1_share_link_hides_internal_info`.
 - Not: Sahte Jira ile B/E testleri geçer; gerçek Jira ile E testi bekliyor.
 
 ### SW-6.3 [MEVCUT] Sınırlı otomatik bug açma

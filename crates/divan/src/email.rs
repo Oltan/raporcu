@@ -15,29 +15,67 @@ pub struct Mail {
     pub body: String,
 }
 
-pub fn summary(c: &Connection, public_url: &str, project_id: i64, pipeline_id: &str) -> Result<Option<Mail>> {
+pub fn summary(c: &Connection, public_url: &str, jira_url: Option<&str>, project_id: i64, pipeline_id: &str) -> Result<Option<Mail>> {
+    type Satir = (i64, String, String, i64, i64, i64, Option<String>);
     let mut st = c.prepare(
-        "SELECT r.id, p.path, r.branch, r.total, r.passed, r.failed + r.broken FROM runs r JOIN projects p ON p.id = r.project_id
+        "SELECT r.id, p.path, r.branch, r.total, r.passed, r.failed + r.broken, r.app_version FROM runs r JOIN projects p ON p.id = r.project_id
          WHERE r.project_id = ?1 AND r.pipeline_id = ?2 ORDER BY r.id",
     )?;
-    let runs: Vec<(i64, String, String, i64, i64, i64)> = st
+    let runs: Vec<Satir> = st
         .query_map(params![project_id, pipeline_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?, r.get(6)?))
         })?
         .collect::<rusqlite::Result<_>>()?;
     if runs.is_empty() {
         return Ok(None);
     }
     let (passed, failed): (i64, i64) = runs.iter().fold((0, 0), |a, r| (a.0 + r.4, a.1 + r.5));
+    // SW-4.3: test edilen uygulama sürüm(ler)i
+    let mut surumler: Vec<&str> = runs.iter().filter_map(|r| r.6.as_deref()).collect();
+    surumler.dedup();
+    let surum = if surumler.is_empty() {
+        "—".to_string()
+    } else {
+        surumler.join(", ")
+    };
     let mut body = format!(
-        "Gece test koşumu bitti — {} ({})\n\nGeçen: {passed}\nKalan: {failed}\n\n",
+        "Gece test koşumu bitti — {} ({})\nUygulama sürümü: {surum}\n\nGeçen: {passed}\nKalan: {failed}\n\n",
         runs[0].1, runs[0].2
     );
     for r in &runs {
         body.push_str(&format!(
-            "Rapor #{}: {public_url}/runs/{} — {} senaryo, {} geçti, {} kaldı\n",
-            r.0, r.0, r.3, r.4, r.5
+            "Rapor #{}: {public_url}/runs/{} — uygulama {}, {} senaryo, {} geçti, {} kaldı\n",
+            r.0,
+            r.0,
+            r.6.as_deref().unwrap_or("—"),
+            r.3,
+            r.4,
+            r.5
         ));
+    }
+    // SW-6.2: bağlı Jira issue'ları
+    let mut issuelar: Vec<crate::jira::IssueOzet> = Vec::new();
+    for r in &runs {
+        for o in crate::jira::kosum_issuelari(c, r.0, None)? {
+            match issuelar.iter_mut().find(|x| x.key == o.key) {
+                Some(x) => x.senaryolar.extend(o.senaryolar),
+                None => issuelar.push(o),
+            }
+        }
+    }
+    if !issuelar.is_empty() {
+        body.push_str("\nJira issue'ları:\n");
+        for o in &issuelar {
+            let durum = o.durum();
+            body.push_str(&format!(
+                "  {}{} {} — {} senaryo{}\n",
+                o.key,
+                if durum.is_empty() { String::new() } else { format!(" [{durum}]") },
+                o.baslik(),
+                o.senaryolar.len(),
+                jira_url.map(|u| format!(" {u}/browse/{}", o.key)).unwrap_or_default()
+            ));
+        }
     }
     let mut ms = c.prepare(
         "SELECT f.mr_url, f.mr_iid, f.outcome FROM fix_attempts f JOIN runs r ON r.id = f.run_id
@@ -58,7 +96,10 @@ pub fn summary(c: &Connection, public_url: &str, project_id: i64, pipeline_id: &
         ));
     }
     Ok(Some(Mail {
-        subject: format!("[divan] {} {}: {passed} geçti, {failed} kaldı", runs[0].1, runs[0].2),
+        subject: format!(
+            "[divan] {} {} · uygulama {surum}: {passed} geçti, {failed} kaldı",
+            runs[0].1, runs[0].2
+        ),
         body,
     }))
 }
@@ -137,7 +178,7 @@ pub fn send_for_pipeline(st: &AppState, c: &Connection, project_id: i64, pipelin
     if sent {
         return Ok(false);
     }
-    let Some(mail) = summary(c, &st.cfg.public_url, project_id, pipeline_id)? else {
+    let Some(mail) = summary(c, &st.cfg.public_url, st.cfg.jira_url.as_deref(), project_id, pipeline_id)? else {
         return Ok(false);
     };
     let to = st.cfg.mail_to.clone();

@@ -37,6 +37,11 @@ gerektirmez; admin işlemleri `Admin` çıkarıcısıyla korunur.
 
 ## Ek (Jira/DOORS ayarları, senaryo düğmesi)
 - `Layout.doors_link` + `doors_url(id)`: gereksinim rozeti linki (Ayarlar > Gereksinim); paylaşım görünümünde yok.
+- Koşum sayfası ve ekip linki (`share_page`): "Jira issue'ları" kartı (`_jira_ozeti.html`,
+  `jira::kosum_issuelari(c, koşum, None)`). Koşum sayfasında `jira_link = JIRA_URL`: anahtar Jira'ya,
+  senaryo adları senaryo sayfasına link, tür ve atanan görünür. Ekip linkinde `jira_link = None`: anahtar,
+  başlık, durum ve senaryo adı; link ve atanan yok. Başlıkta `Uygulama` her zaman (değer yoksa `—`,
+  ipucu "UYGULAMA_SURUMU verilmedi").
 - `JiraBilgi` (koşum, senaryo, arama sayfaları): `jira::issues`'tan rozet durumu/ipucu/sınıfı (`kapali`, `bulunamadi`) ve `JIRA_URL/browse/KEY` linki; paylaşımda boş.
 - `Layout.kimlik_adi()`: gereksinim önekinin görünen adı (`YTET`; varsayılan `DOORS`) — arama etiketi, "YTET CSV" düğmesi, ayarlar başlığı. Rozetler: `doors_ids` + `ScenarioRow::ek_kimlikler()` (YGÖ).
 - Jira bug formu ve ayarlar sayfası `web/ayarlar.rs`'e taşındı (`ayarlar.md`); `message_page` dışarı açık.

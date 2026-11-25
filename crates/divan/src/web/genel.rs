@@ -526,6 +526,9 @@ struct RaporSayfa {
     ozellikler: Vec<(String, Sayim, String)>,
     hatalar: Vec<RunScenario>,
     gruplar: Vec<GenelGrup>,
+    /// SW-6.2: görünen ürün hatalarına bağlı Jira issue'ları (link yok)
+    jira_ozeti: Vec<crate::jira::IssueOzet>,
+    jira_link: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -623,6 +626,8 @@ pub async fn rapor_sayfasi(
         }
     }
     let (sonuc, sonuc_sinif) = sonuc_cumlesi(&run, toplam);
+    let gorunen: Vec<i64> = hatalar.iter().map(|r| r.s.id).collect();
+    let jira_ozeti = st.db.read(move |c| crate::jira::kosum_issuelari(c, run_id, Some(&gorunen))).await?;
     Ok(render(&RaporSayfa {
         l: share_layout(token),
         ana,
@@ -640,6 +645,8 @@ pub async fn rapor_sayfasi(
         ozellikler,
         hatalar,
         gruplar: dogrulanan_gruplari(dogrulanan),
+        jira_ozeti,
+        jira_link: None,
     }))
 }
 

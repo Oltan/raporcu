@@ -276,6 +276,7 @@ pub fn start(c: &Ctx, run_tests: bool) -> Result<i32> {
         say(format!("yalnızca bu senaryo koşacak (ULAK_SENARYO): {ad}"));
     }
     let ci = ctx::ci_info(&c.project_dir);
+    say(ctx::uygulama_surumu_satiri(&c.project_dir));
     let mut body = serde_json::to_value(&ci)?;
     body["total"] = (planned.len() as i64).into();
     body["expected"] = planned

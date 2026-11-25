@@ -399,6 +399,109 @@ pub fn issue_keys_to_refresh(c: &Connection, run_id: i64, yas_dk: i64, limit: us
     Ok(out)
 }
 
+/// Raporun "Jira issue'ları" bölümü: bir issue ve koşumda ona bağlı senaryolar (SW-6.2).
+#[derive(Debug, Clone)]
+pub struct IssueOzet {
+    pub key: String,
+    pub bilgi: Option<IssueInfo>,
+    /// (senaryo id, ad, durum)
+    pub senaryolar: Vec<(i64, String, String)>,
+}
+
+impl IssueOzet {
+    pub fn baslik(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.summary.clone()).unwrap_or_default()
+    }
+    pub fn durum(&self) -> String {
+        self.bilgi.as_ref().map(|i| i.durum()).unwrap_or_default()
+    }
+    pub fn tur(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.issue_type.clone()).unwrap_or_default()
+    }
+    pub fn atanan(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.assignee.clone()).unwrap_or_default()
+    }
+    pub fn sinif(&self) -> &'static str {
+        match &self.bilgi {
+            Some(i) if i.kapali() => "kapali",
+            Some(i) if i.bulunamadi => "bulunamadi",
+            _ => "",
+        }
+    }
+    /// Senaryo durumunun nokta sınıfı ve Türkçe adı.
+    pub fn senaryo_durumu(&self, durum: &str) -> (&'static str, &'static str) {
+        match durum {
+            "passed" => ("gecti", "geçti"),
+            "failed" => ("kaldi", "kaldı"),
+            "broken" => ("broken", "broken"),
+            "skipped" => ("diger", "atlandı"),
+            _ => ("diger", "bilinmiyor"),
+        }
+    }
+    /// Sıralama: açık / bilinmeyen önce, kapalı ve bulunamayan sonra.
+    fn sira(&self) -> u8 {
+        match self.sinif() {
+            "" => 0,
+            "kapali" => 1,
+            _ => 2,
+        }
+    }
+}
+
+/// Koşumun son denemelerindeki Jira anahtarları (feature tag'i + bağlı bug), anahtara göre gruplu.
+/// `yalniz` verilirse yalnızca o senaryolar (genel rapor: görünen ürün hataları).
+pub fn kosum_issuelari(c: &Connection, run_id: i64, yalniz: Option<&[i64]>) -> Result<Vec<IssueOzet>> {
+    let mut eslesme: Vec<(String, i64, String, String)> = Vec::new();
+    let mut st = c.prepare("SELECT id, name, status, jira_keys FROM scenarios WHERE run_id = ?1 AND is_latest = 1 ORDER BY id")?;
+    for r in st.query_map([run_id], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+        ))
+    })? {
+        let (id, ad, durum, keys) = r?;
+        for k in keys.split_whitespace() {
+            eslesme.push((k.to_string(), id, ad.clone(), durum.clone()));
+        }
+    }
+    let mut st = c.prepare(
+        "SELECT b.jira_key, s.id, s.name, s.status FROM bug_links b JOIN scenarios s ON s.id = b.scenario_id
+         WHERE s.run_id = ?1 AND s.is_latest = 1 ORDER BY b.id",
+    )?;
+    for r in st.query_map([run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))? {
+        eslesme.push(r?);
+    }
+    let mut out: Vec<IssueOzet> = Vec::new();
+    for (k, id, ad, durum) in eslesme {
+        if yalniz.is_some_and(|y| !y.contains(&id)) {
+            continue;
+        }
+        let i = match out.iter().position(|o| o.key == k) {
+            Some(i) => i,
+            None => {
+                out.push(IssueOzet {
+                    key: k,
+                    bilgi: None,
+                    senaryolar: vec![],
+                });
+                out.len() - 1
+            }
+        };
+        if !out[i].senaryolar.iter().any(|s| s.0 == id) {
+            out[i].senaryolar.push((id, ad, durum));
+        }
+    }
+    let keys: Vec<String> = out.iter().map(|o| o.key.clone()).collect();
+    let mut bilgi = issues(c, &keys)?;
+    for o in &mut out {
+        o.bilgi = bilgi.remove(&o.key);
+    }
+    out.sort_by(|a, b| a.sira().cmp(&b.sira()).then_with(|| a.key.cmp(&b.key)));
+    Ok(out)
+}
+
 pub fn save_issue(c: &Connection, i: &IssueInfo) -> Result<()> {
     c.execute(
         "INSERT INTO jira_issues (key, summary, status, status_category, issue_type, assignee, bulunamadi, hata, fetched_at)

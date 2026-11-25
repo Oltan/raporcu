@@ -1,0 +1,17 @@
+{# SW-6.2: koşumda bağlı Jira issue'ları. jira_ozeti: Vec<IssueOzet>; jira_link: Option<String> (None = paylaşım: Jira'ya ve iç sayfalara link yok, atanan gizli) #}
+{% if !jira_ozeti.is_empty() %}
+<section class="kart jira-ozeti">
+  <h2>Jira issue'ları ({{ jira_ozeti.len() }})</h2>
+  <div class="tablo"><table>
+    <tr><th>Issue</th><th>Başlık</th><th>Durum</th><th>Senaryolar</th></tr>
+    {% for o in jira_ozeti %}
+    <tr>
+      <td class="mono">{% if let Some(u) = jira_link %}<a class="rozet jira {{ o.sinif() }}" href="{{ u }}/browse/{{ o.key }}">{{ o.key }}</a>{% else %}<span class="rozet jira {{ o.sinif() }}">{{ o.key }}</span>{% endif %}</td>
+      <td>{{ o.baslik() }}{% if jira_link.is_some() %}{% let t = o.tur() %}{% let a = o.atanan() %}{% if !t.is_empty() || !a.is_empty() %}<div class="kucuk">{{ t }}{% if !t.is_empty() && !a.is_empty() %} · {% endif %}{{ a }}</div>{% endif %}{% endif %}</td>
+      <td>{% let d = o.durum() %}{% if d.is_empty() %}<span class="kucuk">—</span>{% else %}{{ d }}{% endif %}</td>
+      <td>{% for s in o.senaryolar %}{% let d = o.senaryo_durumu(s.2) %}<div><span class="durum-nokta {{ d.0 }}" aria-hidden="true"></span> {% if jira_link.is_some() %}<a href="/scenarios/{{ s.0 }}">{{ s.1 }}</a>{% else %}{{ s.1 }}{% endif %} <span class="kucuk">{{ d.1 }}</span></div>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}

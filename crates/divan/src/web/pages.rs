@@ -320,10 +320,15 @@ struct RunPage {
     fixes: Vec<FixRow>,
     notice: Option<String>,
     jb: JiraBilgi,
+    /// SW-6.2: koşumda bağlı Jira issue'ları; paylaşımda da gösterilir (link ve atanan olmadan)
+    jira_ozeti: Vec<crate::jira::IssueOzet>,
+    /// Jira adresi; paylaşımda None
+    jira_link: Option<String>,
 }
 
 /// SW-6.2: rapordaki Jira rozetleri için issue bilgisi (Jira'dan koşum bitince çekilip saklananlar).
-/// Bilinmeyen anahtar yalnızca anahtar olarak gösterilir; paylaşım görünümünde Jira hiç gösterilmez.
+/// Bilinmeyen anahtar yalnızca anahtar olarak gösterilir; paylaşım görünümünde rozetler gösterilmez
+/// (koşum özeti `jira::kosum_issuelari` ise link ve atanan olmadan gösterilir).
 #[derive(Default)]
 pub struct JiraBilgi {
     map: std::collections::HashMap<String, crate::jira::IssueInfo>,
@@ -483,6 +488,8 @@ impl RunPage {
             fixes,
             notice,
             jb: JiraBilgi::default(),
+            jira_ozeti: vec![],
+            jira_link: None,
         }
     }
 }
@@ -570,12 +577,20 @@ pub async fn run_page(
     let mut page = RunPage::new(l, run, rows, fixes, notice);
     page.doors_dxl = st.cfg.doors_dxl;
     let url = st.cfg.jira_url.clone();
-    let (drafts, jb) = st
+    page.jira_link = url.clone();
+    let (drafts, jb, ozet) = st
         .db
-        .read(move |c| Ok((crate::jira::drafts_for_run(c, id)?, JiraBilgi::yukle(c, url, &keys)?)))
+        .read(move |c| {
+            Ok((
+                crate::jira::drafts_for_run(c, id)?,
+                JiraBilgi::yukle(c, url, &keys)?,
+                crate::jira::kosum_issuelari(c, id, None)?,
+            ))
+        })
         .await?;
     page.drafts = drafts;
     page.jb = jb;
+    page.jira_ozeti = ozet;
     Ok(render(&page))
 }
 
@@ -1045,7 +1060,9 @@ pub async fn share_page(
         return Err(AppError::not_found());
     };
     sanitize_run(&st, &mut run, &mut rows);
-    Ok(render(&RunPage::new(share_layout(&token), run, rows, vec![], None)))
+    let mut page = RunPage::new(share_layout(&token), run, rows, vec![], None);
+    page.jira_ozeti = st.db.read(move |c| crate::jira::kosum_issuelari(c, id, None)).await?;
+    Ok(render(&page))
 }
 
 pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path<(String, i64)>) -> Result<Response, AppError> {

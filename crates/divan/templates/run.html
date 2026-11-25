@@ -13,7 +13,7 @@
       {% if let Some(u) = run.job_url %}<span><a href="{{ u }}">CI işi</a></span>{% endif %}
       {% endif %}
       {% if let Some(os) = run.os %}<span>{{ os }}</span>{% endif %}
-      {% if let Some(u) = run.app_version %}<span title="Test edilen uygulama sürümü">Uygulama <b>{{ u }}</b></span>{% endif %}
+      <span title="Test edilen uygulama sürümü">Uygulama {% if let Some(u) = run.app_version %}<b>{{ u }}</b>{% else %}<b title="UYGULAMA_SURUMU verilmedi">—</b>{% endif %}</span>
       <span>{{ run.started_at|zaman }}</span>
       <span>
         {% if run.status == "running" %}<span class="durum running kosuyor-nokta">çalışıyor {{ run.progress() }}</span>
@@ -66,6 +66,8 @@
     </table></div>
   </section>
 </div>
+
+{% include "_jira_ozeti.html" %}
 
 {% if l.share.is_none() && !fixes.is_empty() %}
 <section class="kart">

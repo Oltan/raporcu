@@ -155,6 +155,19 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   hataya ait eski bağlarının parmak izini de siler. Jira bağlantı ayarları (adres, token) arayüze
   taşınmadı: tokenlar yalnızca `.env`'de.
 
+## Raporda Jira issue'ları ve uygulama sürümü her yerde (SW-6.2, SW-4.3, 0.1.5)
+
+- İstek: dashboard'da ve raporda (koşum sayfası, ekip linki, genel rapor linki, gece e-postası)
+  uygulama sürümü ve bağlı Jira issue'ları görünsün.
+- Karar: paylaşım linklerinde Jira artık tamamen gizli değil. Anahtar, başlık ve durum gösteriliyor
+  (raporu okuyan "bilinen hata mı" görsün). Jira'ya link, atanan kişi ve senaryo rozetleri gizli kalıyor
+  (Jira iç ağda, kişi adı dışarı çıkmasın). Genel rapor linkinde yalnızca orada görünen ürün
+  hatalarının issue'ları.
+- Uygulama sürümü değer yoksa da yer tutar (`—`): "nerede yazıyor" sorusu kalmasın. Değişken boşsa
+  ulak pom'daki varsayılanı gönderir, böylece schedule'da da sürüm görünür. Sahada görünmemesinin olası
+  nedeni sunucunun ya da runner'ın indirdiği ulak'ın 0.1.3'ten eski olması; `ulak start` logundaki
+  `uygulama sürümü:` satırı bunu ayırt eder.
+
 ## Jira issue tag'leri (SW-6.2)
 
 - `@ABC-123` biçimindeki tag yalnızca proje anahtarı `JIRA_TAG_PROJELERI` (verilmezse `JIRA_PROJECT`)

@@ -55,3 +55,4 @@ Java eklentisinin (`eklentiler/java/pom.xml`) kendi sürümü vardır ve yalnız
 | `v0.1.2` | `6d41925` | ulak zaman aşımında atlar, ayarları loga yazar; Cucumber dışı sonuçlar ajan dışı; divan-test-destek 1.1.0 |
 | `v0.1.3` | `a3bf310` | uygulama sürümü raporda (migration 0007); `@ABC-123` Jira tag'leri, başlık/durum Jira'dan (0008); değerlendir/fix sınırı varsayılan sınırsız, değişken adı toleranslı; geçiş rehberi (ikililer `deaf05e`'de derlendi, kod aynı) |
 | `v0.1.4` | `34d5f78` | elle Jira bağlama (senaryo sayfası, aynı hataya sonraki koşumlarda taşınır); auto-fix pipeline'ında build → test → report kendiliğinden (`ULAK_FIX_PIPELINE: senaryo`) |
+| `v0.1.5` | _(derleme commit'i)_ | uygulama sürümü dashboard'da ayrı sütun ve her raporda (yoksa `—`, boşsa pom'daki); raporda, ekip/genel linkinde ve e-postada bağlı Jira issue'ları |

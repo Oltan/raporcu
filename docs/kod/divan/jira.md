@@ -69,6 +69,12 @@ Her `failed` son deneme için:
 
 `create_for_scenario(c, paths, jira, sid, bug)`: formdan gelen bug'ı moddan bağımsız açar, bağlar (`admin`), ekran görüntüsünü ekler.
 
+## Rapor özeti (SW-6.2)
+`kosum_issuelari(c, koşum, yalnız?)`: son denemelerin `jira_keys`'i + `bug_links`, anahtara göre gruplu
+`IssueOzet { key, bilgi (jira_issues), senaryolar: (id, ad, durum) }`; açık/bilinmeyen önce, kapalı,
+sonra bulunamayan; aynı gruptakiler anahtar sırasıyla. `yalnız` verilirse yalnızca o senaryolar.
+Koşum sayfası, paylaşım linkleri ve e-posta kullanır.
+
 ## Elle bağlama (SW-6.2)
 - `issue_anahtari(girdi)`: `abc-123`, `@ABC-123`, `…/browse/ABC-123` → `ABC-123` (büyük harf; proje harfle
   başlar, harf/rakam/`_`; `-` sonrası yalnızca rakam). Geçersizse yok.

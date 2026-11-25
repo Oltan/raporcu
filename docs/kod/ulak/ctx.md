@@ -23,8 +23,12 @@ sinyali), `.ulak/queue/` (gönderilemeyen zip'ler), `<proje>/ulak.env` (GitLab d
   logu run_id ile eşleşir (SW-10.7).
 - `ci_info(proje)`: `common::api::CiInfo`'yu GitLab değişkenlerinden doldurur; `CI_PROJECT_PATH`
   yoksa `ULAK_PROJECT` ya da `yerel/<klasör adı>`; branch yoksa `ULAK_BRANCH` ya da `yerel`;
-  `os` = `ULAK_OS` ya da çalışan sistem. `app_version` = `ULAK_UYGULAMA_SURUMU`, yoksa `UYGULAMA_SURUMU`
-  (test edilen uygulama sürümü; raporda gösterilir).
+  `os` = `ULAK_OS` ya da çalışan sistem. `app_version` = `uygulama_surumu(proje)`.
+- `uygulama_surumu(proje) -> (sürüm?, kaynak)` (SW-4.3): sıra `ULAK_UYGULAMA_SURUMU`, `UYGULAMA_SURUMU`
+  (Run pipeline formu, schedule ya da proje CI değişkeni), `ULAK_EXTRA_ARGS`'taki `-D<özellik>=X` (son
+  geçen), `pom.xml`'deki ilk `<özellik>X</özellik>` (`${…}` sayılmaz). Özellik `ULAK_UYGULAMA_OZELLIGI`,
+  varsayılan `uygulama.version`. `uygulama_surumu_satiri`: `ulak start`'ın yazdığı
+  `uygulama sürümü: X (kaynak)` ya da `uygulama sürümü: yok (…)` satırı.
 - `split_command(s)`: kabuk kullanmadan komut satırını parçalar (boşluk, tek/çift tırnak, boş
   tırnak = boş argüman).
 

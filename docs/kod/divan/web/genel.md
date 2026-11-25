@@ -13,6 +13,11 @@ Sınıf kuralı `share.md` içinde (`genel_sinif`); burası sayıları, grafikle
 | `/g/{token}/runs/{id}/files/{aid}` | ekran görüntüsü | dosya |
 | `/s/{token}` ve altı (`gorunum='genel'`) | tek koşum, ana sayfa yok | aynı şablonlar |
 
+Rapor sayfası "Ürün hataları"nın altında yalnızca görünen ürün hatalarına bağlı Jira issue'larını
+gösterir (`jira::kosum_issuelari(c, koşum, Some(ids))`; anahtar, başlık, durum; link ve atanan yok).
+Üst satırda `Uygulama <sürüm>` (yoksa `—`) ve `Commit <kısa sha>`. Ana sayfanın Raporlar tablosunda
+Uygulama sütunu.
+
 `rapor_sayfasi`, `senaryo_sayfasi` ve `ek_acik` iki giriş için ortaktır; `taban` senaryo ve ek
 adreslerinin başıdır, `ana` ana sayfa adresidir (tek koşum linkinde yok).
 

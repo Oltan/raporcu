@@ -193,7 +193,55 @@ pub fn ci_info(project_dir: &Path) -> CiInfo {
         job_id: env("CI_JOB_ID"),
         job_url: env("CI_JOB_URL"),
         os: Some(os_name()),
-        app_version: env("ULAK_UYGULAMA_SURUMU").or_else(|| env("UYGULAMA_SURUMU")),
+        app_version: uygulama_surumu(project_dir).0,
+    }
+}
+
+/// Test edilen uygulamanın sürümü ve nereden geldiği (SW-4.3). Sıra: `ULAK_UYGULAMA_SURUMU` /
+/// `UYGULAMA_SURUMU` (Run pipeline formu, schedule ya da proje CI değişkeni), `ULAK_EXTRA_ARGS`'taki
+/// `-D<özellik>=X`, `pom.xml`'deki `<özellik>X</özellik>`. Özellik adı `ULAK_UYGULAMA_OZELLIGI`
+/// (varsayılan `uygulama.version`).
+pub fn uygulama_surumu(project_dir: &Path) -> (Option<String>, &'static str) {
+    if let Some(v) = env("ULAK_UYGULAMA_SURUMU") {
+        return (Some(v), "ULAK_UYGULAMA_SURUMU");
+    }
+    if let Some(v) = env("UYGULAMA_SURUMU") {
+        return (Some(v), "UYGULAMA_SURUMU");
+    }
+    let ozellik = env("ULAK_UYGULAMA_OZELLIGI").unwrap_or_else(|| "uygulama.version".into());
+    if let Some(v) = extra_args_surumu(&env("ULAK_EXTRA_ARGS").unwrap_or_default(), &ozellik) {
+        return (Some(v), "ULAK_EXTRA_ARGS");
+    }
+    let pom = std::fs::read_to_string(project_dir.join("pom.xml")).unwrap_or_default();
+    match pom_ozelligi(&pom, &ozellik) {
+        Some(v) => (Some(v), "pom.xml"),
+        None => (None, "yok"),
+    }
+}
+
+fn extra_args_surumu(args: &str, ozellik: &str) -> Option<String> {
+    let on = format!("-D{ozellik}=");
+    split_command(args)
+        .iter()
+        .rev()
+        .find_map(|a| a.strip_prefix(&on).map(|v| v.trim().to_string()))
+        .filter(|v| !v.is_empty())
+}
+
+/// `<ozellik>değer</ozellik>` (ilk geçen; `${…}` gibi çözülmemiş değerler sayılmaz).
+fn pom_ozelligi(pom: &str, ozellik: &str) -> Option<String> {
+    let ac = format!("<{ozellik}>");
+    let i = pom.find(&ac)? + ac.len();
+    let j = pom[i..].find('<')?;
+    let v = pom[i..i + j].trim();
+    (!v.is_empty() && !v.contains("${")).then(|| v.to_string())
+}
+
+/// `ulak start` logundaki satır: sürüm divan'a gidiyor mu, nereden.
+pub fn uygulama_surumu_satiri(project_dir: &Path) -> String {
+    match uygulama_surumu(project_dir) {
+        (Some(v), k) => format!("uygulama sürümü: {v} ({k})"),
+        (None, _) => "uygulama sürümü: yok (UYGULAMA_SURUMU boş, pom.xml'de <uygulama.version> yok); raporda — görünür".into(),
     }
 }
 
@@ -228,6 +276,20 @@ pub fn split_command(s: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn test_sw_4_3_uygulama_surumu_kaynaklari() {
+        assert_eq!(
+            extra_args_surumu("-Dx=1 -Duygulama.version=1.5.0", "uygulama.version").as_deref(),
+            Some("1.5.0")
+        );
+        assert_eq!(extra_args_surumu("-Duygulama.version=", "uygulama.version"), None);
+        let pom = "<project><properties>\n  <uygulama.version> 1.4.0 </uygulama.version>\n</properties></project>";
+        assert_eq!(pom_ozelligi(pom, "uygulama.version").as_deref(), Some("1.4.0"));
+        assert_eq!(pom_ozelligi("<uygulama.version>${x}</uygulama.version>", "uygulama.version"), None);
+        assert_eq!(pom_ozelligi("<project/>", "uygulama.version"), None);
+    }
+
     use super::*;
 
     #[test]

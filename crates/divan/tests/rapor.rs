@@ -71,9 +71,14 @@ async fn test_sw_4_3_uygulama_surumu_raporda_aramada_csvde() {
     let (_, html) = app.get(&format!("/runs/{id}")).await;
     assert!(html.contains("Uygulama <b>1.5.0</b>"), "koşum başlığında");
     let (_, eski_html) = app.get(&format!("/runs/{eski}")).await;
-    assert!(!eski_html.contains("Uygulama <b>"), "sürümsüz koşumda yazmaz");
+    assert!(
+        eski_html.contains("UYGULAMA_SURUMU verilmedi") && !eski_html.contains("<b>1.5.0</b>"),
+        "sürümsüz koşumda yer görünür, değer —"
+    );
     let (_, pano) = app.get("/").await;
-    assert!(pano.contains("uygulama 1.5.0"), "dashboard koşum listesinde");
+    assert!(pano.contains("<th>Uygulama</th>"), "dashboard'da ayrı sütun");
+    assert!(pano.contains("<b>1.5.0</b>"), "dashboard koşum listesinde");
+    assert!(pano.contains("UYGULAMA_SURUMU verilmedi"), "sürümsüz koşum satırında —");
     // arama: yalnızca o sürümün koşumu
     let (_, ara) = app.get("/search?uygulama=1.5.0&status=kaldi").await;
     assert!(
@@ -332,7 +337,9 @@ async fn test_sw_5_1_share_link_hides_internal_info() {
     let (st, html) = app.get(&format!("/s/{token}")).await;
     assert_eq!(st, StatusCode::OK);
     assert!(html.contains("Yanlış şifrede özel mesaj"));
-    assert!(!html.contains("STAJ-42"), "Jira anahtarı görünmez");
+    // SW-6.2: bağlı issue'lar ekip linkinde de görünür, ama Jira'ya link yok
+    assert!(html.contains("Jira issue'ları") && html.contains("STAJ-42"), "Jira özeti görünür");
+    assert!(!html.contains("/browse/"), "Jira'ya link yok");
     assert!(
         !html.contains("href=\"/files/") && !html.contains("src=\"/files/"),
         "ham ek linki görünmez"
@@ -486,7 +493,7 @@ async fn test_sw_5_1_genel_rapor_shows_only_product_results() {
         "Test kodu",
         "broken",
         "Branch",
-        "STAJ-42",
+        "/browse/",
         "giris.feature",
         "@smoke",
     ] {
