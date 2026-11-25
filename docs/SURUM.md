@@ -53,3 +53,4 @@ Java eklentisinin (`eklentiler/java/pom.xml`) kendi sürümü vardır ve yalnız
 |---|---|---|
 | `v0.1.0` | `33c04cb` | sahadaki ilk sürüm (YTET/YGÖ, Jira label, ULAK_FIX_PIPELINE=senaryo) |
 | `v0.1.2` | `6d41925` | ulak zaman aşımında atlar, ayarları loga yazar; Cucumber dışı sonuçlar ajan dışı; divan-test-destek 1.1.0 |
+| `v0.1.3` | *(bu derleme)* | uygulama sürümü raporda (migration 0007); `@ABC-123` Jira tag'leri, başlık/durum Jira'dan (0008); değerlendir/fix sınırı varsayılan sınırsız, değişken adı toleranslı |
