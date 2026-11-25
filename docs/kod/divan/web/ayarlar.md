@@ -10,6 +10,8 @@
 | `GET /admin/scenarios/{id}/jira` | bug formu: şablondan taslak (`jira::draft_for_scenario`); Jira alan listesi alınabildiyse formda alan kutuları |
 | `POST /admin/scenarios/{id}/jira` | formdan bug, `jira::create_for_scenario`; başarı → senaryo sayfası; hata → 502 ve Jira'nın alan bazlı mesajı |
 
+| `POST /admin/scenarios/{id}/jira/bagla` | form `anahtar`. `jira::issue_anahtari` geçmezse `?notice=jira-gecersiz`. Jira ayarlıysa `get_issue` (ayrı iş parçacığında): 404 → `jira-bulunamadi`, bağlanmaz; bilgi gelirse `save_issue`; Jira'ya ulaşılamazsa uyarı logu, denetimsiz bağlanır. Sonra `jira::link_manual` → senaryo sayfası `?notice=jira-baglandi` / `jira-zaten` |
+| `POST /admin/scenarios/{id}/jira/kaldir` | form `anahtar`; `jira::unlink` → `?notice=jira-kaldirildi` |
 | `GET /admin/scenarios/{id}/jira?taslak=N` | form, bekleyen taslağın içeriğiyle; gizli `taslak` alanı → bug açılınca taslak `acildi` |
 | `POST /admin/taslaklar/{id}/ac` | taslağı olduğu gibi açar (`jira::open_draft`); `geri` (yerel yol) varsa oraya döner; hata → 502 ve düzenleme linki |
 | `POST /admin/taslaklar/{id}/yoksay` | bekleyen taslak `yok_sayildi` |
@@ -29,4 +31,5 @@ Her alan için gizli `tur.<id>` = `tür|öğe|seçenekli(0/1)`; POST'ta Jira'ya 
 
 ## Testler
 `test_sw_6_1_form_fields_and_values`; `tests/entegrasyon.rs`: `test_sw_6_1_required_fields_listed_and_bug_form_sends_them`,
-`test_sw_6_3_auto_bug_uses_template_fields`, `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
+`test_sw_6_3_auto_bug_uses_template_fields`, `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`,
+`test_sw_6_2_elle_baglama_sonraki_kosumda_ayni_hataya_tasinir`.

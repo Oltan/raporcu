@@ -62,17 +62,13 @@ Düğmeler admin girişi ister. Sonuç birkaç dakika içinde senaryo ve koşum 
 
 ### Döngü ve tekrar önleme
 
-- **auto-fix branch'ine push yeni bir tam koşum başlatmaz:** şablondaki işler `auto-fix/…`
-  branch'lerinde koşmaz (düzeltme fix işinde tek senaryoyla zaten doğrulandı). O branch'te yalnızca
-  düzeltilen senaryonun koşması için CI değişkeni `ULAK_FIX_PIPELINE=senaryo`: `ulak fix` push ederken
-  GitLab'a `git push -o ci.variable=…` ile o pipeline'a özel `ULAK_FIX_PIPELINE=on` ve filtre verir
-  (senaryonun YTET tag'i varsa `ULAK_TAGS=@YTET_…`, yoksa `ULAK_SENARYO=<ad>`). Sunucu push
-  seçeneklerini kabul etmezse değişkensiz push edilir (test koşmaz). Tüm e2e için `ULAK_FIX_PIPELINE=on`.
-  Her durumda **fix işi** auto-fix branch'inde asla koşmaz (düzeltmenin düzeltmesi döngüsü olmaz).
-  Projenizdeki `.gitlab-ci.yml` şablonun eski bir kopyasıysa ve auto-fix push'undan sonra bütün testler
-  koşuyorsa, `ulak-test-*` ve `ulak-report-*` işlerinin `rules` başına
-  `- if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'` + `when: never`,
-  `ulak-fix-*` işlerine `- if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'` + `when: never` ekleyin.
+- **auto-fix branch'inin pipeline'ı (0.1.4):** `auto-fix/…` push'unda build → test → report
+  kendiliğinden koşar; **fix işi** orada asla koşmaz (düzeltmenin düzeltmesi döngüsü olmaz). Hangi
+  senaryoların koşacağını `ULAK_FIX_PIPELINE` belirler. Şablonun varsayılanı `senaryo`: `ulak fix` push
+  ederken `git push -o ci.variable=…` ile `ULAK_FIX_PIPELINE=on` ve filtre verir (senaryonun YTET tag'i
+  varsa `ULAK_TAGS=@YTET_…`, yoksa `ULAK_SENARYO=<ad>`), yalnızca düzeltilen senaryo koşar. `hepsi`
+  bütün e2e'yi koşar. Sunucu push seçeneklerini kabul etmezse değişkensiz push edilir; o pipeline'da
+  bütün e2e koşar.
 - **MR pipeline'ı:** şablon işleri `merge_request_event` pipeline'ında koşmaz (aynı commit'in branch
   pipeline'ı zaten koşuyor; çift koşum olmaz). Projenizin diğer işleri etkilenmez.
 - **Aynı senaryo için tekrar MR açılmaz:** senaryonun açık bir auto-fix MR'ı varsa (son 14 gün,

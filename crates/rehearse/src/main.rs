@@ -196,7 +196,7 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         stages == ["test", "report", "fix"],
         format!("{stages:?}"),
     );
-    // auto-fix push'u yeni bir tam koşum ve fix döngüsü başlatmaz; MR pipeline'ında tekrar koşulmaz
+    // auto-fix push'u test + report'u koşar (yalnızca düzeltilen senaryo), fix döngüsü başlatmaz; MR pipeline'ında tekrar koşulmaz
     let first_rule_ifs = |job: &str| -> Vec<String> {
         y[job]["rules"]
             .as_sequence()
@@ -208,9 +208,11 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         let test = first_rule_ifs(&format!("ulak-test-{os}"));
         ck.check(
             "SW-7.2",
-            &format!("{os}: auto-fix branch'inde fix işi yok, test işi yalnızca ULAK_FIX_PIPELINE=on ile; MR pipeline'ında yok"),
+            &format!("{os}: auto-fix branch'inde fix işi yok, test ve report kendiliğinden koşar (ULAK_FIX_PIPELINE=senaryo); MR pipeline'ında yok"),
             fix.iter().any(|r| r.contains("auto-fix") && !r.contains("ULAK_FIX_PIPELINE"))
-                && test.iter().any(|r| r.contains("auto-fix") && r.contains("ULAK_FIX_PIPELINE"))
+                && !test.iter().any(|r| r.contains("auto-fix"))
+                && !first_rule_ifs(&format!("ulak-report-{os}")).iter().any(|r| r.contains("auto-fix"))
+                && y["variables"]["ULAK_FIX_PIPELINE"].as_str() == Some("senaryo")
                 && fix.iter().chain(&test).filter(|r| r.contains("merge_request_event")).count() == 2,
             format!("{fix:?} {test:?}"),
         );

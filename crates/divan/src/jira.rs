@@ -875,6 +875,69 @@ pub fn create_for_scenario(c: &Connection, paths: &Paths, j: &Jira, sid: i64, bu
     Ok(k)
 }
 
+/// Girilen issue anahtarı (`abc-123`, ` ABC-123 `, `@ABC-123`, `.../browse/ABC-123`) → `ABC-123`.
+pub fn issue_anahtari(girdi: &str) -> Option<String> {
+    let s = girdi.trim().trim_start_matches('@');
+    let s = s.rsplit('/').next().unwrap_or(s).trim().to_uppercase();
+    let (proje, no) = s.rsplit_once('-')?;
+    let proje_gecerli =
+        proje.chars().next().is_some_and(|c| c.is_ascii_alphabetic()) && proje.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    (proje_gecerli && !no.is_empty() && no.chars().all(|c| c.is_ascii_digit())).then_some(s)
+}
+
+/// Admin: senaryoyu var olan bir issue'ya elle bağlar (SW-6.2). Hata mesajının parmak izi de saklanır;
+/// sonraki koşumlarda aynı hatayla kalan senaryolar (`process_run`, "aynı hata parmak izi") bu issue'ya
+/// kendiliğinden bağlanır. Mesajı olmayan (geçen) senaryoda parmak izi tutulmaz: boş mesaj her şeyle eşleşirdi.
+/// Dönen: yeni bağ kuruldu mu (zaten bağlıysa false).
+pub fn link_manual(c: &Connection, sid: i64, key: &str) -> Result<bool> {
+    let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
+    let msg = s.message.as_deref().unwrap_or("");
+    let fp = (!msg.trim().is_empty()).then(|| fingerprint(s.project_id, msg));
+    let yeni = c.execute(
+        "INSERT OR IGNORE INTO bug_links (scenario_id, project_id, scenario_key, jira_key, source, fingerprint, created_at) VALUES (?1, ?2, ?3, ?4, 'elle', ?5, ?6)",
+        params![sid, s.project_id, s.scenario_key, key, fp, now()],
+    )? > 0;
+    if yeni {
+        record(c, s.run_id, Some(sid), "baglandi", fp.as_deref(), Some(key), "admin elle bağladı")?;
+        tracing::info!(run_id = s.run_id, senaryo_id = sid, issue = %key, "Jira issue'suna elle bağlandı");
+    }
+    Ok(yeni)
+}
+
+/// Admin: bağı kaldırır. Yanlış bağ sonraki koşumlarda geri gelmesin diye aynı issue'nun bu hataya ait
+/// eski bağlarının parmak izi de silinir (geçmiş koşumlardaki bağ görünmeye devam eder).
+pub fn unlink(c: &Connection, sid: i64, key: &str) -> Result<bool> {
+    let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
+    let fp: Option<String> = c
+        .query_row(
+            "SELECT fingerprint FROM bug_links WHERE scenario_id = ?1 AND jira_key = ?2",
+            params![sid, key],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
+    let silindi = c.execute("DELETE FROM bug_links WHERE scenario_id = ?1 AND jira_key = ?2", params![sid, key])? > 0;
+    if let Some(fp) = &fp {
+        c.execute(
+            "UPDATE bug_links SET fingerprint = NULL WHERE project_id = ?1 AND jira_key = ?2 AND fingerprint = ?3",
+            params![s.project_id, key, fp],
+        )?;
+    }
+    if silindi {
+        record(
+            c,
+            s.run_id,
+            Some(sid),
+            "bag_kaldirildi",
+            fp.as_deref(),
+            Some(key),
+            "admin bağı kaldırdı",
+        )?;
+        tracing::info!(run_id = s.run_id, senaryo_id = sid, issue = %key, "Jira bağı kaldırıldı");
+    }
+    Ok(silindi)
+}
+
 // ---------------------------------------------------------------------------------------------
 // Bug taslakları: Jira'ya yazılmadan hazırlanır, admin tek tıkla açar (SW-6.3)
 
@@ -1076,6 +1139,16 @@ pub fn mark_draft(c: &Connection, id: i64, status: &str, key: Option<&str>) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_6_2_elle_girilen_issue_anahtari() {
+        assert_eq!(issue_anahtari(" abc-123 ").as_deref(), Some("ABC-123"));
+        assert_eq!(issue_anahtari("@STAJ-7").as_deref(), Some("STAJ-7"));
+        assert_eq!(issue_anahtari("https://jira.sirket/browse/PRJ_2-45").as_deref(), Some("PRJ_2-45"));
+        for k in ["", "ABC", "ABC-", "-12", "1AB-3", "AB-12x", "A B-1"] {
+            assert_eq!(issue_anahtari(k), None, "{k}");
+        }
+    }
 
     #[test]
     fn test_sw_6_1_base64_and_fingerprint() {

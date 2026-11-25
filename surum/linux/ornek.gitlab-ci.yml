@@ -13,7 +13,7 @@
 # Gerekli proje (ya da grup) CI değişkeni:
 #   CI_API_TOKEN   masked; divan .env'indeki CI_API_TOKEN ile aynı
 # İsteğe bağlı CI değişkenleri: ULAK_FIX_TOKEN (auto-fix MR), VLLM_BASE_URL / VLLM_API_KEY / VLLM_MODEL,
-#   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX, ULAK_FIX_PIPELINE ("senaryo")
+#   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX
 
 # --- Pipeline ne zaman başlar ----------------------------------------------------------------
 # Push'larda test koşmaz. Koşum yalnızca: zamanlama (schedule), elle "Run pipeline", divan'ın
@@ -63,7 +63,10 @@ variables:
   GET_SOURCES_ATTEMPTS: "5"
   ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
   # ULAK_FIX: "off"                # self-healing'i ve LLM değerlendirmesini kapatır
-  # ULAK_FIX_PIPELINE: "senaryo"   # auto-fix branch'inde yalnızca düzeltilen senaryo koşar
+  # ulak fix'in açtığı auto-fix/... branch'inin pipeline'ı build → test → report'u kendiliğinden koşar
+  # (fix işi koşmaz). Hangi senaryolar: "senaryo" = yalnızca düzeltilen senaryo (ulak fix push'ta
+  # filtreyi verir), "hepsi" = bütün e2e.
+  ULAK_FIX_PIPELINE: "senaryo"
 
 # --- Ortak: ulak'ı divan'dan indir ------------------------------------------------------------
 .ulak:
@@ -105,10 +108,7 @@ test:
   rules:
     - if: '$ULAK_FIX_ONLY == "true"'
       when: never
-    # auto-fix branch'i: düzeltme fix işinde zaten doğrulandı; ULAK_FIX_PIPELINE=on (ya da ulak fix'in
-    # push'ta verdiği on + filtre) gelirse koşar
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de buraya girer: build → test → report kendiliğinden koşar
     - when: on_success
 
 # --- report ----------------------------------------------------------------------------------
@@ -130,9 +130,7 @@ report:
   rules:
     - if: '$ULAK_FIX_ONLY == "true"'
       when: never
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
-    # test kalsa da rapor gönderilir
+    # test kalsa da rapor gönderilir (auto-fix branch'inde de)
     - when: always
 
 # --- fix -------------------------------------------------------------------------------------

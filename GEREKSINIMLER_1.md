@@ -331,6 +331,10 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Doğrulama: `test_sw_6_2_auto_match_after_upload`
 - Ek: senaryoda `@ABC-123` tag'i (`JIRA_TAG_PROJELERI`, yoksa `JIRA_PROJECT`) Jira issue'su sayılır; koşum bitince başlık, durum, tür, atanan Jira'dan çekilip (`jira_issues`) koşum/senaryo/arama sayfalarında gösterilir; kalan senaryo o issue'ya bağlanır. Doğrulama: `test_sw_6_2_jira_tag_anahtari_listeye_gore`, `test_sw_6_2_jira_tag_issue_bilgisi_raporda`.
 - Ek: Jira araması yalnızca `JIRA_ISSUE_TYPE` türünde ve `JIRA_MATCH_LABEL` (varsayılan `divan`) label'lı issue'larla eşleşir; divan bu label'ı açtığı her bug'a ekler (story/task'a fotoğraf gitmez). Doğrulama: `test_sw_6_2_acik_bug_jql_tur_ve_label`, `test_sw_6_2_auto_match_after_upload`.
+- Ek: admin senaryo sayfasından senaryoyu var olan bir issue'ya elle bağlar (`ABC-123`, küçük harf ya da
+  tarayıcı adresi de olur; Jira'da yoksa bağlanmaz) ve bağı kaldırır. Hata parmak izi saklandığı için sonraki
+  koşumlarda aynı hatayla kalan senaryo kendiliğinden o issue'ya bağlanır; kaldırılan bağ geri gelmez.
+  Doğrulama: `test_sw_6_2_elle_girilen_issue_anahtari`, `test_sw_6_2_elle_baglama_sonraki_kosumda_ayni_hataya_tasinir`.
 - Not: Sahte Jira ile B/E testleri geçer; gerçek Jira ile E testi bekliyor.
 
 ### SW-6.3 [MEVCUT] Sınırlı otomatik bug açma

@@ -1,6 +1,6 @@
 # Ubuntu'ya kurulum (yalnızca SSH ile)
 
-> **Var olan bir kurulumu güncelliyorsan** (0.1.0 → 0.1.3): `surum/GECIS_0.1.3.md`.
+> **Var olan bir kurulumu güncelliyorsan:** 0.1.0 → 0.1.3 `surum/GECIS_0.1.3.md`, 0.1.3 → 0.1.4 `surum/GECIS_0.1.4.md`.
 
 Derleme: `llm-degerlendirme` dalı, statik (musl): glibc'ye bağlı değil, her Ubuntu sürümünde çalışır.
 Sağlama: `SHA256.txt`. Windows sürümüyle aynı kod (`surum/windows`).

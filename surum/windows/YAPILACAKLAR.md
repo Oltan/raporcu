@@ -1,6 +1,6 @@
 # Bu sürüme geçiş: yapılacaklar
 
-> **Var olan bir kurulumu güncelliyorsan** (0.1.0 → 0.1.3): `surum/GECIS_0.1.3.md`.
+> **Var olan bir kurulumu güncelliyorsan:** 0.1.0 → 0.1.3 `surum/GECIS_0.1.3.md`, 0.1.3 → 0.1.4 `surum/GECIS_0.1.4.md`.
 
 Derleme: `llm-degerlendirme` dalı, `2a96fc0` (release, x86_64-pc-windows-gnu). Sağlama: `SHA256.txt`.
 Veritabanı değişikliği yok; eski veri olduğu gibi kullanılır. Gerçek Windows'ta, GitLab'da ve Jira'da
