@@ -5,7 +5,7 @@
 ## CSV (`GET /export.csv?<arama filtresi>&fields=a,b,c` ya da `alan=a&alan=b`, `sep=;`)
 - Alanlar (sırayla seçilebilir): `proje, branch, kosum, senaryo, feature, taglar (@ ile), durum,
   triage (etiket), hata (ilk satır), sure (ms), doors, jira (tag + bug_links, tekilleştirilmiş),
-  tarih`; `doors`'tan hemen sonra her ek önek için `ek:<önek>` (`ek:YGÖ-`, değer tag'lerden).
+  tarih, uygulama (koşumun `app_version`'ı)`; `doors`'tan hemen sonra her ek önek için `ek:<önek>` (`ek:YGÖ-`, değer tag'lerden).
   Başlıklar `alanlar(önekler)`'den: `doors` sütununun başlığı önek adıdır (`YTET`), ek sütunlar
   `YGÖ`. Bilinmeyen alan atlanır; hiç alan yoksa hepsi.
 - İlk karakter UTF-8 BOM (Excel Türkçe karakterleri doğru açar); satır sonu `\r\n`.

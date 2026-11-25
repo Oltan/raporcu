@@ -797,6 +797,7 @@ pub fn parse_filter(raw: Option<&str>) -> (SearchFilter, Vec<(String, String)>) 
         triage: get("triage"),
         status: get("status"),
         q: get("q"),
+        uygulama: get("uygulama"),
         page: get("page").and_then(|v| v.parse().ok()),
     }
     .normalized();

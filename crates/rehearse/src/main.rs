@@ -735,8 +735,19 @@ fn senaryo_filtresi(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) 
         .set("ULAK_SENARYO", "Yanlış şifrede özel mesaj")
         .set("CI_COMMIT_BRANCH", "auto-fix/run-1-yanlis-sifre")
         .set("CI_PROJECT_PATH", "prova/senaryo")
-        .set("CI_PROJECT_ID", "4646");
+        .set("CI_PROJECT_ID", "4646")
+        .set("UYGULAMA_SURUMU", "9.9.9");
     let o = s.run(&["start"])?;
+    let rid = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj.join(".ulak/run.json"))?)?["run_id"]
+        .as_i64()
+        .unwrap_or(0);
+    let run = get_json(&format!("{}/api/runs/{rid}", server.url()))?;
+    ck.check(
+        "SW-4.3",
+        "UYGULAMA_SURUMU koşumla divan'a gider",
+        run["kosum"]["app_version"] == "9.9.9",
+        run["kosum"].to_string(),
+    );
     let info: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&env_out).unwrap_or("{}".into()))?;
     let args: Vec<String> = info["args"]
         .as_array()

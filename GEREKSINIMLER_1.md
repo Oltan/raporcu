@@ -225,6 +225,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Kabul: Rapor başlığında bu bilgiler görünür; pipeline linki tıklanabilir.
 - Test: B
 - Doğrulama: `test_sw_4_3_*`
+- Ek: test edilen uygulamanın sürümü (`UYGULAMA_SURUMU` → `runs.app_version`, migration 0007) koşum başlığında, dashboard'da, paylaşımda; aramada `uygulama` süzgeci, CSV'de `uygulama` sütunu. Doğrulama: `test_sw_4_3_uygulama_surumu_raporda_aramada_csvde`, rehearse SW-4.3.
 
 ### SW-4.4 [MEVCUT] OpenCode düzeltme kutusu ve senaryo rozeti
 - SW-7.3'e bağlıdır.

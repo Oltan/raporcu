@@ -32,6 +32,11 @@ variables:
   ULAK_TAGS:
     value: ""
     description: "Koşulacak senaryolar (Cucumber tag ifadesi). Boş = hepsi. Ör: @giris · @giris or @siparis · @siparis and not @yavas · @YTET_1234"
+  # Test edilen uygulamanın sürümü (Nexus'taki jar). Boş = pom.xml'deki <uygulama.version>.
+  # ulak bunu divan'a da gönderir: raporda "Uygulama 1.5.0", aramada ve CSV'de süzülebilir.
+  UYGULAMA_SURUMU:
+    value: ""
+    description: "Test edilecek uygulama sürümü (Nexus'taki). Boş = pom.xml'deki sürüm. Ör: 1.5.0"
   # merkezi divan (bütün VM'ler sonuçları buraya gönderir)
   ULAK_SERVER: "http://divan.sirket.local:8080"
   # işin koşacağı runner etiketi; Run pipeline / schedule'da değiştirilir
@@ -59,13 +64,15 @@ variables:
     - curl -fsS -o ulak "$ULAK_SERVER/api/tools/ulak?os=linux"
     - chmod +x ulak
     - export PATH="$PWD:$PATH"
+    # uygulama sürümü verildiyse ulak'ın her Maven çağrısına (test, fix doğrulaması) eklenir
+    - if [ -n "$UYGULAMA_SURUMU" ]; then export ULAK_EXTRA_ARGS="$ULAK_EXTRA_ARGS -Duygulama.version=$UYGULAMA_SURUMU"; fi
 
 # --- build -----------------------------------------------------------------------------------
 build:
   stage: build
   tags: [$RUNNER]
   script:
-    - mvn --batch-mode -s ci/settings.xml clean package -DskipTests
+    - mvn --batch-mode -s ci/settings.xml clean package -DskipTests ${UYGULAMA_SURUMU:+-Duygulama.version=$UYGULAMA_SURUMU}
   rules:
     # rapordaki "düzelt" düğmesi: yalnızca fix işi
     - if: '$ULAK_FIX_ONLY == "true"'

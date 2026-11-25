@@ -158,6 +158,7 @@ pub fn ci_info(project_dir: &Path) -> CiInfo {
         job_id: env("CI_JOB_ID"),
         job_url: env("CI_JOB_URL"),
         os: Some(os_name()),
+        app_version: env("ULAK_UYGULAMA_SURUMU").or_else(|| env("UYGULAMA_SURUMU")),
     }
 }
 

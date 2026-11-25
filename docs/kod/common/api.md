@@ -13,6 +13,7 @@
 | `pipeline_id`, `pipeline_url` | `CI_PIPELINE_ID`, `CI_PIPELINE_URL` | |
 | `job_id`, `job_url` | `CI_JOB_ID`, `CI_JOB_URL` | |
 | `os` | `ULAK_OS` ya da çalışan sistem | `linux` / `windows` |
+| `app_version` | `ULAK_UYGULAMA_SURUMU`, yoksa `UYGULAMA_SURUMU` (isteğe bağlı) | test edilen uygulamanın sürümü; `runs.app_version` |
 
 `to_query()` → `project_id=..&project_path=..` sorgu dizesi; değerler RFC 3986 ile yüzde
 kodlanır (`A-Z a-z 0-9 - _ . ~` dışındaki her bayt `%XX`), boş (None) alanlar atlanır.

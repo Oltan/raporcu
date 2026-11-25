@@ -63,6 +63,35 @@ async fn test_sw_4_3_ci_info_in_report_header() {
     assert!(html.contains("href=\"https://gitlab.sirket/ekip/javafx/-/commit/abc123def4567890\""));
 }
 
+#[tokio::test]
+async fn test_sw_4_3_uygulama_surumu_raporda_aramada_csvde() {
+    let app = app();
+    let id = upload_sample(&app, &format!("{Q}&app_version=1.5.0")).await;
+    let eski = upload_sample(&app, Q).await;
+    let (_, html) = app.get(&format!("/runs/{id}")).await;
+    assert!(html.contains("Uygulama <b>1.5.0</b>"), "koşum başlığında");
+    let (_, eski_html) = app.get(&format!("/runs/{eski}")).await;
+    assert!(!eski_html.contains("Uygulama <b>"), "sürümsüz koşumda yazmaz");
+    let (_, pano) = app.get("/").await;
+    assert!(pano.contains("uygulama 1.5.0"), "dashboard koşum listesinde");
+    // arama: yalnızca o sürümün koşumu
+    let (_, ara) = app.get("/search?uygulama=1.5.0&status=kaldi").await;
+    assert!(
+        ara.contains(&format!("/runs/{id}")) && !ara.contains(&format!("/runs/{eski}\"")),
+        "{ara}"
+    );
+    let (_, csv) = app.get("/export.csv?uygulama=1.5.0&fields=kosum,senaryo,uygulama").await;
+    let satirlar: Vec<&str> = csv.trim_start_matches('\u{feff}').lines().collect();
+    assert_eq!(satirlar[0], "Koşum,Senaryo,Uygulama sürümü");
+    assert!(
+        satirlar.len() > 1
+            && satirlar[1..]
+                .iter()
+                .all(|l| l.starts_with(&format!("{id},")) && l.ends_with(",1.5.0")),
+        "{csv}"
+    );
+}
+
 /// Senaryonun durumunu değiştirerek yeni koşum yükler.
 fn mutated_zip(name: &str, status: &str) -> Vec<u8> {
     let tmp = tempfile::tempdir().unwrap();

@@ -27,6 +27,8 @@ pub struct RunRow {
     pub unknown: i64,
     pub started_at: String,
     pub finished_at: Option<String>,
+    /// test edilen uygulamanın sürümü (varsa)
+    pub app_version: Option<String>,
 }
 
 impl RunRow {
@@ -51,7 +53,8 @@ impl RunRow {
 }
 
 const RUN_COLS: &str = "r.id, r.project_id, p.path, p.url, r.branch, r.commit_sha, r.pipeline_id, r.pipeline_url, r.job_url, r.os,
-    r.status, r.total_expected, r.total, r.passed, r.failed, r.broken, r.skipped, r.unknown, r.started_at, r.finished_at";
+    r.status, r.total_expected, r.total, r.passed, r.failed, r.broken, r.skipped, r.unknown, r.started_at, r.finished_at,
+    r.app_version";
 
 fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
     Ok(RunRow {
@@ -75,6 +78,7 @@ fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
         unknown: r.get(17)?,
         started_at: r.get(18)?,
         finished_at: r.get(19)?,
+        app_version: r.get(20)?,
     })
 }
 
@@ -596,6 +600,8 @@ pub struct SearchFilter {
     pub status: Option<String>,
     /// hata mesajında geçen metin
     pub q: Option<String>,
+    /// test edilen uygulama sürümü (koşumun `app_version`'ı, tam eşleşme)
+    pub uygulama: Option<String>,
     pub page: Option<i64>,
 }
 
@@ -616,6 +622,7 @@ impl SearchFilter {
             triage: nonempty(&self.triage),
             status: nonempty(&self.status),
             q: nonempty(&self.q),
+            uygulama: nonempty(&self.uygulama),
             page: self.page,
         }
     }
@@ -638,6 +645,7 @@ impl SearchFilter {
         add("triage", self.triage.clone());
         add("status", self.status.clone());
         add("q", self.q.clone());
+        add("uygulama", self.uygulama.clone());
         v.join("&")
     }
 }
@@ -693,6 +701,10 @@ pub fn search_where(f: &SearchFilter) -> (String, Vec<rusqlite::types::Value>) {
     if let Some(x) = &f.triage {
         p.push(V::Text(x.clone()));
         w.push(format!("s.triage_category = ?{}", p.len()));
+    }
+    if let Some(x) = &f.uygulama {
+        p.push(V::Text(x.clone()));
+        w.push(format!("s.run_id IN (SELECT id FROM runs WHERE app_version = ?{})", p.len()));
     }
     if let Some(x) = &f.status {
         if x == "kaldi" {

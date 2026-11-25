@@ -4,7 +4,7 @@
 koşum/senaryo ile sınırlıdır (SW-10.6).
 
 ## Satır tipleri ve türetilen alanlar
-- **RunRow** (runs + projects): `failures()` = failed+broken; `short_commit()` ilk 8;
+- **RunRow** (runs + projects; `app_version` = test edilen uygulama sürümü, yoksa boş): `failures()` = failed+broken; `short_commit()` ilk 8;
   `commit_url()` = `<project_url>/-/commit/<sha>`; `progress()` = `"toplam/beklenen"` ya da
   `"toplam"`; `pass_pct()` = round(100·passed/total).
 - **ScenarioRow**: `tags`, `doors_ids`, `jira_keys` listeye açılır; `plain_tags()` gereksinim/ek kimlik/Jira
@@ -33,7 +33,8 @@ koşum/senaryo ile sınırlıdır (SW-10.6).
 | `feature_matrix(feature, run_ids)` | senaryo × koşum: hücre durumu (koşmadıysa `yok`), deneme sayısı; satır başına kalan sayısı, flaky (hem geçti hem kaldı ya da tekrar denemede geçti); en çok kalan üstte |
 
 ## Arama (SW-4.7) — `SearchFilter`
-Alanlar: `project, branch, run, tag, feature, doors, jira, triage, status, q, page`.
+Alanlar: `project, branch, run, tag, feature, doors, jira, triage, status, q, uygulama, page`
+(`uygulama`: koşumun `app_version`'ı tam eşleşme).
 `normalized()`: boşları atar, tag'den `@` atar, `doors=1004` → `<önek>1004` (`kimlik::arama`; `YTET_1004`, varsayılan `DOORS-1004`), Jira büyük harf.
 `search_where` her zaman `is_latest=1`:
 - tag/doors: `" <değer> "` ile LIKE (tam kelime; ek önekli değer, örn. `YGÖ-12`, `doors_ids` yerine `tags`'te), feature: içerir, jira: `jira_keys` LIKE **veya**

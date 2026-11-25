@@ -26,6 +26,7 @@ pub const FIELDS: &[(&str, &str)] = &[
     ("doors", "DOORS numarası"),
     ("jira", "Jira issue"),
     ("tarih", "Tarih"),
+    ("uygulama", "Uygulama sürümü"),
 ];
 
 /// Ek kimlik sütununun alan anahtarı: `ek:YGÖ-`.
@@ -122,7 +123,7 @@ fn write_csv(c: &Connection, f: &SearchFilter, fields: &[String], sep: char, out
     let mut st = c.prepare(&format!(
         "SELECT p.path, s.branch, s.run_id, s.name, s.feature, s.tags, s.status, s.triage_category, s.message, s.duration_ms,
                 s.doors_ids, TRIM(s.jira_keys || ' ' || COALESCE((SELECT GROUP_CONCAT(b.jira_key, ' ') FROM bug_links b WHERE b.scenario_id = s.id), '')),
-                s.created_at
+                s.created_at, (SELECT r.app_version FROM runs r WHERE r.id = s.run_id)
          FROM scenarios s JOIN projects p ON p.id = s.project_id WHERE {w} ORDER BY s.run_id DESC, s.id"
     ))?;
     let mut rows = st.query(rusqlite::params_from_iter(p.iter()))?;
@@ -168,6 +169,7 @@ fn write_csv(c: &Connection, f: &SearchFilter, fields: &[String], sep: char, out
                     ks.join(" ")
                 }
                 "tarih" => get(12),
+                "uygulama" => get(13),
                 _ => String::new(),
             };
             cells.push(csv_cell(&v, sep));

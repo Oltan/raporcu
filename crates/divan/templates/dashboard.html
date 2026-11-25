@@ -108,7 +108,7 @@
     {% for r in runs %}
     <tr>
       <td><a href="/runs/{{ r.id }}">#{{ r.id }}</a></td>
-      <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}</div></td>
+      <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}{% if let Some(u) = r.app_version %} · uygulama {{ u }}{% endif %}</div></td>
       <td class="mono">{{ r.short_commit() }}</td>
       <td>
         {% if r.status == "running" %}<a href="/runs/{{ r.id }}/live" class="durum running kosuyor-nokta">çalışıyor {{ r.progress() }}</a>

@@ -19,6 +19,8 @@ pub struct CiInfo {
     pub job_url: Option<String>,
     /// `linux` / `windows`
     pub os: Option<String>,
+    /// Test edilen uygulamanın sürümü (`UYGULAMA_SURUMU`; ör. pom'daki `-Duygulama.version`). Eski ulak göndermez.
+    pub app_version: Option<String>,
 }
 
 impl CiInfo {
@@ -40,6 +42,7 @@ impl CiInfo {
         push("job_id", &self.job_id);
         push("job_url", &self.job_url);
         push("os", &self.os);
+        push("app_version", &self.app_version);
         parts.join("&")
     }
 }
@@ -169,9 +172,11 @@ mod tests {
         let ci = CiInfo {
             project_path: "ekip/javafx testleri".into(),
             branch: "feature/ş".into(),
+            app_version: Some("1.5.0".into()),
             ..Default::default()
         };
         let q = ci.to_query();
+        assert!(q.contains("app_version=1.5.0"));
         assert!(q.contains("project_path=ekip%2Fjavafx%20testleri"));
         assert!(q.contains("branch=feature%2F%C5%9F"));
     }

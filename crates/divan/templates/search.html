@@ -9,6 +9,7 @@
     <label>Koşum #<input name="run" value="{% if let Some(r) = f.run %}{{ r }}{% endif %}" size="6"></label>
     <label>Tag<input name="tag" value="{{ f.tag.as_deref().unwrap_or("") }}" placeholder="@smoke"></label>
     <label>Feature<input name="feature" value="{{ f.feature.as_deref().unwrap_or("") }}"></label>
+    <label>Uygulama sürümü<input name="uygulama" value="{{ f.uygulama.as_deref().unwrap_or("") }}" placeholder="1.5.0"></label>
     <label>{{ l.kimlik_adi() }}<input name="doors" value="{{ f.doors.as_deref().unwrap_or("") }}" placeholder="{{ l.kimlik_adi() }} no ya da ek kimlik"></label>
     <label>Jira<input name="jira" value="{{ f.jira.as_deref().unwrap_or("") }}" placeholder="ABC-12"></label>
     <label>Triage<select name="triage"><option value="">Tümü</option>{% for c in categories %}<option value="{{ c.0 }}" {% if f.triage.as_deref() == Some(c.0) %}selected{% endif %}>{{ c.1 }}</option>{% endfor %}</select></label>

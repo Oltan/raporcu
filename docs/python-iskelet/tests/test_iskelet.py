@@ -71,6 +71,12 @@ def test_sw_2_1_upload_real_sample(client):
     assert sc["feature_file"] == "features/giris.feature"
 
 
+def test_sw_4_3_uygulama_surumu(client):
+    rid = client.post(f"/api/ci/runs?{Q}&app_version=1.5.0", content=sample_zip(), headers=H).json()["run_id"]
+    c = client.app.state.db.reader()
+    assert c.execute("SELECT app_version FROM runs WHERE id=?", (rid,)).fetchone()["app_version"] == "1.5.0"
+
+
 def test_sw_2_2_after_screenshot_only_on_failed(client):
     rid = client.post(f"/api/ci/runs?{Q}", content=sample_zip(), headers=H).json()["run_id"]
     c = client.app.state.db.reader()
