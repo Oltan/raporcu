@@ -12,7 +12,7 @@ geçerli karar değişirse `fix-candidates` hedefleri de değişir. Ayrıntı: `
 
 ## Akış
 1. Koşum: `fix::current_run`. Adaylar: `GET fix-candidates`; hedefi `atla` (`@sample-fail`; flaky'nin hedefi `flaky`'dir ve değerlendirilir) ve
-   `acik-mr` olanlar atlanır (`evaluable`). Üst sınır `ULAK_DEGERLENDIR_MAX` (20); fazlası kural
+   `acik-mr` olanlar atlanır (`evaluable`). Üst sınır yok; `ULAK_DEGERLENDIR_MAX` verilirse o kadar (`ctx::sinir_ayari`), fazlası kural
    kararıyla kalır. Çalışma klasörü temiz değilse değerlendirme yapılmaz.
 2. `.ulak/degerlendir/` silinip yeniden açılır: eski ajan logları yeni kararı etkilemesin.
 3. Her senaryo için ekran görüntüsü indirilir, istem (`evaluation_prompt`) kurulur: kurallar + `fix::push_failure`

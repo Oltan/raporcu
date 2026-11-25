@@ -137,6 +137,9 @@ fix:
     - ulak degerlendir
     - ulak fix
   allow_failure: true
+  # değerlendirme ve düzeltme sınırsız (her senaryo ajana gider): GitLab'ın 60 dk varsayılanı yetmez.
+  # Runner'ın en uzun süre ayarı (runner sayfası → Maximum job timeout) bundan kısa olmamalı.
+  timeout: 8h
   rules:
     # auto-fix branch'inde fix asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
     - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'

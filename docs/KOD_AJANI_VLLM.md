@@ -43,7 +43,7 @@ kodu değiştirecek, doğrulama koşusu yapacak ve branch push edecek olan odur.
 
 | Yol | Hangi senaryolar | Gereken |
 |-----|------------------|---------|
-| (1) Gece pipeline'ının `fix` aşaması | triage hedefi `opencode` olanlar (test kodu hatası, broken), en fazla `ULAK_FIX_MAX` (3) | CI şablonu (`ULAK_FIX` ≠ `off`) |
+| (1) Gece pipeline'ının `fix` aşaması | triage hedefi `opencode` olanlar (test kodu hatası, broken), hepsi; `ULAK_FIX_MAX` verilirse en fazla o kadar | CI şablonu (`ULAK_FIX` ≠ `off`) |
 | (2) Koşum sayfası düğmesi | (1) ile aynı adaylar | divan `.env`: `GITLAB_URL`, `GITLAB_TOKEN` (api) |
 | (3) Senaryo sayfası düğmesi | **yalnızca o senaryo**, triage hedefinden bağımsız (admin bilerek seçti) | aynı |
 
@@ -93,7 +93,7 @@ ve kuralın flaky dedikleri dahil; `@sample-fail` ve açık MR'ı olanlar hariç
 
 | | `ulak degerlendir` | `ulak fix` |
 |---|---|---|
-| Senaryolar | tüm kalanlar, en fazla `ULAK_DEGERLENDIR_MAX` (20) | hedefi `opencode` olanlar, en fazla `ULAK_FIX_MAX` (3) |
+| Senaryolar | tüm kalanlar (`ULAK_DEGERLENDIR_MAX` verilirse en fazla o kadar) | hedefi `opencode` olanların hepsi (`ULAK_FIX_MAX` verilirse en fazla o kadar) |
 | Ajan | `degerlendir` (salt okunur) / Claude Code düzenleme araçları kapalı | `fix` |
 | Çıktı | triage kategorisi, gerekçe, güven | branch, doğrulama koşusu, MR |
 | Süre | senaryo başına yaklaşık 30-45 sn (denemede) | ajan + doğrulama koşusu |

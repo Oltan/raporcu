@@ -7,7 +7,8 @@ düzeltip MR açar. Ajan bağlantısı: `docs/KOD_AJANI_VLLM.md`.
 CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararlarını `target` olarak görür.
 
 1. `ULAK_FIX=off` → çık. run_id: `ULAK_RUN_ID` ya da `run.json`; yoksa çık.
-2. `GET /api/ci/runs/<id>/fix-candidates`; hedefi `opencode` olanlardan ilk `ULAK_FIX_MAX` (3);
+2. `GET /api/ci/runs/<id>/fix-candidates`; hedefi `opencode` olanların hepsi (`ULAK_FIX_MAX` verilirse ilk o kadar; `ctx::sinir_ayari`); işin başında
+   `özet:` satırı (kalan, düzeltilecek, hedefe göre atlananlar: `degerlendir::hedef_ozeti`);
    diğerleri "atlandı (hedef: …)". `ULAK_FIX_SCENARIO_ID` verilmişse (divan senaryo düğmesi)
    yalnızca o senaryo, hedefinden bağımsız. Hiç yoksa çıkış 0.
 3. Temel branch: `CI_COMMIT_REF_NAME` ya da mevcut branch. Çalışma klasörü temiz değilse hata.

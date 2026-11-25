@@ -28,6 +28,24 @@ fn evaluable(c: &FixCandidate) -> bool {
     !matches!(c.target.as_str(), "atla" | "acik-mr")
 }
 
+/// ", atlanan: acik-mr 2, atla 1" (hedef sırası korunur); boşsa boş.
+pub fn hedef_ozeti(atlanan: &[&FixCandidate]) -> String {
+    let mut sayim: Vec<(String, usize)> = Vec::new();
+    for c in atlanan {
+        match sayim.iter_mut().find(|(h, _)| *h == c.target) {
+            Some((_, n)) => *n += 1,
+            None => sayim.push((c.target.clone(), 1)),
+        }
+    }
+    if sayim.is_empty() {
+        return String::new();
+    }
+    format!(
+        ", atlanan: {}",
+        sayim.iter().map(|(h, n)| format!("{h} {n}")).collect::<Vec<_>>().join(", ")
+    )
+}
+
 fn evaluation_command() -> String {
     if let Some(c) = env("ULAK_DEGERLENDIR_CMD") {
         return c;
@@ -98,27 +116,35 @@ fn run(c: &Ctx) -> Result<()> {
     };
     crate::ctx::set_run_id(run_id);
     let all = fix::candidates(c, run_id)?;
-    let (max, max_kaynak) = crate::ctx::sayi_ayari("ULAK_DEGERLENDIR_MAX", 20);
-    let max = max as usize;
+    let (max, max_yazi) = crate::ctx::sinir_ayari("ULAK_DEGERLENDIR_MAX");
     let (sn, sn_kaynak) = crate::ctx::sayi_ayari("ULAK_DEGERLENDIR_TIMEOUT", 300);
     let sinir = fix::art_arda_zaman_asimi_siniri();
     say(format!(
-        "ayarlar: ULAK_DEGERLENDIR_MAX={max} ({max_kaynak}), ULAK_DEGERLENDIR_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, art arda zaman aşımı sınırı: {sinir}",
+        "ayarlar: ULAK_DEGERLENDIR_MAX={max_yazi}, ULAK_DEGERLENDIR_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, art arda zaman aşımı sınırı: {sinir}",
         env_or("ULAK_FIX_AGENT", "opencode")
     ));
     let (todo, skipped): (Vec<_>, Vec<_>) = all.iter().partition(|x| evaluable(x));
-    for s in skipped {
+    for s in &skipped {
         say(format!("değerlendirilmedi: {} (hedef: {})", s.name, s.target));
     }
+    let max = max.unwrap_or(usize::MAX);
+    say(format!(
+        "özet: {} kalan senaryo, {} değerlendirilecek{}{}",
+        all.len(),
+        todo.len().min(max),
+        hedef_ozeti(&skipped),
+        if todo.len() > max {
+            format!(
+                ", {} sınır yüzünden kural kararıyla kalıyor (ULAK_DEGERLENDIR_MAX={max})",
+                todo.len() - max
+            )
+        } else {
+            String::new()
+        }
+    ));
     if todo.is_empty() {
         say("değerlendirilecek senaryo yok");
         return Ok(());
-    }
-    if todo.len() > max {
-        say(format!(
-            "{} senaryo kural kararıyla kalıyor (ULAK_DEGERLENDIR_MAX={max})",
-            todo.len() - max
-        ));
     }
     let dir = &c.project_dir;
     if !fix::changed_files(dir)?.is_empty() {

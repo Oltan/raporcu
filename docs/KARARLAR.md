@@ -139,3 +139,12 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   listesindeyse Jira issue'su sayılır (kullanıcı kararı): `@REL-2` gibi başka anlamdaki tag'ler yanlışlıkla
   Jira'da aranmasın. Bilgi koşum bitince çekilir ve saklanır; rapor sayfaları Jira'ya gitmez (Jira yavaşsa
   ya da kapalıysa rapor etkilenmez).
+
+## Değerlendir ve fix sınırları
+
+- Kullanıcı kararı: değerlendirmeye kalan senaryoların hepsi girer, kod değişikliği gereken (geçerli kararı
+  test kodu) senaryoların hepsi fix'e girer. `ULAK_DEGERLENDIR_MAX` / `ULAK_FIX_MAX` varsayılanı sınırsız
+  (eskiden 20 / 3); verilirse üst sınır. Uzun işin GitLab zaman aşımına takılmaması için fix işine
+  `timeout` verilir; model çökerse art arda zaman aşımı koruması kalanları bırakır.
+- Değişken adı `ulak-fix-max` gibi yazılırsa da okunur (uyarıyla): sahada değişkenin "çalışmaması"
+  ad yazımından olabiliyordu.

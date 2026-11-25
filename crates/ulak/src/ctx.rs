@@ -21,7 +21,42 @@ pub fn say(msg: impl AsRef<str>) {
 }
 
 pub fn env(name: &str) -> Option<String> {
-    std::env::var(name).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+    let temiz = |v: String| Some(v.trim().to_string()).filter(|v| !v.is_empty());
+    if let Ok(v) = std::env::var(name) {
+        return temiz(v);
+    }
+    // Ad toleransı: `ulak-fix-max`, `Ulak_Fix_Max` gibi yazımlar da okunur (bir kez uyarılır);
+    // GitLab değişken adında tireye izin vermez ama .gitlab-ci.yml ya da runner ortamında olabilir.
+    let (ad, v) = std::env::vars().find(|(k, _)| k != name && k.to_uppercase().replace('-', "_") == name)?;
+    uyar_bir_kez(&ad, || {
+        format!("UYARI: {ad:?} değişkeni {name} olarak okundu; adı {name} olarak düzeltin")
+    });
+    temiz(v)
+}
+
+fn uyar_bir_kez(anahtar: &str, mesaj: impl FnOnce() -> String) {
+    static UYARILAN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    let mut u = UYARILAN.lock().unwrap_or_else(|e| e.into_inner());
+    if !u.iter().any(|x| x == anahtar) {
+        u.push(anahtar.to_string());
+        drop(u);
+        say(mesaj());
+    }
+}
+
+/// Üst sınır ayarı (`ULAK_DEGERLENDIR_MAX`, `ULAK_FIX_MAX`): verilmezse sınırsız (`None`). Değer ve
+/// logda gösterilecek açıklama döner; sayı değilse uyarı + sınırsız.
+pub fn sinir_ayari(name: &str) -> (Option<usize>, String) {
+    match env(name) {
+        None => (None, "sınırsız (varsayılan)".into()),
+        Some(v) => match v.parse::<usize>() {
+            Ok(n) => (Some(n), format!("{n} (CI değişkeni)")),
+            Err(_) => {
+                say(format!("UYARI: {name}={v:?} sayı değil; sınırsız kullanılıyor"));
+                (None, "sınırsız (değişken geçersiz)".into())
+            }
+        },
+    }
 }
 
 /// Sayı ayarı ve nereden geldiği (logda gösterilir). Değişken var ama sayı değilse uyarı verilir,

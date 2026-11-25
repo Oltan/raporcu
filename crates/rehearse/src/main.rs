@@ -1009,7 +1009,8 @@ fn evaluation_steps(ck: &mut Checks, server: &Server, ulak: &Path, proj: &Path, 
         o.code == 0
             && o.text.matches("zaman aşımı (1 sn), atlandı:").count() == sorulan
             && sorulan >= 1
-            && o.text.contains("ULAK_DEGERLENDIR_MAX=")
+            && o.text.contains("ULAK_DEGERLENDIR_MAX=sınırsız")
+            && o.text.contains("özet:")
             && sure < 20,
         format!("{sure} sn\n{}", o.text),
     );

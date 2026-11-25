@@ -246,6 +246,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Doğrulama: `test_sw_4_5_*`
 - Not: Açık soru 3 yanıtlanmadan varsayımlarla uygulandı (docs/KARARLAR.md). Testler geçer.
 - Ek: zaman aşımına düşen senaryo atlanır, sıradakine geçilir (ilk aşımda tüm değerlendirme durmaz); art arda `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) aşımdan sonra kalanlar denenmez; log satırı ajanın çıktı verip vermediğini yazar; işin başında kullanılan sınırlar kaynaklarıyla yazılır. Aynı kural `ulak fix`'te (yarım değişiklik geri alınır). Doğrulama: `test_sw_4_5_zaman_asimi_mesaji_yavas_ile_yanitsizi_ayirir`, `test_sw_4_5_sayi_ayari_kaynagini_soyler`, rehearse SW-4.5.
+- Ek: `ULAK_DEGERLENDIR_MAX` verilmezse sınırsız (değerlendirmeye kalan hepsi); değişken adı toleranslı okunur (`ulak-…` yazımı uyarıyla kabul); işin başında `özet:` satırı (kalan, değerlendirilecek, hedefe göre atlanan). Doğrulama: `test_sw_7_2_sinir_ayari_varsayilan_sinirsiz_ve_ad_toleransi`, `test_sw_7_2_hedef_ozeti`.
 
 ### SW-4.6 [MEVCUT] Proje ve branch ayrımı
 - Her koşum bir test projesine ve branch'e bağlıdır. Dashboard, geçmiş ve flaky tespiti proje ve branch bazında yapılır.
@@ -370,6 +371,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Ek: açık auto-fix MR'ı olan senaryo yeniden aday olmaz (`acik-mr`); CI şablonunda auto-fix branch'inde fix işi koşmaz, test/report yalnızca `ULAK_FIX_PIPELINE=on` ile; MR pipeline'ında şablon işleri koşmaz. Doğrulama: `test_sw_7_2_open_fix_mr_blocks_new_candidate_until_closed`, rehearse SW-7.2.
 - Ek: doğrulama koşusu tag ile de seçilebilir (`ULAK_FIX_VALIDATE_FILTER=tags`: `@a and @b`, ASCII dışı tag'ler atılır, tag kalmazsa ada düşülür); `ULAK_FIX_VALIDATE_CMD` içinde `{senaryo}` ve `{taglar}`. Doğrulama: `test_sw_7_2_dogrulama_filtresi_ad_ya_da_tag`, `test_sw_7_2_tag_ifadesi_ascii_disi_atilir`. Gerçek runner'da tek senaryo koştuğu henüz doğrulanmadı.
 - Ek: `ULAK_FIX_PIPELINE=senaryo` ile auto-fix branch'inin pipeline'ında yalnızca düzeltilen senaryo koşar: `ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve filtre verir (YTET tag'i varsa `ULAK_TAGS`, yoksa `ULAK_SENARYO`); sunucu push seçeneklerini kabul etmezse seçeneksiz push. Doğrulama: `test_sw_7_2_push_ci_degiskenleri`, rehearse SW-7.2 (push seçenekleri, geri dönüş, `ULAK_SENARYO`). Gerçek GitLab'da denenmedi.
+- Ek: `ULAK_FIX_MAX` verilmezse sınırsız: geçerli kararı test kodu olan her senaryo fix'e girer (kullanıcı kararı); örnek CI'da fix işi `timeout: 8h`.
 
 ### SW-7.3 [MEVCUT] Sonuç divan'a bildirilir (fix-result) ve raporda görünür
 - Test: B, P

@@ -33,3 +33,9 @@ sinyali), `.ulak/queue/` (gönderilemeyen zip'ler), `<proje>/ulak.env` (GitLab d
 
 ## Python karşılığı
 `os.environ.get`, `pathlib`; `split_command` yerine `shlex.split(s, posix=True)` (Windows yolları için ters bölüye dikkat).
+
+## Ayar okuma
+- `env(ad)`: boşlukları kırpar, boş değer yok sayılır. Tam ad yoksa büyük harfe çevrilip `-` → `_`
+  yapılınca aynı olan değişken (`ulak-fix-max`, `Ulak_Fix_Max`) okunur ve bir kez uyarılır.
+- `sayi_ayari(ad, varsayılan)` → (değer, kaynak); `sinir_ayari(ad)` → (`None` = sınırsız, log yazısı).
+  Sayı olmayan değerde uyarı.

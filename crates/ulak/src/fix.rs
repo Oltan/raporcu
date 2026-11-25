@@ -597,8 +597,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     let report_url = env("ULAK_REPORT_URL").unwrap_or(report_url);
     let client = c.client();
     let all = candidates(c, run_id)?;
-    let (max, max_kaynak) = crate::ctx::sayi_ayari("ULAK_FIX_MAX", 3);
-    let max = max as usize;
+    let (max, max_yazi) = crate::ctx::sinir_ayari("ULAK_FIX_MAX");
     // divan'daki senaryo düğmesi: yalnızca o senaryo, triage hedefinden bağımsız
     let only: Option<i64> = env("ULAK_FIX_SCENARIO_ID").and_then(|v| v.parse().ok());
     let chosen = |c: &FixCandidate| match only {
@@ -613,10 +612,23 @@ pub fn fix(c: &Ctx) -> Result<i32> {
             ));
         }
     }
-    let todo: Vec<&FixCandidate> = all.iter().filter(|c| chosen(c)).take(max).collect();
-    for c2 in all.iter().filter(|c| !chosen(c)) {
+    let secilen: Vec<&FixCandidate> = all.iter().filter(|c| chosen(c)).collect();
+    let atlanan: Vec<&FixCandidate> = all.iter().filter(|c| !chosen(c)).collect();
+    for c2 in &atlanan {
         say(format!("atlandı: {} (hedef: {})", c2.name, c2.target));
     }
+    let todo: Vec<&FixCandidate> = secilen.iter().copied().take(max.unwrap_or(usize::MAX)).collect();
+    say(format!(
+        "özet: {} kalan senaryo, {} düzeltilecek (test kodu){}{}",
+        all.len(),
+        todo.len(),
+        crate::degerlendir::hedef_ozeti(&atlanan),
+        if secilen.len() > todo.len() {
+            format!(", {} sınır yüzünden denenmedi (ULAK_FIX_MAX)", secilen.len() - todo.len())
+        } else {
+            String::new()
+        }
+    ));
     if todo.is_empty() {
         say("düzeltilecek test kodu hatası yok");
         return Ok(0);
@@ -640,7 +652,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
     let timeout = Duration::from_secs(sn);
     let sinir = art_arda_zaman_asimi_siniri();
     say(format!(
-        "ayarlar: ULAK_FIX_MAX={max} ({max_kaynak}), ULAK_OPENCODE_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, ULAK_FIX_PIPELINE={}",
+        "ayarlar: ULAK_FIX_MAX={max_yazi}, ULAK_OPENCODE_TIMEOUT={sn} sn ({sn_kaynak}), ajan: {}, ULAK_FIX_PIPELINE={}",
         env_or("ULAK_FIX_AGENT", "opencode"),
         env_or("ULAK_FIX_PIPELINE", "off")
     ));
@@ -930,6 +942,39 @@ mod tests {
         assert!(bos.contains("atlandı: Giriş") && bos.contains("hiç çıktı vermedi") && bos.contains("300 sn"));
         let dolu = zaman_asimi_mesaji("Giriş", t, "Read x\nGrep y\n", "ULAK_DEGERLENDIR_TIMEOUT");
         assert!(dolu.contains("2 satır") && dolu.contains("süre yetmedi") && dolu.contains("ULAK_DEGERLENDIR_TIMEOUT"));
+    }
+
+    #[test]
+    fn test_sw_7_2_sinir_ayari_varsayilan_sinirsiz_ve_ad_toleransi() {
+        // değişken adları yalnızca bu teste özgü (testler paralel koşar)
+        unsafe {
+            std::env::remove_var("ULAK_TEST_SINIR_YOK");
+            std::env::set_var("ULAK_TEST_SINIR_VAR", "100");
+            std::env::set_var("ulak-test-sinir-tire", "7");
+            std::env::set_var("ULAK_TEST_SINIR_BOZUK", "çok");
+        }
+        assert_eq!(
+            crate::ctx::sinir_ayari("ULAK_TEST_SINIR_YOK"),
+            (None, "sınırsız (varsayılan)".to_string())
+        );
+        assert_eq!(crate::ctx::sinir_ayari("ULAK_TEST_SINIR_VAR").0, Some(100));
+        assert_eq!(
+            crate::ctx::sinir_ayari("ULAK_TEST_SINIR_TIRE").0,
+            Some(7),
+            "ulak-test-sinir-tire okunur"
+        );
+        assert_eq!(crate::ctx::sinir_ayari("ULAK_TEST_SINIR_BOZUK").0, None);
+    }
+
+    #[test]
+    fn test_sw_7_2_hedef_ozeti() {
+        let c = |t: &str| FixCandidate {
+            target: t.into(),
+            ..Default::default()
+        };
+        let (a, b, d) = (c("jira"), c("acik-mr"), c("jira"));
+        assert_eq!(crate::degerlendir::hedef_ozeti(&[&a, &b, &d]), ", atlanan: jira 2, acik-mr 1");
+        assert_eq!(crate::degerlendir::hedef_ozeti(&[]), "");
     }
 
     #[test]
