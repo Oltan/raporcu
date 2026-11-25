@@ -1,0 +1,5 @@
+<ul class="lejant-liste">
+  {% for li in legend %}
+  <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
+  {% endfor %}
+</ul>

@@ -1,0 +1,22 @@
+{% for d in drafts %}
+<div class="taslak {% if !d.pending() %}kapali{% endif %}">
+  <div class="taslak-ust">
+    <span class="durum {% if d.pending() %}bekliyor{% else if d.status == "acildi" %}passed{% else %}skipped{% endif %}">{{ d.status_label() }}</span>
+    <b>{{ d.summary }}</b>
+    {% if let Some(k) = d.jira_key %}<span class="rozet jira">{{ k }}</span>{% endif %}
+  </div>
+  <div class="kucuk">{{ d.source_label() }}{% if let Some(r) = d.reason %} · {{ r }}{% endif %} · <a href="{{ l.scenario_url(d.scenario_id) }}">{{ d.scenario_name }}</a> · {{ d.created_at|zaman }}</div>
+  <details><summary class="kucuk">Taslağın içeriği</summary>
+    <pre class="mono kucuk">{{ d.description }}</pre>
+    {% if !d.labels.is_empty() %}<div class="kucuk">Label: {{ d.labels.join(", ") }}</div>{% endif %}
+    {% if !d.fields.is_empty() %}<div class="kucuk mono">Alanlar: {{ d.fields_text() }}</div>{% endif %}
+  </details>
+  {% if l.admin && d.pending() %}
+  <div class="araclar" style="margin-top:6px">
+    <form method="post" action="/admin/taslaklar/{{ d.id }}/ac"><input type="hidden" name="geri" value="{{ taslak_geri }}"><button class="ana" title="Taslağı olduğu gibi Jira'da açar, ekran görüntüsünü ekler, senaryoyu bağlar">Jira'da aç</button></form>
+    <a class="btn" href="/admin/scenarios/{{ d.scenario_id }}/jira?taslak={{ d.id }}">Düzenleyip aç…</a>
+    <form method="post" action="/admin/taslaklar/{{ d.id }}/yoksay"><input type="hidden" name="geri" value="{{ taslak_geri }}"><button class="tehlike">Yok say</button></form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}

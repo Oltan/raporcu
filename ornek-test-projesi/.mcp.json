@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "testfx": {
+      "command": "java",
+      "args": ["-jar", "${TESTFX_MCP_JAR}"]
+    }
+  }
+}

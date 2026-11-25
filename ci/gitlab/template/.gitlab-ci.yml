@@ -1,0 +1,201 @@
+# divan merkezi CI şablonu (SW-1.1, SW-1.4)
+#
+# Test projesi yalnızca şunu ekler:
+#
+#   include:
+#     - project: 'ekip/divan'
+#       ref: main
+#       file: '/ci/gitlab/template/.gitlab-ci.yml'
+#   variables:
+#     ULAK_OS: linux        # ya da windows
+#
+# divan deposu GitLab'da değilse bu dosya include edilmeden, olduğu gibi test projesinin
+# .gitlab-ci.yml'ı olarak kopyalanabilir; tek başına çalışır (ULAK_OS'u aşağıda ayarlayın).
+# Örnek: ornek-test-projesi/.gitlab-ci.yml
+#
+# Aşamalar: test → report → fix. Test işi düşse de report ve fix çalışır; fix testler
+# bitince otomatik başlar (ULAK_FIX=off ile kapanır).
+# İşler ULAK_OS'a göre `linux` ya da `windows` etiketli runner'a gider.
+# Script satırları yalnızca `ulak` alt komutlarını çağırır; işletim sistemine özgü tek kısım
+# ulak'ı sunucudan indiren before_script satırlarıdır (SW-10.9).
+
+variables:
+  ULAK_OS: "linux"
+  # divan sunucusu runner ile aynı makinede (SW-3.2)
+  ULAK_SERVER: "http://127.0.0.1:8080"
+  ULAK_RESULTS_DIR: "target/allure-results"
+  # SW-1.7: bellek sınırları (CI değişkeniyle değiştirilebilir)
+  ULAK_MAVEN_XMX: "512m"
+  ULAK_TEST_XMX: "768m"
+  # Windows'ta gdigrab tüm masaüstünü kaydeder; kişisel masaüstünde "false" yapın
+  # ULAK_VIDEO: "false"
+  ULAK_VIDEO_FPS: "5"
+  # SW-1.2: Xvfb ekranı (yalnızca Linux)
+  ULAK_XVFB: "on"
+  ULAK_SCREEN: "1920x1080"
+  # SW-2.6: GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmesin
+  GET_SOURCES_ATTEMPTS: "5"
+  ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
+  # ULAK_TAGS: "@smoke"           # boşsa features.txt kullanılır
+  # ULAK_FIX: "off"               # self-healing'i (ve LLM değerlendirmesini) kapatmak için
+  # ULAK_DEGERLENDIR: "off"       # yalnızca LLM değerlendirmesini kapatmak için; ULAK_FIX=off iken "on" yalnızca onu açar
+  # ULAK_FIX_PIPELINE: "senaryo"  # auto-fix branch'inde yalnızca düzeltilen senaryo koşsun (on: hepsi)
+  # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)
+
+stages:
+  - test
+  - report
+  - fix
+
+# --- İşletim sistemine göre ortak ayarlar -------------------------------------------------
+
+.ulak-linux:
+  tags: [linux]
+  before_script:
+    - curl -fsS -o ulak "$ULAK_SERVER/api/tools/ulak?os=linux"
+    - chmod +x ulak
+    - export PATH="$PWD:$PATH"
+
+.ulak-windows:
+  tags: [windows]
+  before_script:
+    - curl.exe -fsS -o ulak.exe "$env:ULAK_SERVER/api/tools/ulak?os=windows"
+    - $env:PATH = "$PWD;$env:PATH"
+
+.ulak-test:
+  stage: test
+  script:
+    - ulak preflight
+    - ulak start
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - target/allure-results/
+      - .ulak/
+    reports:
+      dotenv: ulak.env
+  rules:
+    - if: '$ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+.ulak-report:
+  stage: report
+  script:
+    - ulak upload
+    - ulak finish
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      # SW-2.6: gönderilemeyen sonuçlar burada saklanır → ulak upload --resume
+      - .ulak/queue/
+  environment:
+    name: rapor/$CI_COMMIT_REF_SLUG
+    url: $ULAK_REPORT_URL
+  rules:
+    - if: '$ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+.ulak-fix:
+  stage: fix
+  script:
+    - ulak degerlendir
+    - ulak fix
+  allow_failure: true
+  rules:
+    - if: '$ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on"'
+      when: never
+    - when: always
+
+# --- İşler ------------------------------------------------------------------------------
+
+ulak-test-linux:
+  extends: [.ulak-linux, .ulak-test]
+  rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "linux" || $ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+ulak-test-windows:
+  extends: [.ulak-windows, .ulak-test]
+  variables:
+    ULAK_XVFB: "off"
+  rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "windows" || $ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: on_success
+
+ulak-report-linux:
+  extends: [.ulak-linux, .ulak-report]
+  rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "linux" || $ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+ulak-report-windows:
+  extends: [.ulak-windows, .ulak-report]
+  rules:
+    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
+    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
+    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
+      when: never
+    # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "windows" || $ULAK_FIX_ONLY == "true"'
+      when: never
+    - when: always
+
+ulak-fix-linux:
+  extends: [.ulak-linux, .ulak-fix]
+  rules:
+    # auto-fix branch'inde fix işi asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "linux" || ($ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on")'
+      when: never
+    - when: always
+
+ulak-fix-windows:
+  extends: [.ulak-windows, .ulak-fix]
+  variables:
+    ULAK_XVFB: "off"
+  rules:
+    # auto-fix branch'inde fix işi asla koşmaz (düzeltmenin düzeltmesi döngüsü olmasın)
+    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\//'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$ULAK_OS != "windows" || ($ULAK_FIX == "off" && $ULAK_DEGERLENDIR != "on")'
+      when: never
+    - when: always

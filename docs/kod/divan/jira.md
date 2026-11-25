@@ -1,0 +1,82 @@
+# divan/src/jira.rs
+
+**Amaç:** SW-6.1–6.3 — Jira Server/Data Center REST v2 istemcisi ve koşum sonrası eşleşme / bug açma.
+
+## İstemci (`Jira::from_config`; URL, token, proje yoksa yok)
+- Kimlik: `JIRA_USER` varsa **Basic** (`kullanıcı:token` base64), yoksa **Bearer** (PAT).
+- Bağlantı: `gitlab::agent()` (şirket CA'sı dahil); bağlantı hatası sertifikadansa mesaja `tls::hint` eklenir.
+- `create_bug(NewBug)`: `POST /rest/api/2/issue` (`project`, `issuetype`, `summary` ≤250,
+  `description`, `labels`: önce `JIRA_MATCH_LABEL`, sonra bug'ın ve şablonun label'ları). **400 ve hata
+  `labels` alanındaysa** label'sız tekrar dener (WARN).
+  Başarısızsa hata metni gizli değerlerden temizlenir.
+- `attach(key, ad, bayt)`: `POST /rest/api/2/issue/<key>/attachments`, multipart, başlık
+  `X-Atlassian-Token: no-check`.
+- `find_open_bug(senaryo)`: `open_bug_jql` — `project = "<P>" AND issuetype = "<JIRA_ISSUE_TYPE>"
+  [AND labels = "<JIRA_MATCH_LABEL>"] AND statusCategory != Done AND summary ~ "\"<senaryo>\"" ORDER BY
+  created DESC`, ilk sonuç (değerlerdeki `"` ve `\` boşluk olur; gereksinim numaraları label olmadığından
+  aranmaz). Önce
+  `/rest/api/2/search` denenir; Jira Cloud bu ucu kaldırdığı için 410 dönerse `/rest/api/2/search/jql`.
+
+## Issue bilgisi (SW-6.2, `@ABC-123` tag'leri)
+- `get_issue(key)`: `GET /rest/api/2/issue/{key}?fields=summary,status,issuetype,assignee` → `IssueInfo`
+  (başlık, durum, `statusCategory.key`, tür, atanan); 404 → `bulunamadi`, 401 → token hatası, diğer → `hata`.
+- `issue_keys_to_refresh(c, koşum, yaş_dk, sınır)`, `save_issue`, `issues(c, anahtarlar)` (`jira_issues`
+  tablosu, migration 0008). `IssueInfo::{kapali, durum, ipucu}` rozet ve liste için.
+
+## Bug içeriği — şablon (Admin > Ayarlar, `ayarlar.md`)
+- `vars(c, public_url, BugInput)`: yer tutucu değerleri (`ayarlar::Vars`, `String` anahtarlı);
+  proje/branch/commit/tarih koşumdan okunur. Gereksinim numaraları hem `doors` (eski ad) hem önek
+  adıyla (`YTET`); her ek önek için önek adıyla (`YGÖ`, `BugInput.tags`'ten).
+- `build_bug(şablon, değerler)`: özet (doldurulup ilk satır), açıklama, ek alanlar (`fill_json`).
+  Gereksinim/ek kimlikler label olmaz (`labels` boş). Ek alan JSON'u bozuksa hata.
+- `draft_for_scenario`: senaryo için taslak (form ve admin).
+
+## Bug oluşturma — `create_bug(NewBug)`
+`fields` = project, issuetype, summary (≤250), description + **ek alanlar** (project hariç her şeyi
+ezer; şablondaki `labels` `NewBug.labels`'a eklenir). 400 ve hata `labels` alanındaysa label'sız tekrar.
+Başarısızsa `jira_error`: Jira'nın `errors` (alan: mesaj) ve `errorMessages`'ı tek satırda, alan
+hatası varsa "Admin > Ayarlar > Jira'da Ek alanlar…" ipucu; gizli değerler temizlenir.
+Hata `project` alanındaysa ipucu `JIRA_PROJECT` anahtarı ve issue açma iznidir (alan eksiği değil).
+**Geçersiz token:** Jira Cloud geçersiz token'ı reddetmez, isteği anonim sayar ve bug açmayı
+"proje yok ya da izin yok" (400, `errors.project`) diye geri çevirir. Bu yüzden yanıt 401 ise ya da
+hata `project` alanındaysa `GET /rest/api/2/myself` sorulur (`token_rejected`); 401 dönerse hata
+`TOKEN_GECERSIZ` metnidir ("JIRA_TOKEN geçersiz ya da süresi dolmuş…").
+
+## Alan bilgisi — `field_meta()`
+`GET /rest/api/2/issue/createmeta/{proje}/issuetypes` → iş türü kimliği (ad `JIRA_ISSUE_TYPE`,
+büyük/küçük harf duyarsız; yoksa var olanları listeleyen hata) → `…/issuetypes/{id}?maxResults=500`
+→ `values[]`. Uç yoksa (eski Jira) `createmeta?projectKeys&issuetypeNames&expand=projects.issuetypes.fields`.
+`FieldMeta {id, name, required, kind (schema.type), items, has_default, allowed [(id, ad)]}`.
+
+`field_value(meta, metin)`: türüne göre JSON — seçenekli → `{"id"}` (dizi ise `[{"id"}]`),
+`array/string` → metin dizisi (label), `number` → sayı, `user` → `{"name"}`, `option` → `{"value"}`,
+priority/version/component → `{"name"}`, diğer → metin. Boş → yok.
+
+## Parmak izi — `fingerprint(proje, mesaj)`
+Mesajın ilk satırı; rakamlar `#`, `@` sonrası (nesne adresi) atılır, küçük harf; `proje|metin`'in
+SHA-256'sının ilk 12 baytı (hex). "Aynı hata" bununla tanınır.
+
+## Koşum sonrası — `process_run(c, paths, cfg, şablon, jira?, koşum)` (hooks.after_finish, arka planda)
+Her `failed` son deneme için:
+1. `@JIRA-X-1` tag'leri → `bug_links` (kaynak `tag`). Tag'i ya da bağlantısı olan senaryo geçilir.
+2. Aynı projede aynı parmak izli bağlantı varsa → onu bağla (`eslesme`), `jira_actions: eslesti`.
+3. Jira ayarlıysa açık bug ara (Jira bağlı değilse bu adım atlanır, taslak yine hazırlanabilir); bulunursa bağla, ekran görüntüsünü ekle.
+4. Otomatik bug (SW-6.3), hepsi sağlanmalı: mod `off` değil; triage yoksa ya da `urun`;
+   `JIRA_REQUIRE_RETRY` ise deneme ≥ 2; bu koşumda aynı parmak izi için açılmamış; koşum başına
+   `JIRA_MAX_BUGS_PER_RUN` aşılmamış (aşılırsa sayılır, atlanır).
+   - **observe** (varsayılan): Jira'ya yazmaz; **taslak** hazırlar (`create_draft`, kaynak `kural`) + `jira_actions: acilacakti`.
+   - **on**: bug açar, bağlar (`otomatik`), ekran görüntüsünü ekler; hata olursa `jira_actions: hata`.
+
+`create_for_scenario(c, paths, jira, sid, bug)`: formdan gelen bug'ı moddan bağımsız açar, bağlar (`admin`), ekran görüntüsünü ekler.
+
+## Testler
+`test_sw_6_1_*` (şablon, alan türleri, hata metni); `tests/entegrasyon.rs` (sahte Jira sunucusuyla 6.1, 6.2, 6.3).
+
+## Bug taslakları
+- `create_draft(c, koşum, senaryo, parmak izi, kaynak, gerekçe, bug)`: senaryonun bağlı bug'ı varsa ya da
+  aynı projede aynı `scenario_key` veya aynı parmak izi için **bekleyen** taslak varsa oluşturmaz (None).
+- `draft_from_opencode(c, cfg, şablon, senaryo, gerekçe)`: fix-result'ta OpenCode `urun` (güven ≥ eşik)
+  dediğinde `web/ci.rs` çağırır; mod `off` ise yok.
+- `drafts_for_run`, `drafts_for_scenario` (aynı proje + scenario_key), `pending_drafts`, `draft`.
+- `open_draft(c, paths, jira, id, bug?)`: yalnızca `bekliyor`; `create_for_scenario` ile açar, `mark_draft(acildi, key)`.
+- `mark_draft(id, durum, key?)`: `acildi` / `yok_sayildi`.

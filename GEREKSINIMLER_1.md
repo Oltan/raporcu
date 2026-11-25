@@ -1,18 +1,18 @@
-# stajproje Gereksinimleri
+# divan Gereksinimleri
 
 ## Bağlam
 
-stajproje sıfırdan yazılacak bir "test sonuç merkezi". Testleri stajproje koşmaz, GitLab runner koşar. stajproje sonuçları alır; canlı durum, rapor, paylaşım, triage, Jira/DOORS ve self-healing sağlar.
+divan sıfırdan yazılacak bir "test sonuç merkezi". Testleri divan koşmaz, GitLab runner koşar. divan sonuçları alır; canlı durum, rapor, paylaşım, triage, Jira/DOORS ve self-healing sağlar.
 
-- **stajproje**: bu raporlama projesi. Henüz hiçbir kodu yok.
+- **divan**: bu raporlama projesi. Henüz hiçbir kodu yok.
 - **test projesi**: JavaFX uygulamasının Cucumber + TestFX test reposu (GitLab). Testler Allure raporu üretir.
 - **Teknoloji**: Rust. Sunucu ve CI araçları Rust ile yazılır; bellek kullanımı en düşük seçenek olduğu ve dış çalışma ortamı gerektirmediği için seçildi.
   - Sunucu: `axum` + `tokio`; sayfalar `askama` şablonları + htmx; canlı ekran için axum WebSocket. Şablonlar derlemede ikiliye girer, statik dosyalar `rust-embed` ile gömülür.
   - Veritabanı: SQLite, `rusqlite` (`bundled` özelliğiyle; SQLite ikilinin içine derlenir). Ayrı veritabanı sunucusu kurulmaz (SW-2.5).
   - Dosyalar (ekran görüntüsü, video, Allure dosyaları) diskte `DATA_DIR` altında; veritabanında yalnızca yolları tutulur.
-  - CI araçları tek bir yardımcı ikili: `stajci` (alt komutlar: `preflight`, `start`, `watch`, `upload`, `finish`, `fix`).
+  - CI araçları tek bir yardımcı ikili: `ulak` (alt komutlar: `preflight`, `start`, `watch`, `upload`, `finish`, `fix`).
   - Derleme: Linux için `x86_64-unknown-linux-gnu`, Windows için `x86_64-pc-windows-gnu` (Linux'ta mingw ile) ya da Windows'ta `x86_64-pc-windows-msvc`.
-- **İşletim sistemi**: Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. stajproje sunucusu runner ile aynı makinede çalışır; her iki işletim sisteminde de çalışabilmelidir.
+- **İşletim sistemi**: Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. divan sunucusu runner ile aynı makinede çalışır; her iki işletim sisteminde de çalışabilmelidir.
 
 Kısaltmalar:
 
@@ -21,14 +21,14 @@ Kısaltmalar:
 - Durum: `YAPILACAK`, `KISMEN` (başlandı, eksik kısmı var), `MEVCUT` (bitti, testi geçiyor)
 - Test: B birim, E entegrasyon, P prova (yerelde CI benzetimi), U uçtan uca, M manuel
 
-Toplam 58 yazılım gereksinimi var; hepsi YAPILACAK durumunda.
+Toplam 58 yazılım gereksinimi var: 34 MEVCUT, 23 KISMEN, 1 YAPILACAK. KISMEN olanların eksik kısmı (GitLab, Windows VM, gerçek Jira/OpenCode/SMTP) `docs/PILOT_KONTROL_LISTESI.md` içindedir; açık sorulardaki varsayımlar `docs/KARARLAR.md` içindedir.
 
 ## Çalışma kuralları
 
 - Bir seferde yalnızca bir SW gereksinimi üzerinde çalış. "Uygulama sırası" bölümündeki sırayı izle.
 - Her gereksinim kendi testiyle kapanır. Test adında gereksinim ID'si geçer, örneğin `test_sw_3_3_duplicate_result_is_counted_once`.
 - Bir gereksinim bitince bu dosyadaki durumunu güncelle (`YAPILACAK` → `MEVCUT`).
-- Tüm kod Rust ile yazılır ve Ubuntu ile Windows'ta değişiklik yapılmadan çalışır: yollar `std::path::PathBuf` ile kurulur, kabuğa özgü komutlar (bash, PowerShell) kullanılmaz; CI şablonu yalnızca `stajci` alt komutlarını çağırır. İşletim sistemine özgü tek kısım ekran ve video ayarıdır (SW-1.2, SW-1.6).
+- Tüm kod Rust ile yazılır ve Ubuntu ile Windows'ta değişiklik yapılmadan çalışır: yollar `std::path::PathBuf` ile kurulur, kabuğa özgü komutlar (bash, PowerShell) kullanılmaz; CI şablonu yalnızca `ulak` alt komutlarını çağırır. İşletim sistemine özgü tek kısım ekran ve video ayarıdır (SW-1.2, SW-1.6).
 - CI ile ilgili her gereksinim iki işletim sisteminde de doğrulanmadan MEVCUT sayılmaz.
 
 ## Doğrulama
@@ -42,15 +42,17 @@ Toplam 58 yazılım gereksinimi var; hepsi YAPILACAK durumunda.
 
 ## SYS-1: Test koşumu GitLab CI'da yapılır
 
-Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya Windows sanal makinedeki runner'da koşar. Test projesi hangi işletim sisteminde koşacağını runner etiketiyle (`linux` / `windows`) seçer.
+Testler divan'da değil, test projesinin GitLab pipeline'ında, Ubuntu veya Windows sanal makinedeki runner'da koşar. Test projesi hangi işletim sisteminde koşacağını runner etiketiyle (`linux` / `windows`) seçer.
 
-### SW-1.1 [YAPILACAK] CI şablonu test → report → fix aşamalarını içerir
+### SW-1.1 [KISMEN] CI şablonu test → report → fix aşamalarını içerir
 - Dosya: `ci/gitlab/template/.gitlab-ci.yml`
 - Şablon iki işletim sistemini destekler; test projesi bir değişkenle (`linux` veya `windows`) seçer, işler ilgili runner etiketine gider.
 - Kabul: Pipeline 3 iş çalıştırır; test işi düşse de report ve fix çalışır. Bu, hem Ubuntu hem Windows runner'da geçerlidir.
 - Test: P, U
+- Doğrulama: rehearse: SW-1.1 adımları; `test_sw_1_1_split_command_without_shell`
+- Not: Şablon hazır; `rehearse` şablonu ve 3 iş akışını Linux'ta doğrular. GitLab + Windows runner'da pilot doğrulaması bekliyor.
 
-### SW-1.2 [YAPILACAK] Testler Ubuntu sanal makinede Xvfb sanal ekranında koşar
+### SW-1.2 [KISMEN] Testler Ubuntu sanal makinede Xvfb sanal ekranında koşar
 - Headless çalışma ve Monocle kullanılmaz; uygulama Xvfb'nin sağladığı X11 ekranında gerçekten açılır.
 - Test işi Xvfb'yi sabit çözünürlükle başlatır (örneğin `xvfb-run -a -s "-screen 0 1920x1080x24"`), testler bitince kapatır. Her iş kendi ekranını alır.
 - GitLab runner sistem hizmeti olarak çalışabilir; oturum açma, ekran kilidi veya uyku ayarı gerekmez.
@@ -58,22 +60,28 @@ Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya 
 - Video kaydı aynı ekrandan alınır (örneğin `ffmpeg -f x11grab`).
 - Kabul: Kimse bağlı değilken gece koşumu geçer; ekran görüntüleri ve video uygulamanın gerçek görüntüsünü gösterir; aynı makinede iki iş aynı anda koşarsa ekranları karışmaz.
 - Test: P, U
+- Doğrulama: rehearse: SW-1.2 adımı
+- Not: `ulak start` testleri `xvfb-run -a` ile koşar; gerçek JavaFX/TestFX koşusu Xvfb'de doğrulandı, `rehearse` iki eşzamanlı işin farklı ekran aldığını doğrular. GitLab gece koşumu pilotta.
 
-### SW-1.3 [YAPILACAK] Gece zamanlaması GitLab schedule ile çalışır
-- Kabul: Pipeline 02:00'de kendiliğinden başlar, rapor sabah stajproje'de hazır olur.
+### SW-1.3 [KISMEN] Gece zamanlaması GitLab schedule ile çalışır
+- Kabul: Pipeline 02:00'de kendiliğinden başlar, rapor sabah divan'da hazır olur.
 - Test: U, M
+- Not: Şablon schedule pipeline'ını destekler, e-posta schedule kaynağında gider. Schedule GitLab'da kurulmalı (docs/GITLAB_CI_KURULUMU.md §5).
 
-### SW-1.4 [YAPILACAK] Merkezi şablon
-- Test projeleri yalnızca bir `include` satırı ekler; betikler stajproje reposundan çekilir.
+### SW-1.4 [KISMEN] Merkezi şablon
+- Test projeleri yalnızca bir `include` satırı ekler; betikler divan reposundan çekilir.
 - Kabul: Merkezdeki bir betik değişince ertesi koşumda tüm projeler yeni sürümü kullanır.
 - Test: U
+- Not: `include` ile tek satır; ulak her koşumda sunucudan indirilir. GitLab'da U testi bekliyor.
 
-### SW-1.5 [YAPILACAK] Ön kontrol CI içinde testlerden önce çalışır
+### SW-1.5 [KISMEN] Ön kontrol CI içinde testlerden önce çalışır
 - Kontrol edilenler: pom, Allure eklentisi, features.txt tag'leri.
 - Kabul: Adaptör eksikse iş açık bir mesajla düşer, testler hiç başlamaz.
 - Test: B, P
+- Doğrulama: `test_sw_1_5_*` (ulak), rehearse SW-1.5
+- Not: `ulak preflight`: pom, Allure adaptörü/eklentisi, Monocle, features.txt. Birim + prova Linux'ta geçer; Windows doğrulaması bekliyor.
 
-### SW-1.6 [YAPILACAK] Testler Windows sanal makinede, açık bir masaüstü oturumunda koşar
+### SW-1.6 [KISMEN] Testler Windows sanal makinede, açık bir masaüstü oturumunda koşar
 - Headless çalışma ve Monocle kullanılmaz; uygulama sanal makinenin sanal ekranında gerçekten açılır.
 - GitLab runner Windows hizmeti olarak değil, oturum açmış kullanıcının masaüstünde çalışır (TestFX fare ve klavye olaylarını bu oturuma gönderir).
 - Sanal makine yeniden başlayınca otomatik oturum açar ve runner'ı başlatır; ekran kilidi, ekran koruyucu ve uyku kapalıdır; ekran çözünürlüğü sabittir.
@@ -81,14 +89,18 @@ Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya 
 - Video kaydı masaüstünden alınır (örneğin `ffmpeg -f gdigrab`).
 - Kabul: Kimse bağlı değilken gece koşumu geçer; ekran görüntüleri ve video uygulamanın gerçek görüntüsünü gösterir.
 - Test: P, U, M
+- Doğrulama: rehearse SW-1.6 (benzetim)
+- Not: Oturum kontrolü (`ulak start`), gdigrab videosu, kurulum betiği ve `tscon` betiği hazır; Windows VM'de doğrulanmadı.
 
-### SW-1.7 [YAPILACAK] Test işinin bellek sınırları
+### SW-1.7 [KISMEN] Test işinin bellek sınırları
 - CI şablonu Maven ve test JVM'leri için bellek üst sınırı koyar: `MAVEN_OPTS` ve surefire `argLine` içinde `-Xmx`; surefire tek fork ile çalışır.
 - Runner aynı anda tek iş koşar (`concurrent = 1`).
 - Video kaydı düşük kare hızı ve sıkıştırılmış biçimle alınır; yalnızca başarısız senaryoların videosu saklanır.
 - Sınır değerleri CI değişkeniyle değiştirilebilir.
 - Kabul: Gece koşumu boyunca makinede bellek yetersizliği (OOM) olmaz; ayarlanan sınır aşılınca test işi açık bir mesajla düşer.
 - Test: P, U
+- Doğrulama: `test_sw_1_7_*`, rehearse SW-1.7
+- Not: MAVEN_OPTS/-Dtest.xmx, tek fork, OOM tespiti ve açık mesaj; düşük fps video yalnızca kalanlarda. Linux prova geçer; Windows ve gerçek gece koşumu bekliyor.
 
 ---
 
@@ -96,27 +108,31 @@ Testler stajproje'de değil, test projesinin GitLab pipeline'ında, Ubuntu veya 
 
 CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 
-### SW-2.1 [YAPILACAK] POST /api/ci/runs
+### SW-2.1 [MEVCUT] POST /api/ci/runs
 - Allure sonuç zip'ini alır, ayrıştırır ve bir koşum olarak kaydeder.
 - Kabul: Koşum listede görünür; rapor, triage ve CSV dışa aktarma bu koşum için çalışır; zip güvenliği sağlanır (boyut sınırı, `..` içeren yollar reddedilir).
 - Test: B
+- Doğrulama: `test_sw_2_1_*` (common, divan, ulak), e2esmoke
 
-### SW-2.2 [YAPILACAK] @After hook ekleri (container dosyası) senaryoya bağlanır
+### SW-2.2 [MEVCUT] @After hook ekleri (container dosyası) senaryoya bağlanır
 - Ekran görüntüsü yalnızca başarısız senaryoda alınır; başarılı senaryolarda görüntü yoktur.
 - Kabul: Başarısız senaryonun ekran görüntüsü raporda görünür; başarılı senaryoda ek yoktur.
 - Test: B, U
+- Doğrulama: `test_sw_2_2_after_hook_screenshot_linked_to_failed_scenario_only`, `test_sw_2_2_container_before_result_still_links`
 
-### SW-2.3 [YAPILACAK] Sonuç dosyası olmayan yükleme reddedilir
+### SW-2.3 [MEVCUT] Sonuç dosyası olmayan yükleme reddedilir
 - Kabul: 422 döner, "Allure eklentisi" eksikliğini anlatan açıklamayla.
 - Test: B
+- Doğrulama: `test_sw_2_3_upload_without_results_returns_422`
 
-### SW-2.4 [YAPILACAK] Tüm çalışma verisi DATA_DIR altında tutulur
+### SW-2.4 [MEVCUT] Tüm çalışma verisi DATA_DIR altında tutulur
 - Yollar tek bir modülde (`paths.rs`) tanımlanır.
 - Kabul: DATA_DIR değiştirilince tüm veri yeni yere yazılır; testler geçici bir DATA_DIR kullanır, gerçek veriye yazmaz.
 - Test: B
+- Doğrulama: `test_sw_2_4_all_paths_under_data_dir`
 
-### SW-2.5 [YAPILACAK] Veritabanı: kurulumsuz SQLite
-- Veritabanı `DATA_DIR/stajproje.db` dosyasıdır. Sunucu ilk açılışta dosyayı kendisi oluşturur; ayrı kurulum, kullanıcı veya şifre yoktur.
+### SW-2.5 [MEVCUT] Veritabanı: kurulumsuz SQLite
+- Veritabanı `DATA_DIR/divan.db` dosyasıdır. Sunucu ilk açılışta dosyayı kendisi oluşturur; ayrı kurulum, kullanıcı veya şifre yoktur.
 - Şema değişiklikleri numaralı migration dosyalarıyla yapılır (`migrations/0001_ilk.sql`, ...). Migration'lar ikiliye gömülür ve sunucu açılırken sırayla uygulanır; uygulananlar veritabanında kayıtlıdır.
 - Açılışta ayarlar: `journal_mode=WAL` (okuma ve yazma birbirini beklemez), `busy_timeout`, `foreign_keys=ON`.
 - Yazmalar tek bir yazıcı bağlantısından, okumalar küçük bir bağlantı havuzundan yapılır.
@@ -124,18 +140,24 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 - Ana tablolar: `runs`, `scenarios`, `steps`, `attachments`, `bug_links`, `share_links`, `fix_attempts`, `users`.
 - Kabul: Boş bir DATA_DIR ile açılan sunucu veritabanını oluşturur; yeni bir migration eklenince bir sonraki açılışta uygulanır; yedek dosyası açılıp okunabilir; testler geçici bir veritabanı kullanır.
 - Test: B
+- Doğrulama: `test_sw_2_5_*`, e2esmoke yedek adımı
 
-### SW-2.6 [YAPILACAK] Sunucuya ulaşılamazsa sonuçlar kaybolmaz
-- `stajci` gönderemediği sonuçları ve ekleri iş dizinindeki bir kuyruk klasörüne yazar ve artan aralıklarla yeniden dener.
-- İş bitiminde hâlâ gönderilemeyen sonuçlar GitLab artifact'i olarak saklanır; sunucu geri gelince `stajci upload --resume` ile gönderilir.
+### SW-2.6 [KISMEN] Sunucuya ulaşılamazsa sonuçlar kaybolmaz
+- `ulak` gönderemediği sonuçları ve ekleri iş dizinindeki bir kuyruk klasörüne yazar ve artan aralıklarla yeniden dener.
+- İş bitiminde hâlâ gönderilemeyen sonuçlar GitLab artifact'i olarak saklanır; sunucu geri gelince `ulak upload --resume` ile gönderilir.
 - Kabul: Sunucu koşum sırasında kapatılıp açılınca hiçbir sonuç eksik ya da çift sayılmaz (SW-3.3 ile).
 - Test: B, P
+- Doğrulama: rehearse SW-2.6 adımları
+- Not: Kuyruk, artan aralıklı deneme, artifact ve `--resume`; sunucu kapatılıp açılınca eksik/çift yok (prova, Linux ve Windows). GitLab'a giden ağ kısa süre koparsa report işi kod çekerken düşmesin diye şablonda `GET_SOURCES_ATTEMPTS` ve `ARTIFACT_DOWNLOAD_ATTEMPTS` var; gerçek kopmada yeniden deneme henüz gözlenmedi.
 
-### SW-2.7 [YAPILACAK] Gerçek Allure örnekleri test verisi olarak kullanılır
+### SW-2.7 [KISMEN] Gerçek Allure örnekleri test verisi olarak kullanılır
 - Test projesi Allure ile ayarlandıktan sonra, ondan alınan `allure-results` örnekleri `testdata/` altına konur: geçen, kalan, broken, rerun edilmiş ve ekli senaryolar.
 - Ayrıştırıcı testleri uydurma değil bu örneklerle yazılır.
 - Kabul: SW-2.1, 2.2 ve 4.9 testleri gerçek örneklerle geçer.
 - Test: B
+- Doğrulama: `test_sw_2_7_real_samples_parse`, `test_sw_2_7_doors_and_jira_tags`
+- Ek: gereksinim kimliği öneki ayarlanabilir (`GEREKSINIM_ONEKI`, varsayılan `DOORS-`, sahada `YTET_`; kimlik yazıldığı gibi saklanır) ve ek kimlik önekleri (`EK_KIMLIK_ONEKLERI`, örn. `YGÖ-`: tag'lerden okunur, rozet/arama/CSV sütunu/Jira yer tutucusu; Jira label'ı olmaz). Doğrulama: `test_sw_2_7_gereksinim_oneki_ytet`, `test_sw_2_7_ek_kimlik_ascii_olmayan_onek`, `test_sw_6_4_ytet_ve_ygo_rapor_arama_csv_jira`.
+- Not: Örnekler `ornek-test-projesi`nin gerçek koşusundan (testdata/allure/ornek-giris). Gerçek test projesinin örnekleri eklenince MEVCUT.
 
 ---
 
@@ -143,36 +165,45 @@ CI'dan gelen Allure sonuçları alınır, işlenir ve saklanır.
 
 Testler koşarken hangi senaryonun geçtiği, hangisinin kaldığı anlık görünür.
 
-### SW-3.1 [YAPILACAK] POST /api/ci/runs/start
+### SW-3.1 [MEVCUT] POST /api/ci/runs/start
 - Koşum "çalışıyor" durumunda açılır; toplam senaryo sayısı (dry-run ile) kaydedilir.
 - Kabul: Koşum panelde, testler bitmeden "47/120" gibi bir ilerlemeyle görünür.
 - Test: B, P
+- Doğrulama: `test_sw_3_1_*` (ulak), rehearse SW-3.1
 
-### SW-3.2 [YAPILACAK] CI izleyicisi (`stajci watch`)
+### SW-3.2 [KISMEN] CI izleyicisi (`ulak watch`)
 - Her yeni sonuç dosyasını ve eklerini anında gönderir; test işiyle paralel çalışır.
-- stajproje runner ile aynı makinede çalıştığı için izleyici sonuçları yerel adrese (localhost) gönderir.
+- divan runner ile aynı makinede çalıştığı için izleyici sonuçları yerel adrese (localhost) gönderir.
 - Kabul: Senaryo bittikten en geç 5 sn sonra panelde görünür; izleyici çökerse test işi etkilenmez.
 - Test: P
+- Doğrulama: rehearse SW-3.2
+- Not: Ayrı süreç izleyici, ≤5 sn gecikme provada ölçülür (Linux). Windows doğrulaması bekliyor.
 
-### SW-3.3 [YAPILACAK] POST /api/ci/runs/{id}/results
+### SW-3.3 [MEVCUT] POST /api/ci/runs/{id}/results
 - Sonuçlar artımlı alınır; aynı dosya iki kez sayılmaz.
 - Kabul: Aynı sonucu iki kez göndermek sayıyı değiştirmez; sonuçlar son toplu zip (SW-2.1) ile tutarlıdır.
 - Test: B
+- Doğrulama: `test_sw_3_3_duplicate_result_is_counted_once`, rehearse SW-3.3
 
-### SW-3.4 [YAPILACAK] Canlı koşum ekranı
+### SW-3.4 [MEVCUT] Canlı koşum ekranı
 - Senaryo listesi (geçti, kaldı, koşuyor, bekliyor), sayaçlar, hata ve ekran görüntüsü; güncellemeler WebSocket ile gelir.
 - Kabul: Sayfa yenilenmeden güncellenir; hata, koşum bitmeden görünür.
 - Test: B, P, M
+- Doğrulama: `test_sw_3_4_live_snapshot_waiting_running_and_errors`, `test_sw_3_4_websocket_pushes_updates_without_reload`, `test_sw_3_4_canli_entry_finds_active_run_and_ignores_stale`
+- Not: WebSocket testi ve ekran görüntüsüyle kontrol edildi. `/canli` koşum açılmadan açılabilen giriştir; etkin koşum çıkınca canlı ekrana geçer.
 
-### SW-3.5 [YAPILACAK] POST /api/ci/runs/{id}/finish ve zaman aşımı
+### SW-3.5 [MEVCUT] POST /api/ci/runs/{id}/finish ve zaman aşımı
 - Yarıda kesilen koşum "interrupted" olur.
 - Kabul: Runner durdurulunca koşum RUN_STALL_TIMEOUT içinde interrupted durumuna geçer.
 - Test: B
+- Doğrulama: `test_sw_3_5_*`
 
-### SW-3.6 [YAPILACAK] Pipeline düzeyi durum (kuyrukta, çalışıyor, bitti)
+### SW-3.6 [KISMEN] Pipeline düzeyi durum (kuyrukta, çalışıyor, bitti)
 - GitLab webhook ile alınır. GitLab sunucusu makineye erişebildiği için API sorgusuyla yedek yol gerekmez.
 - Kabul: Pipeline başlayınca panelde "kuyrukta / çalışıyor" görünür.
 - Test: B, U
+- Doğrulama: `test_sw_3_6_pipeline_status_on_dashboard`, e2esmoke
+- Not: Webhook işleme ve panel testleri geçer; gerçek GitLab webhook'u ile U testi bekliyor.
 
 ---
 
@@ -180,56 +211,69 @@ Testler koşarken hangi senaryonun geçtiği, hangisinin kaldığı anlık gör�
 
 Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 
-### SW-4.1 [YAPILACAK] Koşum raporu, senaryo detayı, adımlar, ekran görüntüsü ve video gösterimi
+### SW-4.1 [MEVCUT] Koşum raporu, senaryo detayı, adımlar, ekran görüntüsü ve video gösterimi
 - Kabul: Bir koşumdan senaryoya, oradan adımlara ve eklere gidilebilir; ekran görüntüsü ve video sayfada açılır.
 - Test: B, U
+- Doğrulama: `test_sw_4_1_run_to_scenario_to_steps_and_attachments`, e2esmoke
 
-### SW-4.2 [YAPILACAK] Dashboard, senaryo geçmişi, flaky tespiti
-- Kabul: Dashboard son koşumların özetini gösterir; bir senaryonun geçmiş koşumlardaki sonuçları listelenir; geçip kalmayı değişken olan senaryo flaky olarak işaretlenir.
+### SW-4.2 [MEVCUT] Dashboard, senaryo geçmişi, flaky tespiti
+- Kabul: Dashboard son koşumların özetini gösterir; bir senaryonun geçmiş koşumlardaki sonuçları listelenir; aynı commit'te kaldıktan sonra geçen senaryo flaky olarak işaretlenir (geçerken kalmaya başlayıp bir daha geçmeyen senaryo bozulmadır, flaky değildir; commit değişince geçen senaryo düzeltilmiştir).
 - Test: B
+- Doğrulama: `test_sw_4_2_dashboard_history_and_flaky_detection`, `test_sw_4_2_flaky_needs_pass_after_fail_on_same_commit`
 
-### SW-4.3 [YAPILACAK] CI bilgisi raporda: repo, branch, commit ve pipeline linki
+### SW-4.3 [MEVCUT] CI bilgisi raporda: repo, branch, commit ve pipeline linki
 - Kabul: Rapor başlığında bu bilgiler görünür; pipeline linki tıklanabilir.
 - Test: B
+- Doğrulama: `test_sw_4_3_*`
+- Ek: test edilen uygulamanın sürümü (`UYGULAMA_SURUMU` → `runs.app_version`, migration 0007) koşum başlığında, dashboard'da, paylaşımda; aramada `uygulama` süzgeci, CSV'de `uygulama` sütunu. Doğrulama: `test_sw_4_3_uygulama_surumu_raporda_aramada_csvde`, rehearse SW-4.3.
 
-### SW-4.4 [YAPILACAK] OpenCode düzeltme kutusu ve senaryo rozeti
+### SW-4.4 [MEVCUT] OpenCode düzeltme kutusu ve senaryo rozeti
 - SW-7.3'e bağlıdır.
 - Kabul: fix-result geldikten sonra raporda düzeltme kutusu ve senaryoda "OpenCode !MR" rozeti görünür.
 - Test: B, P
+- Doğrulama: `test_sw_7_3_and_4_4_fix_result_box_and_badge_in_report`, rehearse SW-4.4
 
-### SW-4.5 [YAPILACAK] Triage: başarısız senaryonun nedenine karar verilmesi (taslak)
+### SW-4.5 [KISMEN] Triage: başarısız senaryonun nedenine karar verilmesi (taslak)
 - Kategoriler: `flaky`, `test kodu hatası` (bizden), `ürün hatası`, `ortam sorunu`, `bilinmiyor`.
 - Karar üç kaynaktan gelir ve her kararın kaynağı kayıtlıdır:
   1. Kural: flaky geçmişi (SW-4.2), Allure durumu (`broken` → test kodu, `failed` → ürün), bilinen ortam hata kalıpları (zaman aşımı, bağlantı hatası, ekran bulunamadı).
-  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde (SW-7.2) çalışır, sonucu stajproje'ye bildirir.
+  2. OpenCode: hata mesajı, adımlar ve ekran görüntüsü vLLM'e verilir; kategori, kısa gerekçe ve güven döner. Fix işinde `ulak degerlendir` (salt okunur, her kalan senaryo) ve `ulak fix` (SW-7.2) çalışır, sonucu divan'a bildirir. Ajan OpenCode ya da Claude Code'dur.
   3. Admin: kararı onaylar ya da değiştirir. Admin kararı diğerlerinin üstündedir.
-- Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → atlanır, ortam sorunu → bildirim.
+- Kategori sonraki adımı belirler: test kodu hatası → OpenCode düzeltmesi, ürün hatası → Jira, flaky → düzeltilmez ve bug açılmaz ama ajan değerlendirir (kararı değiştirebilir), ortam sorunu → bildirim.
 - Ayrıntılar netleşmedi (açık soru 3); bu gereksinime başlamadan önce sor.
 - Kabul: Her başarısız senaryonun raporda kategorisi, kaynağı ve gerekçesi görünür; admin değiştirince yeni karar geçerli olur ve eski karar geçmişte kalır.
 - Test: B, P
+- Doğrulama: `test_sw_4_5_*`
+- Not: Açık soru 3 yanıtlanmadan varsayımlarla uygulandı (docs/KARARLAR.md). Testler geçer.
+- Ek: zaman aşımına düşen senaryo atlanır, sıradakine geçilir (ilk aşımda tüm değerlendirme durmaz); art arda `ULAK_ART_ARDA_ZAMAN_ASIMI` (3) aşımdan sonra kalanlar denenmez; log satırı ajanın çıktı verip vermediğini yazar; işin başında kullanılan sınırlar kaynaklarıyla yazılır. Aynı kural `ulak fix`'te (yarım değişiklik geri alınır). Doğrulama: `test_sw_4_5_zaman_asimi_mesaji_yavas_ile_yanitsizi_ayirir`, `test_sw_4_5_sayi_ayari_kaynagini_soyler`, rehearse SW-4.5.
+- Ek: `ULAK_DEGERLENDIR_MAX` verilmezse sınırsız (değerlendirmeye kalan hepsi); değişken adı toleranslı okunur (`ulak-…` yazımı uyarıyla kabul); işin başında `özet:` satırı (kalan, değerlendirilecek, hedefe göre atlanan). Doğrulama: `test_sw_7_2_sinir_ayari_varsayilan_sinirsiz_ve_ad_toleransi`, `test_sw_7_2_hedef_ozeti`.
 
-### SW-4.6 [YAPILACAK] Proje ve branch ayrımı
+### SW-4.6 [MEVCUT] Proje ve branch ayrımı
 - Her koşum bir test projesine ve branch'e bağlıdır. Dashboard, geçmiş ve flaky tespiti proje ve branch bazında yapılır.
 - Yeni proje, ilk yüklemede GitLab proje bilgisinden kendiliğinden oluşur.
 - Kabul: İki projenin aynı adlı senaryoları birbirinin geçmişine karışmaz; dashboard proje ve branch seçilerek süzülür.
 - Test: B
+- Doğrulama: `test_sw_4_6_*`
 
-### SW-4.7 [YAPILACAK] Arama ve filtre
+### SW-4.7 [MEVCUT] Arama ve filtre
 - Senaryolar tag, feature, DOORS numarası, Jira issue numarası, triage kategorisi ve hata mesajı ile aranır.
 - Kabul: Her alanla arama doğru sonuç verir; sonuçlar sayfalanır.
 - Test: B
+- Doğrulama: `test_sw_4_7_search_by_each_field`, `test_sw_4_7_search_paginated`
 
-### SW-4.8 [YAPILACAK] CSV dışa aktarma (alan seçmeli)
+### SW-4.8 [MEVCUT] CSV dışa aktarma (alan seçmeli)
 - Jira'daki dışa aktarma gibi: kullanıcı o anki filtreyle listelenen senaryoları, istediği alanları seçerek düz CSV olarak indirir.
 - Seçilebilir alanlar: proje, branch, koşum, senaryo, feature, tag'ler, durum, triage kategorisi, hata mesajı, süre, DOORS numarası, Jira issue numarası, tarih.
 - Kabul: Yalnızca seçilen alanlar seçilen sırayla gelir; Excel'de Türkçe karakterler doğru açılır (UTF-8 BOM); büyük listeler akış halinde yazılır (SW-10.6).
 - Test: B
+- Doğrulama: `test_sw_4_8_*`
 
-### SW-4.9 [YAPILACAK] Aynı koşumda tekrar koşan senaryolar
+### SW-4.9 [MEVCUT] Aynı koşumda tekrar koşan senaryolar
 - Cucumber rerun ya da retry nedeniyle aynı senaryonun birden fazla sonucu olabilir. Senaryonun sonucu son denemedir; önceki denemeler senaryo detayında görünür.
 - Önce kalıp sonra geçen senaryo flaky tespitine girdi olarak sayılır.
 - Kabul: Sayaçlarda her senaryo bir kez sayılır; denemeler detayda sırayla listelenir.
 - Test: B
+- Doğrulama: `test_sw_4_9_rerun_last_attempt_wins_and_attempts_listed`
 
 ---
 
@@ -237,25 +281,33 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 
 Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 
-### SW-5.1 [YAPILACAK] İç bilgileri gizlenmiş salt okunur paylaşım linki
+### SW-5.1 [MEVCUT] İç bilgileri gizlenmiş salt okunur paylaşım linki
 - Link, şirket ağındaki herkesin giriş yapmadan açabileceği bir linktir.
 - Kabul: Token, Jira anahtarı ve ham ek linki görünmez.
 - Test: B
+- Doğrulama: `test_sw_5_1_*`, e2esmoke
+- Ek: Link iki görünümle oluşturulur. "Ekip linki" ayrıntılı raporu açar. "Genel rapor linki" yalnızca doğrulanan senaryoları ve ürün hatalarını gösterir; flaky, tekrar denemesinde geçen, test kodu, ortam ve atlanan senaryolar adsız "İnceleniyor" sayısına girer ve ayrıntıları açılmaz. Doğrulama: `test_sw_5_1_genel_rapor_shows_only_product_results`.
+- Ek: "Genel ana sayfa linki" proje ve branch başına kalıcı bir sayfa açar: sonuç, sayılar, dağılım ve gidişat grafikleri, bölüm tablosu ve geçmişi, rapor listesi, feature sekmeli rapor, doğrulanan ve ürün hatası senaryoların adım ve ekran görüntüsü ayrıntıları. Yalnızca o kapsamın biten koşumları açılır; aynı sınıflandırma geçerlidir. Doğrulama: `test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope`.
 
-### SW-5.2 [YAPILACAK] Paylaşım linkinin iptali
+### SW-5.2 [MEVCUT] Paylaşım linkinin iptali
 - Bağlam: Raporlar yalnızca şirket içindeki kapalı yerel ağda paylaşılır, dışarıya açılmaz. Bu yüzden önceliği düşük.
 - Süre sınırı yok: Link, rapor saklandığı sürece (diskte yer olduğu sürece) açık kalır.
 - Kabul: İptal edilen link açılmaz; iptal admin panelinden yapılır. Süre sınırı eklenmez.
 - Test: B
+- Doğrulama: `test_sw_5_2_revoked_share_link_does_not_open`, e2esmoke
 
-### SW-5.3 [YAPILACAK] Gece pipeline'ı bitince özet e-posta
+### SW-5.3 [KISMEN] Gece pipeline'ı bitince özet e-posta
 - İçerik: geçen, kalan, rapor linki, açılan MR'lar.
 - Kabul: DRY_RUN'da gönderim simüle edilir; gerçekte pipeline başına tek e-posta gider.
 - Test: B, M
+- Doğrulama: `test_sw_5_3_*`
+- Not: DRY_RUN ve sahte SMTP ile testler geçer; gerçek relay ile M kontrolü bekliyor.
 
-### SW-5.4 [YAPILACAK] Rapor linki pipeline'da ve MR açıklamasında
+### SW-5.4 [KISMEN] Rapor linki pipeline'da ve MR açıklamasında
 - Kabul: Rapor linki yükleme işinin çıktısında, pipeline "environment" linkinde ve OpenCode MR açıklamasında yer alır.
 - Test: P, U
+- Doğrulama: rehearse SW-5.4 adımları
+- Not: Rapor linki ulak çıktısında, ulak.env (environment url) ve MR açıklamasında; GitLab'da U testi bekliyor.
 
 ---
 
@@ -263,24 +315,38 @@ Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 
 Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır.
 
-### SW-6.1 [YAPILACAK] Jira istemcisi: bug'da DOORS numarası label'da ve açıklamada
+### SW-6.1 [MEVCUT] Jira istemcisi: bug'da gereksinim numarası açıklamada
+- Gereksinim (YTET/DOORS) ve ek kimlikler (YGÖ) yalnızca yer tutucuyla metne yazılır (`{{YTET}}`, `{{YGÖ}}`, eski `{{doors}}`); label olmaz (karar, `docs/KARARLAR.md`).
 - Jira label'ı reddederse bug label'sız açılır.
 - Bug açılırken ya da senaryo var olan bir bug'a bağlanırken ekran görüntüsü Jira issue'suna eklenir.
-- Kabul: DOORS numarası her iki yerde de görünür; label hatasında bug yine de açılır; ekran görüntüsü Jira issue'sunda görünür.
+- Kabul: gereksinim numarası açıklamada görünür, label'da görünmez; label hatasında bug yine de açılır; ekran görüntüsü Jira issue'sunda görünür.
 - Test: B
+- Doğrulama: `test_sw_6_1_*`
+- Not: Sahte Jira sunucusuyla test edildi.
+- Ek: bug içeriği arayüzden ayarlanır (Admin > Ayarlar: özet/açıklama şablonu, zorunlu ve özel alanlar JSON); "Jira alanlarını getir" zorunlu alanları ve izinli değerleri Jira createmeta ile listeler; elle bug açma formu zorunlu alanları sorar; Jira alan hataları alan adıyla gösterilir. Doğrulama: `test_sw_6_1_required_fields_listed_and_bug_form_sends_them`, `test_sw_6_3_auto_bug_uses_template_fields`, `docs/JIRA_DOORS_AYARLARI.md`.
 
-### SW-6.2 [YAPILACAK] CI koşumundan sonra FAILED senaryolar için otomatik eşleşme kendiliğinden çalışır
+### SW-6.2 [KISMEN] CI koşumundan sonra FAILED senaryolar için otomatik eşleşme kendiliğinden çalışır
 - Kabul: Yükleme sonrasında açık bug'ı olan senaryolar bağlanmış görünür.
 - Test: B, E
+- Doğrulama: `test_sw_6_2_auto_match_after_upload`
+- Ek: senaryoda `@ABC-123` tag'i (`JIRA_TAG_PROJELERI`, yoksa `JIRA_PROJECT`) Jira issue'su sayılır; koşum bitince başlık, durum, tür, atanan Jira'dan çekilip (`jira_issues`) koşum/senaryo/arama sayfalarında gösterilir; kalan senaryo o issue'ya bağlanır. Doğrulama: `test_sw_6_2_jira_tag_anahtari_listeye_gore`, `test_sw_6_2_jira_tag_issue_bilgisi_raporda`.
+- Ek: Jira araması yalnızca `JIRA_ISSUE_TYPE` türünde ve `JIRA_MATCH_LABEL` (varsayılan `divan`) label'lı issue'larla eşleşir; divan bu label'ı açtığı her bug'a ekler (story/task'a fotoğraf gitmez). Doğrulama: `test_sw_6_2_acik_bug_jql_tur_ve_label`, `test_sw_6_2_auto_match_after_upload`.
+- Not: Sahte Jira ile B/E testleri geçer; gerçek Jira ile E testi bekliyor.
 
-### SW-6.3 [YAPILACAK] Sınırlı otomatik bug açma
+### SW-6.3 [MEVCUT] Sınırlı otomatik bug açma
 - Koşum başına üst sınır vardır; aynı hata için tek bug açılır; bug retry sonrasında açılır; önce gözlem modunda çalışır.
 - Kabul: Gözlem modunda Jira'ya yazılmaz, kayıt tutulur; üst sınır aşılmaz.
 - Test: B
+- Doğrulama: `test_sw_6_3_*`
+- Ek: gözlem modunda Jira bug **taslağı** hazırlanır (şablonla), admin koşum/senaryo/admin sayfasından tek tıkla açar, düzenleyip açar ya da yok sayar; OpenCode "ürün hatası" derse de taslak; aynı senaryo/hata için taslak birikmez. Doğrulama: `test_sw_6_3_draft_*`.
 
-### SW-6.4 [YAPILACAK] DOORS dışa aktarma: CSV ve DXL
+### SW-6.4 [MEVCUT] DOORS dışa aktarma: CSV ve DXL
 - Kabul: Koşum sonuçları DOORS'a aktarılabilecek CSV ve DXL dosyası olarak indirilir.
 - Test: B
+- Doğrulama: `test_sw_6_4_doors_csv_and_dxl`, e2esmoke
+- Ek: CSV'lerde gereksinim sütununun başlığı önek adıdır (`YTET`; varsayılan önekle `DOORS`), her ek önek için ayrı sütun (`YGÖ`); arayüzde "DOORS" yerine önek adı. Doğrulama: `test_sw_6_4_ytet_ve_ygo_rapor_arama_csv_jira`.
+- Not: DXL betiği gerçek DOORS modülünde denenmedi (pilot listesi).
+- Ek: aktarım CSV ile (kullanıcının kendi aktarım betiği); sonuç değerleri ve DOORS linki şablonu Admin > Ayarlar > DOORS'tan. DXL isteğe bağlı, varsayılan kapalı (`DOORS_DXL=true`). Doğrulama: `test_sw_6_4_doors_settings_used_in_dxl_csv_and_links`.
 
 ---
 
@@ -288,35 +354,52 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 
 Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayıyla birleştirilir.
 
-### SW-7.1 [YAPILACAK] fix-candidates sınıflandırması
-- Hedef triage kategorisine göre seçilir (SW-4.5): test kodu hatası → OpenCode, ürün hatası → Jira, @sample-fail ve flaky → atlanır. Triage kararı yoksa Allure durumu kullanılır (broken → OpenCode, failed → Jira).
+### SW-7.1 [MEVCUT] fix-candidates sınıflandırması
+- Hedef triage kategorisine göre seçilir (SW-4.5): test kodu hatası → OpenCode, ürün hatası → Jira, @sample-fail → atlanır, flaky → hedef `flaky` (düzeltilmez, `ulak degerlendir` bakar). Triage kararı yoksa Allure durumu kullanılır (broken → OpenCode, failed → Jira).
 - Kabul: Her durum için doğru hedef seçilir.
 - Test: B
+- Doğrulama: `test_sw_7_1_*`
+- Ek: feature dosyası olmayan sonuç (Cucumber dışı, ör. JUnit testi) hedef `atla`: değerlendirilmez, düzeltilmez; raporda görünmeye devam eder. Doğrulama: `test_sw_7_1_cucumber_disi_test_degerlendirme_ve_fix_disi`.
 
-### SW-7.2 [YAPILACAK] OpenCode düzeltmesi (`stajci fix`)
+### SW-7.2 [KISMEN] OpenCode düzeltmesi (`ulak fix`)
 - Yalnızca `src/test/` altında değişiklik yapar, doğrulama koşusu çalıştırır, auto-fix branch'i ve MR açar (doğrulama geçmezse Draft MR).
 - vLLM modeli görsel destekli: başarısız senaryonun ekran görüntüsü OpenCode isteğine eklenir.
 - Kabul: Önce provada sahte OpenCode ile, sonra gerçek OpenCode, vLLM, TestFX MCP ve GitLab MR ile geçer.
 - Test: P, U
+- Doğrulama: rehearse SW-7.2 adımları, `test_sw_7_2_command_template`
+- Not: Sahte OpenCode + sahte GitLab + yerel git ile prova geçer; gerçek OpenCode, vLLM, TestFX MCP, GitLab MR ile U bekliyor.
+- Ek: açık auto-fix MR'ı olan senaryo yeniden aday olmaz (`acik-mr`); CI şablonunda auto-fix branch'inde fix işi koşmaz, test/report yalnızca `ULAK_FIX_PIPELINE=on` ile; MR pipeline'ında şablon işleri koşmaz. Doğrulama: `test_sw_7_2_open_fix_mr_blocks_new_candidate_until_closed`, rehearse SW-7.2.
+- Ek: doğrulama koşusu tag ile de seçilebilir (`ULAK_FIX_VALIDATE_FILTER=tags`: `@a and @b`, ASCII dışı tag'ler atılır, tag kalmazsa ada düşülür); `ULAK_FIX_VALIDATE_CMD` içinde `{senaryo}` ve `{taglar}`. Doğrulama: `test_sw_7_2_dogrulama_filtresi_ad_ya_da_tag`, `test_sw_7_2_tag_ifadesi_ascii_disi_atilir`. Gerçek runner'da tek senaryo koştuğu henüz doğrulanmadı.
+- Ek: `ULAK_FIX_PIPELINE=senaryo` ile auto-fix branch'inin pipeline'ında yalnızca düzeltilen senaryo koşar: `ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve filtre verir (YTET tag'i varsa `ULAK_TAGS`, yoksa `ULAK_SENARYO`); sunucu push seçeneklerini kabul etmezse seçeneksiz push. Doğrulama: `test_sw_7_2_push_ci_degiskenleri`, rehearse SW-7.2 (push seçenekleri, geri dönüş, `ULAK_SENARYO`). Gerçek GitLab'da denenmedi.
+- Ek: `ULAK_FIX_MAX` verilmezse sınırsız: geçerli kararı test kodu olan her senaryo fix'e girer (kullanıcı kararı); örnek CI'da fix işi `timeout: 8h`.
 
-### SW-7.3 [YAPILACAK] Sonuç stajproje'ye bildirilir (fix-result) ve raporda görünür
+### SW-7.3 [MEVCUT] Sonuç divan'a bildirilir (fix-result) ve raporda görünür
 - Test: B, P
+- Doğrulama: `test_sw_7_3_and_4_4_*`, rehearse SW-7.3
 
-### SW-7.4 [YAPILACAK] Rapordaki "OpenCode ile düzelt" düğmesi GitLab API ile yalnızca fix işini tetikler
+### SW-7.4 [KISMEN] Rapordaki "OpenCode ile düzelt" düğmesi GitLab API ile yalnızca fix işini tetikler
 - Kabul: Düğme → pipeline → sonuç aynı rapora yazılır.
 - Test: B, U
+- Doğrulama: `test_sw_7_4_fix_button_triggers_only_fix_job_via_gitlab_api`
+- Not: Sahte GitLab API ile test geçer; açık soru 1 (token) ve gerçek GitLab U testi bekliyor.
+- Ek: senaryo sayfasında tek senaryo için düğme (`ULAK_FIX_SCENARIO_ID`, triage hedefinden bağımsız). Doğrulama: `test_sw_7_4_*`, rehearse SW-7.4.
 
-### SW-7.5 [YAPILACAK] Self-healing ölçüm paneli: deneme, MR, birleştirilen, reddedilen
+### SW-7.5 [MEVCUT] Self-healing ölçüm paneli: deneme, MR, birleştirilen, reddedilen
 - Kabul: Panel son 30 gecenin sayılarını gösterir.
 - Test: B
+- Doğrulama: `test_sw_7_5_healing_panel_counts_with_mr_webhook`
 
-### SW-7.6 [YAPILACAK] Test projesi için AGENTS.md, fix ajanı ve `opencode.json` (vLLM, TESTFX_MCP_JAR)
-- Önce stajproje reposunda şablonlar hazırlanır, sonra test projesine özel AGENTS.md yazılır.
+### SW-7.6 [KISMEN] Test projesi için AGENTS.md, fix ajanı ve `opencode.json` (vLLM, TESTFX_MCP_JAR)
+- Önce divan reposunda şablonlar hazırlanır, sonra test projesine özel AGENTS.md yazılır.
 - Test: U
+- Not: Şablonlar ci/opencode/template, ci/claude/template (Claude Code seçeneği, `ULAK_FIX_AGENT=claude`) ve ornek-test-projesi altında; opencode.ai belgelerine bu ortamdan erişilemedi, kurulu OpenCode / Claude Code ve vLLM ağ geçidiyle doğrulanmalı (docs/KOD_AJANI_VLLM.md).
+- Ek: ajan `.opencode/agents/fix.md` (OpenCode'un güncel yolu), skill'ler `ci/skills/` → test projesinde `.claude/skills/` (OpenCode ve Claude Code ortak): `hata-siniflandirma`, `testfx-secici`, `cucumber-adim`. Ajan adı `ULAK_OPENCODE_AGENT`.
+- Ek: Claude Code yolu `ULAK_CLAUDE_BIN` (boşluklu yol tırnaklanır); `ulak preflight` Claude Code'da `.claude/settings.json` ve `CLAUDE.md` yoksa uyarır; ajana giden metin ekleri ek başına 64 KB, toplam 96 KB. Doğrulama: `test_sw_7_6_claude_ajani_on_kontrolu`, `test_sw_7_6_bosluklu_ajan_yolu_tek_arguman`, `test_sw_7_2_metin_eki_siniri_ek_basina_ve_toplam`.
 
-### SW-7.7 [YAPILACAK] Geçmişteki başarılı düzeltmeler OpenCode'a örnek olarak verilir
+### SW-7.7 [MEVCUT] Geçmişteki başarılı düzeltmeler OpenCode'a örnek olarak verilir
 - Kabul: İstek metninde benzer bir senaryonun önceki düzeltmesi yer alır.
 - Test: B
+- Doğrulama: `test_sw_7_7_*` (divan, ulak)
 
 ---
 
@@ -324,29 +407,35 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 
 Tokenlar korunur, dışarıdan gelen istekler doğrulanır, OpenCode sınırlanır.
 
-### SW-9.1 [YAPILACAK] CI uçları ayrı bir CI_API_TOKEN ile korunur
+### SW-9.1 [MEVCUT] CI uçları ayrı bir CI_API_TOKEN ile korunur
 - Kabul: Token yoksa veya yanlışsa istek reddedilir.
 - Test: B
+- Doğrulama: `test_sw_9_1_*`
 
-### SW-9.2 [YAPILACAK] GitLab token yalnızca `.env`'de durur, loglara yazılmaz
+### SW-9.2 [MEVCUT] GitLab token yalnızca `.env`'de durur, loglara yazılmaz
 - Kabul: Hata mesajlarında token görünmez.
 - Test: B
+- Doğrulama: `test_sw_9_2_*`
 
-### SW-9.3 [YAPILACAK] Webhook isteği X-Gitlab-Token ile doğrulanır
+### SW-9.3 [MEVCUT] Webhook isteği X-Gitlab-Token ile doğrulanır
 - Kabul: Yanlış token reddedilir.
 - Test: B
+- Doğrulama: `test_sw_9_3_webhook_wrong_token_rejected`
 
-### SW-9.4 [YAPILACAK] OpenCode koruması: izinli yollar, assertion yasağı, loglar veri olarak ele alınır
+### SW-9.4 [KISMEN] OpenCode koruması: izinli yollar, assertion yasağı, loglar veri olarak ele alınır
 - Kabul: İzinli yolların dışındaki değişiklik reddedilir; assertion değiştiren düzeltmede MR'a uyarı eklenir; test loglarındaki metin talimat olarak yorumlanmaz.
 - Test: P
+- Doğrulama: `test_sw_9_4_*`, rehearse SW-9.4
+- Not: İzinli yol, assertion uyarısı ve veri bloğu; birim + prova Linux'ta geçer. Windows doğrulaması bekliyor.
 
-### SW-9.5 [YAPILACAK] Admin girişi
-- Şimdilik tek kullanıcı vardır: admin. Şifre `.env` içinde düz değil, hash olarak (argon2) tutulur; `stajproje set-admin-password` komutuyla belirlenir.
+### SW-9.5 [MEVCUT] Admin girişi
+- Şimdilik tek kullanıcı vardır: admin. Şifre `.env` içinde düz değil, hash olarak (argon2) tutulur; `divan set-admin-password` komutuyla belirlenir.
 - Giriş sonrası oturum çerezi kullanılır (HttpOnly, SameSite=Strict); başarısız denemeler yavaşlatılır.
 - Raporları görmek giriş gerektirmez (kapalı ağ). Admin işlemleri giriş ister: link iptali, triage kararı değiştirme, "OpenCode ile düzelt", Jira'ya bug açma, ayarlar.
 - Şirkette Active Directory / LDAP var; ileride giriş buna bağlanabilsin diye giriş kontrolü tek bir arayüz arkasında yazılır. Şimdilik AD/LDAP bağlantısı yapılmaz.
 - Kabul: Yanlış şifreyle admin işlemi yapılamaz; şifre loglarda ve hata mesajlarında görünmez.
 - Test: B
+- Doğrulama: `test_sw_9_5_*`, e2esmoke
 
 ---
 
@@ -354,41 +443,50 @@ Tokenlar korunur, dışarıdan gelen istekler doğrulanır, OpenCode sınırlan�
 
 Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 
-### SW-10.1 [YAPILACAK] VM, runner, token ve zamanlama rehberi (`docs/GITLAB_CI_KURULUMU.md`)
+### SW-10.1 [KISMEN] VM, runner, token ve zamanlama rehberi (`docs/GITLAB_CI_KURULUMU.md`)
 - Ubuntu için: gereken paketler (Xvfb, ffmpeg, Java ve JavaFX bağımlılıkları), GitLab runner'ın shell executor ile hizmet olarak kurulması ve SW-1.2'deki Xvfb ayarı.
 - Windows için: gereken programlar (ffmpeg, Java), otomatik oturum açma, kilit ve uykunun kapatılması, runner'ın oturumda başlatılması (SW-1.6) ve RDP'den `tscon` ile çıkış.
-- stajproje sunucusunun her iki sistemde hizmet olarak kurulması.
+- divan sunucusunun her iki sistemde hizmet olarak kurulması.
 - Kabul: Rehberle sıfırdan kurulum yapılabilir.
 - Test: M
+- Not: Rehber yazıldı (docs/GITLAB_CI_KURULUMU.md); sıfırdan kurulumla M kontrolü bekliyor.
 
-### SW-10.2 [YAPILACAK] Prova (`cargo run -p rehearse`) ve uçtan uca smoke (`cargo run -p e2esmoke`)
+### SW-10.2 [KISMEN] Prova (`cargo run -p rehearse`) ve uçtan uca smoke (`cargo run -p e2esmoke`)
 - Smoke testi sonuçları CI yükleme yolundan (SW-2.1) gönderir.
 - Kabul: Her ikisi de tüm adımlarıyla hem Ubuntu'da hem Windows'ta geçer; her yeni CI adımı provaya eklenir.
 - Test: P, U
+- Doğrulama: `cargo run -p rehearse`, `cargo run -p e2esmoke`
+- Not: `rehearse` (43 adım) ve `e2esmoke` (18 adım) Linux'ta geçer. Windows ikilileri Wine altında: `cargo test --target x86_64-pc-windows-gnu` 96/96 (yalnızca Linux /proc kullanan bellek ölçüm testi hariç), rehearse 31/31 (Xvfb ve git adımları atlandı), e2esmoke 18/18. Gerçek Windows VM'de koşturulmadı.
 
-### SW-10.3 [YAPILACAK] stajproje reposu şirket GitLab'ında açılır
+### SW-10.3 [YAPILACAK] divan reposu şirket GitLab'ında açılır
 - Push kapalıysa `git bundle` ile aktarılır.
 - Kabul: Repo GitLab'da; ilk commit'ten itibaren kod orada.
 - Test: M
+- Not: Şirket GitLab'ına erişim gerekiyor (M).
 
-### SW-10.4 [YAPILACAK] Yeni test projesi ekleme rehberi (yarım sayfa)
+### SW-10.4 [KISMEN] Yeni test projesi ekleme rehberi (yarım sayfa)
 - Kabul: Bir ekip rehberi kullanarak kendi projesini bağlayabilir.
 - Test: M
+- Not: Rehber yazıldı (docs/YENI_PROJE_EKLEME.md); bir ekiple M kontrolü bekliyor.
 
-### SW-10.5 [YAPILACAK] Proje iskeleti
-- Cargo workspace; `stajproje` (sunucu) ve `stajci` (CI aracı) crate'leri, ortak kod için `common` crate'i; yapılandırma ortam değişkenleri ve `.env` dosyasından; temel sağlık ucu (`GET /api/health`).
+### SW-10.5 [MEVCUT] Proje iskeleti
+- Cargo workspace; `divan` (sunucu) ve `ulak` (CI aracı) crate'leri, ortak kod için `common` crate'i; yapılandırma ortam değişkenleri ve `.env` dosyasından; temel sağlık ucu (`GET /api/health`).
 - Kabul: Sunucu açılır, sağlık ucu 200 döner, `cargo test` geçer, Linux ve Windows ikilileri derlenir.
 - Test: B
+- Doğrulama: `test_sw_10_5_*`
+- Not: Windows ikilisi x86_64-pc-windows-gnu ile derlendi.
 
-### SW-10.6 [YAPILACAK] Sunucunun bellek bütçesi
+### SW-10.6 [MEVCUT] Sunucunun bellek bütçesi
 - Allure zip'i belleğe alınmaz, dosya dosya akış halinde işlenir; videolar ve ekler HTTP range desteğiyle parça parça sunulur.
 - Yükleme boyutuna üst sınır vardır; listeler ve senaryo geçmişi sayfalanır; hiçbir istek bir koşumun tüm verisini belleğe yüklemez.
 - SQLite önbelleği sınırlıdır (`PRAGMA cache_size`); Ubuntu'da systemd `MemoryMax=` ile sert sınır konur.
 - Hedef: Normal gece yükünde (birkaç yüz senaryo, ekleriyle) sunucunun bellek kullanımı 100 MB'ın altında kalır. Hedef değer yapılandırmadan değiştirilebilir.
 - Kabul: Büyük bir zip (yükleme sınırına yakın) yüklenirken bellek kullanımı hedefin altında kalır; bu durum bir testle ölçülür.
 - Test: B, P
+- Doğrulama: `test_sw_10_6_large_zip_upload_stays_under_memory_target`, e2esmoke range adımı
+- Not: Release sunucu: 200 MB zip + 40 eşzamanlı sayfa isteğinde tepe RSS ~28 MB.
 
-### SW-10.7 [YAPILACAK] Log içeriği
+### SW-10.7 [MEVCUT] Log içeriği
 - Biçim: Her satır bir olay, JSON. Ortak alanlar: `zaman`, `seviye`, `olay`, ve varsa `proje`, `branch`, `pipeline_id`, `run_id`, `senaryo_id`, `sure_ms`, `hata`.
 - INFO olarak yazılan olaylar:
   - Koşum açıldı, bitti, interrupted oldu (senaryo sayıları ile).
@@ -400,15 +498,16 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
   - Admin girişi başarılı ya da başarısız (yalnızca IP).
   - Paylaşım linki oluşturuldu ya da iptal edildi.
   - Migration uygulandı, yedek alındı, disk temizliği yapıldı (silinen dosya sayısı, boşalan alan).
-- WARN ve ERROR: dış servis hataları (Jira, GitLab, SMTP; HTTP durum kodu ve deneme sayısı ile), bellek ya da disk eşiği aşıldı, `stajci` sürüm uyuşmazlığı.
+- WARN ve ERROR: dış servis hataları (Jira, GitLab, SMTP; HTTP durum kodu ve deneme sayısı ile), bellek ya da disk eşiği aşıldı, `ulak` sürüm uyuşmazlığı.
 - Asla yazılmayanlar: token, şifre, çerez, `Authorization` başlığı, istek gövdeleri. Test loglarından ve hata mesajlarından yalnızca ilk 500 karakter yazılır.
-- `stajci` CI iş çıktısına kısa, okunur satırlar basar; her satırda aynı `run_id` vardır, böylece CI çıktısı ile sunucu logu eşleştirilebilir.
+- `ulak` CI iş çıktısına kısa, okunur satırlar basar; her satırda aynı `run_id` vardır, böylece CI çıktısı ile sunucu logu eşleştirilebilir.
 - Dönüşüm: Günlük dosya, en fazla 14 gün ve toplam 500 MB; hangisi önce dolarsa en eski silinir.
 - Admin panelinde son WARN ve ERROR kayıtları görünür.
 - Kabul: Yukarıdaki her olay testte tetiklenince ilgili log satırı oluşur; bir test, log dosyalarında token ve şifre geçmediğini doğrular.
 - Test: B
+- Doğrulama: `test_sw_10_7_*`, e2esmoke log adımı
 
-### SW-10.8 [YAPILACAK] Disk doluluğu ve temizlik
+### SW-10.8 [MEVCUT] Disk doluluğu ve temizlik
 - Disk %80 dolunca admin panelinde ve logda uyarı çıkar.
 - Disk %90 dolunca en eski koşumlardan başlayarak önce videolar, sonra ekran görüntüleri silinir; doluluk %80'in altına inince durur.
 - Jira issue'su olan senaryoların ekran görüntüsü Jira'da durduğu için silinebilir; senaryoda Jira issue numarası kalır ve silinen ekin yerinde "Silindi, bkz. JIRA-123" yazar.
@@ -416,12 +515,15 @@ Sistem kurulabilir, doğrulanabilir ve kaybolmaz.
 - Eşik değerleri yapılandırmadan değiştirilebilir.
 - Kabul: Eşik aşılınca doğru sırayla silinir; rapor sayfaları silinen ekler için hata vermez.
 - Test: B
+- Doğrulama: `test_sw_10_8_*`
 
-### SW-10.9 [YAPILACAK] `stajci` dağıtımı ve sürüm uyumu
-- stajproje sunucusu Linux ve Windows için `stajci` ikilisini `GET /api/tools/stajci?os=linux|windows` ucundan sunar; CI şablonu aracı buradan indirir.
-- `stajci` her istekte kendi sürümünü gönderir; sunucu uyumsuz sürümü açık bir mesajla reddeder.
-- Kabul: Sunucu güncellenince ertesi koşumda runner'lar yeni `stajci`'yi kullanır; eski sürüm "stajci sürümü uyumsuz" mesajıyla düşer.
+### SW-10.9 [KISMEN] `ulak` dağıtımı ve sürüm uyumu
+- divan sunucusu Linux ve Windows için `ulak` ikilisini `GET /api/tools/ulak?os=linux|windows` ucundan sunar; CI şablonu aracı buradan indirir.
+- `ulak` her istekte kendi sürümünü gönderir; sunucu uyumsuz sürümü açık bir mesajla reddeder.
+- Kabul: Sunucu güncellenince ertesi koşumda runner'lar yeni `ulak`'yi kullanır; eski sürüm "ulak sürümü uyumsuz" mesajıyla düşer.
 - Test: B, P
+- Doğrulama: `test_sw_10_9_*`, rehearse SW-10.9
+- Not: Sunucudan dağıtım ve sürüm reddi testleri geçer; Windows runner'da doğrulama bekliyor.
 
 ---
 
@@ -441,8 +543,8 @@ Bu sıra, her adımın bir öncekinin üzerine kurulacağı şekilde dizildi.
 
 ## Kararlar (ortam)
 
-1. GitLab sunucusu stajproje makinesine erişebiliyor. Pipeline durumu webhook ile alınır (SW-3.6).
-2. GitLab runner ve stajproje sunucusu aynı makinede çalışır. CI işleri stajproje'ye yerel adresten ulaşır (SW-3.2 ve diğer CI yüklemeleri).
+1. GitLab sunucusu divan makinesine erişebiliyor. Pipeline durumu webhook ile alınır (SW-3.6).
+2. GitLab runner ve divan sunucusu aynı makinede çalışır. CI işleri divan'a yerel adresten ulaşır (SW-3.2 ve diğer CI yüklemeleri).
 3. Raporlar yalnızca şirket içinde, kapalı yerel ağda paylaşılır. Paylaşım linklerinde süre sınırı yoktur; rapor diskte yer olduğu sürece saklanır (SW-5.1, 5.2).
 4. vLLM modeli görsel destekli. Ekran görüntüleri OpenCode'a verilir (SW-7.2).
 5. Runner'lar hem Ubuntu hem Windows sanal makinelerde çalışır. Ubuntu'da sanal ekran Xvfb'dir (SW-1.2); Windows'ta açık masaüstü oturumu kullanılır (SW-1.6). Monocle ve headless çalışma kullanılmaz.
@@ -456,6 +558,6 @@ Bu sıra, her adımın bir öncekinin üzerine kurulacağı şekilde dizildi.
 
 Bu sorular yanıtlanmadan ilgili gereksinime başlama; bunun yerine soruyu sor.
 
-1. stajproje'ye pipeline tetikleme ve okuma yetkisi olan bir GitLab token verilebilir mi? (SW-7.4, 7.5)
-2. Ubuntu ve Windows runner'ları ayrı makinelerdeyse her makinede ayrı bir stajproje sunucusu mu çalışacak, yoksa tek bir merkezi sunucu mu olacak? Ayrı sunucular raporları ve geçmişi ikiye böler. (SW-3.2, SW-3.6, SW-4.2)
+1. divan'a pipeline tetikleme ve okuma yetkisi olan bir GitLab token verilebilir mi? (SW-7.4, 7.5)
+2. Ubuntu ve Windows runner'ları ayrı makinelerdeyse her makinede ayrı bir divan sunucusu mu çalışacak, yoksa tek bir merkezi sunucu mu olacak? Ayrı sunucular raporları ve geçmişi ikiye böler. (SW-3.2, SW-3.6, SW-4.2)
 3. Triage nasıl çalışacak? Kategoriler doğru mu, OpenCode'un kararı kendiliğinden mi geçerli olsun yoksa admin onayı mı beklesin, düşük güvenli kararlar ne olsun? (SW-4.5)

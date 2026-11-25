@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Senaryo geçmişi{% endblock %}
+{% block content %}
+<div class="baslik"><div>
+  <h1>{{ name }}</h1>
+  <div class="meta"><span>Proje <b>{{ project_path }}</b></span>{% if let Some(b) = branch %}<span>Branch <b>{{ b }}</b></span>{% endif %}
+  {% if flaky %}<span class="rozet flaky">flaky</span>{% endif %}</div>
+</div></div>
+<section class="kart">
+  <div class="tablo"><table>
+    <tr><th>Koşum</th><th>Branch</th><th>Durum</th><th>Deneme</th><th>Hata</th><th class="num">Süre</th><th>Tarih</th></tr>
+    {% for h in rows %}
+    <tr>
+      <td><a href="/runs/{{ h.run_id }}">#{{ h.run_id }}</a></td>
+      <td class="kucuk">{{ h.branch }}</td>
+      <td><a href="/scenarios/{{ h.id }}" class="durum {{ h.status }}">{{ h.status }}</a></td>
+      <td class="kucuk">{{ h.attempt }}</td>
+      <td><div class="hata-ozet">{{ h.short_message() }}</div></td>
+      <td class="num kucuk">{{ h.duration() }}</td>
+      <td class="kucuk">{{ h.created_at|zaman }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <div class="sayfalama">
+    {% if page > 1 %}<a class="btn" href="?{{ qs }}&page={{ page - 1 }}">← Yeni</a>{% endif %}
+    {% if rows.len() == 50 %}<a class="btn" href="?{{ qs }}&page={{ page + 1 }}">Eski →</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

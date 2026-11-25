@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ proje }} test sonuçları{% endblock %}
+{% block paylasim_ust %}{% include "_genel_ust.html" %}{% endblock %}
+{% block content %}
+{% if let Some(a) = ana %}
+{% if let Some(o) = son %}
+<div class="genel-sonuc {{ o.sonuc_sinif }}">
+  <div>
+    <div class="genel-ust-yazi">{{ proje }} · son rapor {{ o.run.started_at|zaman }}</div>
+    <h1>{{ o.sonuc }}</h1>
+  </div>
+  <a class="btn" href="{{ a }}/runs/{{ o.run.id }}">Son raporu aç</a>
+</div>
+{% let sayim = o.sayim %}
+{% include "_genel_sayilar.html" %}
+
+<div class="izgara-ozet">
+  <section class="kart ozet-donut">
+    <h2>Son rapor</h2>
+    <div class="donut-satir">
+      {{ o.halka|safe }}
+      <ul class="lejant-liste">
+        {% for li in o.lejant %}
+        <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  <section class="kart">
+    <h2>Gidişat: doğrulanma oranı</h2>
+    <p class="alt">Son {{ o.gidisat_n }} rapor. Noktanın üzerine gelince ayrıntı, tıklayınca rapor açılır.</p>
+    <div class="grafik-kap">{{ o.cizgi|safe }}</div>
+  </section>
+</div>
+
+<section class="kart">
+  <div class="baslik-satir">
+    <h2>Rapor başına senaryo sonuçları</h2>
+    <ul class="lejant-yatay">
+      <li><i class="sw m-gecti"></i>Doğrulandı</li><li><i class="sw m-kaldi"></i>Ürün hatası</li><li><i class="sw m-incele"></i>İnceleniyor</li>
+    </ul>
+  </div>
+  <div class="grafik-kap">{{ o.sutunlar|safe }}</div>
+</section>
+
+<section class="kart">
+  <h2>Bölümlere göre durum</h2>
+  <p class="alt">Son rapordaki durum ve son 10 rapordaki gidişat. Bölüme tıklayınca geçmişi açılır.</p>
+  <div class="tablo"><table class="feature-ozet">
+    <tr><th>Bölüm</th><th>Son rapor</th><th class="num">Doğrulandı</th><th class="num">Ürün hatası</th><th class="num">İnceleniyor</th><th class="num">Oran</th><th>Gidişat</th><th class="num">Değişim</th></tr>
+    {% for f in o.ozellikler %}
+    <tr>
+      <td><a class="feature-adi" href="{{ a }}/ozellik?ad={{ f.ad|enc }}">{{ f.ad }}</a></td>
+      <td class="cubuk-hucre">{{ f.cubuk|safe }}</td>
+      <td class="num">{{ f.sayim.dogrulanan }}</td>
+      <td class="num">{% if f.sayim.urun > 0 %}<b>{{ f.sayim.urun }}</b>{% else %}0{% endif %}</td>
+      <td class="num">{{ f.sayim.inceleniyor }}</td>
+      <td class="num">%{{ f.sayim.oran() }}</td>
+      <td>{{ f.gidisat|safe }}</td>
+      <td class="num">{% if f.degisim > 0 %}<span class="degisim iyi">▲ {{ f.degisim }}</span>{% elif f.degisim < 0 %}<span class="degisim kotu">▼ {{ -f.degisim }}</span>{% else %}<span class="kucuk">—</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+
+<section class="kart">
+  <h2>Raporlar</h2>
+  <div class="tablo"><table>
+    <tr><th>Rapor</th><th>Tarih</th><th>Sürüm</th><th>Sonuç</th><th class="num">Senaryo</th><th class="num">Oran</th><th>Dağılım</th></tr>
+    {% for k in kosumlar %}
+    <tr>
+      <td><a href="{{ a }}/runs/{{ k.run.id }}">#{{ k.run.id }}</a></td>
+      <td class="kucuk">{{ k.run.started_at|zaman }}</td>
+      <td class="mono">{{ k.run.short_commit() }}</td>
+      <td><span class="genel-durum {{ k.durum_sinif }}">{{ k.durum }}</span></td>
+      <td class="num">{{ k.sayim.toplam() }}</td>
+      <td class="num">%{{ k.sayim.oran() }}</td>
+      <td class="cubuk-hucre">{{ k.cubuk|safe }}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% else %}
+<section class="kart"><div class="bos">Henüz tamamlanmış rapor yok.</div></section>
+{% endif %}
+{% endif %}
+<script src="/static/charts.js" defer></script>
+{% endblock %}

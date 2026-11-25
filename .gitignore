@@ -1,0 +1,12 @@
+/target
+/dist/
+**/target/
+/data/
+.env
+*.db
+*.db-wal
+*.db-shm
+__pycache__/
+.pytest_cache/
+deneme/ev-denemesi-veri/
+.omo/

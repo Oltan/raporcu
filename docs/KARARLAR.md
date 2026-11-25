@@ -1,0 +1,150 @@
+# Uygulama kararları ve varsayımlar
+
+`GEREKSINIMLER_1.md` içindeki açık sorular yanıtlanmadan ilgili gereksinimler istenince aşağıdaki
+varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt gelince gözden geçirilmeli.
+
+## Açık soru 1 — GitLab token yetkisi (SW-7.4, 7.5)
+
+- Varsayım: divan'a `api` kapsamlı bir token verilebilir (`GITLAB_TOKEN`). "OpenCode ile
+  düzelt" düğmesi `POST /projects/:id/pipeline` ile `ULAK_FIX_ONLY=true` ve `ULAK_RUN_ID`
+  değişkenli pipeline başlatır; şablonda test ve report işleri bu durumda koşmaz.
+- SW-7.5 (birleştirilen/reddedilen) GitLab API sorgusu yerine **Merge request webhook**'uyla
+  çalışır; bu yüzden okuma yetkisi gerekmez.
+- Token verilmezse düğme "GitLab bağlantısı ayarlı değil" mesajı verir; geri kalan her şey çalışır.
+
+## Açık soru 2 — Ubuntu ve Windows runner'ları ayrı makinedeyse (SW-3.2, 3.6, 4.2)
+
+- Varsayım: her makinede kendi divan sunucusu çalışır (gereksinimdeki "aynı makine" kararı).
+- Tek merkezi sunucuya geçmek kod değişikliği gerektirmez: CI değişkeni `ULAK_SERVER` merkezi
+  adrese çevrilir, sunucu `BIND_ADDR=0.0.0.0:8080` ile dinler. Geçmiş ve flaky tespiti zaten
+  proje + branch bazındadır; işletim sistemi koşumda `os` alanı olarak tutulur.
+
+## Açık soru 3 — Triage (SW-4.5)
+
+- Kategoriler: `flaky`, `test_kodu`, `urun`, `ortam`, `bilinmiyor` (gereksinimdeki liste).
+- Kural kararı koşum bitince kendiliğinden verilir (flaky geçmişi → ortam kalıbı → broken/failed).
+- **Flaky tanımı (kullanıcı kararı):** son `FLAKY_WINDOW` koşumda aynı commit'te kaldıktan sonra geçmek
+  (sonraki koşumda ya da aynı koşumun tekrar denemesinde). Eski kural "pencerede hem geçti hem kaldı"
+  idi; geçerken bozulan senaryoyu da flaky sayıp yaklaşık 10 koşum boyunca atlatıyordu. Flaky artık
+  atlanmaz: düzeltme ve bug taslağı yoktur ama `ulak degerlendir` bakar; ajan `test_kodu` ya da `urun`
+  derse (güven ≥ 0,70) senaryo o yola girer. Commit bilinmiyorsa koşumlar aynı sürüm sayılır.
+- OpenCode kararı **güven ≥ 0,70 ise** (`TRIAGE_AUTO_CONFIDENCE`) admin onayı beklemeden geçerli
+  olur; altındaysa yalnızca geçmişte öneri olarak görünür, geçerli karar kural kararı kalır.
+- Admin kararı her zaman en üsttedir; hiçbir karar silinmez, senaryo sayfasında "Karar geçmişi".
+
+## Diğer kararlar
+
+- **features.txt (SW-1.5):** proje kökünde, her satır bir Cucumber tag ifadesi; satırlar `or` ile
+  birleşir ve `-Dcucumber.filter.tags` olarak verilir. `ULAK_TAGS` CI değişkeni bunu ezer.
+  Ön kontrol her tag'in en az bir senaryoda geçtiğini doğrular.
+- **Toplam senaryo sayısı (SW-3.1):** JVM açan Cucumber dry-run yerine `ulak` .feature dosyalarını
+  kendisi sayar (Senaryo taslağı örnek satırları dahil, tag süzgeciyle). Bellek ve süre kazancı.
+- **ulak alt komutları:** `start` koşumu açar, izleyiciyi (`watch`) **ayrı süreç** olarak
+  başlatır ve testleri koşar; böylece CI şablonu yalnızca `ulak` çağırır ve izleyici çökerse
+  test etkilenmez.
+- **CI şablonunda işletim sistemine özgü tek kısım** `before_script` içinde ulak'ın indirilmesidir
+  (Linux `curl`, Windows `curl.exe`) — script satırları her iki sistemde aynıdır.
+- **Video (SW-1.2, 1.6, 1.7):** test projesinin hook'unda senaryo başına ffmpeg ile kaydedilir
+  (5 fps, H.264 CRF 35), yalnızca kalan senaryoda Allure eki olarak saklanır.
+- **Jira otomatik bug (SW-6.3):** varsayılan gözlem modu; yalnızca `urun` (ya da triage'sız
+  `failed`) ve en az iki deneme (retry) sonrasında; aynı hata parmak izi (proje + ilk satır,
+  sayılar normalize) için tek bug; koşum başına `JIRA_MAX_BUGS_PER_RUN`.
+- **E-posta (SW-5.3):** yalnızca `schedule` kaynaklı pipeline'ın webhook'u `success`/`failed`
+  geldiğinde; SMTP düz relay (kimlik doğrulama/TLS yok). `DRY_RUN=true` ya da `SMTP_HOST` yoksa
+  `DATA_DIR/outbox/` altına yazılır.
+- **CSV ayırıcı (SW-4.8):** varsayılan virgül; Türkçe Excel için noktalı virgül seçeneği var.
+- **Clippy:** `clippy.toml` içinde `type-complexity-threshold` yükseltildi (SQL satırı tuple'ları).
+
+## Ad değişikliği ve ajan seçimi (2. tur)
+
+- Sunucunun adı `stajproje` yerine **`raporcu`** oldu (crate, ikili `raporcu`/`raporcu.exe`,
+  veritabanı `DATA_DIR/raporcu.db`, log dosyaları `raporcu.*.log`, systemd `raporcu.service`).
+  CI aracının adı (`stajci`) ve `STAJ_*` CI değişkenleri gereksinim belgesindeki gibi kaldı.
+- **Son adlar (3. tur, kullanıcı kararı):** sunucu `raporcu` → **`divan`**, CI aracı `stajci` →
+  **`ulak`**, `STAJ_*` → `ULAK_*`, `.stajci/` → `.ulak/`, `x-stajci-version` → `x-ulak-version`.
+  Sonuçları veritabanına işleyen `ingest` modülünün adı **`defterdar`** oldu; API'deki
+  `IngestSummary` ile `ingest_result` gibi adlar kaldı. Kurulu pilot olmadığı için eski adlarla
+  uyumluluk tutulmadı. Örnek Jira proje anahtarı `STAJ` ve `STAJ-42` gibi test verileri ürün adı
+  değildir, kaldı. GitHub deposu ve yerel klasör şimdilik `raporcu` adındadır.
+- Self-healing ajanı `ULAK_FIX_AGENT` ile seçilir: `opencode` (varsayılan) ya da `claude`
+  (Claude Code). İkisi de aynı istemi, ekran görüntüsünü ve sahne ağacını alır; ulak'ın yol
+  denetimi ve assertion uyarısı ajandan bağımsızdır.
+- Kalan senaryoda ekran görüntüsüne ek olarak **TestFX sahne ağacı** (metin) alınır; ajan
+  seçicileri gerçek `#fxId`'lerden seçer.
+- `rust-embed` debug derlemede de statik dosyaları gömer (`debug-embed`); Wine altında Windows
+  testinde bulunan bir sorun buydu.
+- **HTTP yeterli (kullanıcı kararı):** divan iç ağda düz HTTP ile çalışır, TLS/sertifika
+  kurulmaz. CI işleri `http://127.0.0.1:8080`, tarayıcılar `http://<makine>:8080` kullanır; canlı
+  ekran `ws://` ile bağlanır. Tokenlar yine `.env`'de durur ve loglanmaz. ulak'ın `fix`
+  komutundaki GitLab push/MR istekleri GitLab'ın kendi adresine (`CI_SERVER_URL`, https olabilir)
+  gider; bu divan'dan bağımsızdır.
+- **Jira bug içeriği ve DOORS eşleşmesi arayüzden:** bağlantı bilgileri `.env`'de kalır; bug
+  şablonu (yer tutuculu özet/açıklama, ek alanlar JSON) ve DOORS öznitelikleri `settings`
+  tablosunda, Admin > Ayarlar'dan değişir (`docs/JIRA_DOORS_AYARLARI.md`). Zorunlu alanlar Jira'nın
+  createmeta ucundan okunur; şirketten şirkete değişen alanlar için kod değişikliği gerekmez.
+- **Jira eşleşmesi daraltıldı (SW-6.2):** açık bug araması `issuetype = JIRA_ISSUE_TYPE` ve
+  `labels = JIRA_MATCH_LABEL` (varsayılan `divan`) koşullarını ekler; divan bu label'ı açtığı her bug'a
+  koyar. Sahada story'ye fotoğraf eklendiği görüldü. Etiketsiz eski bug'lar Jira aramasıyla eşleşmez
+  (yerel parmak izi bağı sürer); `JIRA_MATCH_LABEL=off` label koşulunu kaldırır.
+- **Gereksinim bağı tag ile:** `@<önek><no>`; önek `GEREKSINIM_ONEKI` (varsayılan `DOORS-`, sahada
+  `YTET_`, kimlik yazıldığı gibi: `YTET_1234`). Arayüz ve CSV'de "DOORS" yerine önek adı (`YTET`)
+  görünür; iç adlar (`doors_ids`, `/doors.csv`) değişmedi. Ek kimlikler (`EK_KIMLIK_ONEKLERI`, örn.
+  `YGÖ-`) senaryonun ek olarak bağlandığı gereksinimi gösterir, eşleşme kaybolmasın diye: saklanan
+  tag'lerden okunur (migration yok), rozet/arama/ayrı CSV sütunu/Jira yer tutucusu. İkisi de Jira'ya
+  yalnızca açıklama yer tutucusuyla gider (`{{YTET}}`, `{{YGÖ}}`): label olmaz, Jira'da alan aranmaz,
+  açık bug araması label'a bakmaz.
+- **Self-healing ajanı ve skill'ler:** OpenCode ajanı `.opencode/agents/fix.md`; skill'ler
+  `.claude/skills/` (OpenCode ve Claude Code ikisi de okur, tek kopya). OpenCode runner'da çalışır,
+  divan sunucusunda değil; divan'daki düğmeler GitLab API ile fix işini başlatır. Senaryo
+  düğmesi yalnızca o senaryoyu, triage hedefinden bağımsız düzeltir.
+- **Xvfb ekran numarası:** `xvfb-run -a` aramayı süreç numarasına göre farklı yerden başlatır
+  (`-n 99+pid%400`); aynı anda başlayan iki işin aynı ekranı alması (provada görüldü) önlenir.
+- **DOORS aktarımı CSV:** kullanıcının kendi aktarım betiği var; DXL betiği öncelik değil,
+  `DOORS_DXL=false` varsayılanıyla kapalı (kod duruyor, `true` ile açılır).
+- **Self-healing ajanı komutla çağrılır:** `ulak fix` runner'da `opencode run …` ya da `claude -p …`
+  komutunu çalıştırır (`ULAK_FIX_CMD` ile tamamen değiştirilebilir); dış servise erişim gerekmez.
+- **Türkçe argümanlar ve dil ayarı:** GitLab runner servisi POSIX (ASCII) dil ayarıyla çalışınca Java
+  komut satırındaki Türkçe karakterleri bozuyor (`-Dcucumber.filter.name=^Geçerli…$` hiç eşleşmiyor;
+  gerçek Maven ile görüldü). ulak Maven'a `LC_ALL=C.UTF-8` verir; fix doğrulamasında ad filtresi
+  ayrıca ASCII'ye indirilir (`ş` → `.`).
+- **Ürün hatası için taslak:** gözlem modunda divan Jira'ya yazmadan bug taslağı hazırlar, admin tek
+  tıkla açar (kullanıcı isteği). OpenCode "ürün hatası" dediğinde de taslak hazırlanır.
+- **auto-fix döngüsü:** auto-fix branch push'u varsayılan olarak tam e2e koşturmaz (fix işi tek senaryoyu
+  zaten doğruladı); fix işi auto-fix branch'inde hiç koşmaz; açık MR'ı olan senaryo yeniden denenmez.
+  `workflow:` kuralı yerine iş kuralları kullanıldı: test projesinin kendi işleri etkilenmesin.
+- **LLM değerlendirmesi:** kalan senaryolar ayrı bir LLM istemcisiyle değil, kod ajanının salt okunur
+  çalıştırılmasıyla (`ulak degerlendir`) değerlendirilir: ajan test ve uygulama kodunu okuyabilir, model
+  ayarı ve CA tek yerdedir. Koşum sonrası Jira işleri (`after_finish`) kural kararıyla çalışır; LLM kararı
+  fix işinde geldiği için otomatik Jira'yı değil, Jira taslağını ve `ulak fix` adaylarını etkiler.
+- **Şirket CA'sı:** dış HTTPS (GitLab, Jira) işletim sisteminin sertifika deposuyla doğrulanır;
+  sistem deposuna eklenemiyorsa `DIVAN_CA_DOSYASI` / `ULAK_CA_DOSYASI` (dosya ya da klasör; PEM ya da
+  DER), ulak ayrıca `DIVAN_CA_DOSYASI`'yı ve runner'ın `CI_SERVER_TLS_CA_FILE`'ını kullanır. Doğrulamayı
+  kapatma seçeneği bilerek yok.
+
+## auto-fix branch'inin pipeline'ı: yalnızca düzeltilen senaryo (SW-7.2)
+
+- Sahada auto-fix push'undan sonra bütün testler koşuyordu (projedeki `.gitlab-ci.yml` şablonun eski
+  kopyası). İstek: yalnızca düzeltilen senaryo koşsun.
+- Karar: `ulak fix` push ederken GitLab push seçenekleriyle o pipeline'a değişken verir
+  (`git push -o ci.variable=…`); `features.txt`'ye ya da koda yazılmaz (MR birleşince ana branch'in test
+  seçimi değişmesin; self-healing yalnızca `src/test/` değiştirebilir). Filtre: senaryonun YTET tag'i
+  varsa `ULAK_TAGS` (tüm YTET kimlikleri `and` ile), yoksa `ULAK_SENARYO` (ad; henüz her senaryoda YTET yok).
+- Açma: CI değişkeni `ULAK_FIX_PIPELINE=senaryo`. Sunucu push seçeneklerini kabul etmezse seçeneksiz
+  push edilir; o pipeline'da test koşmaz (düzeltme kaybolmaz). MR'a sonradan elle eklenen commit'in
+  pipeline'ı değişkeni almaz.
+
+## Jira issue tag'leri (SW-6.2)
+
+- `@ABC-123` biçimindeki tag yalnızca proje anahtarı `JIRA_TAG_PROJELERI` (verilmezse `JIRA_PROJECT`)
+  listesindeyse Jira issue'su sayılır (kullanıcı kararı): `@REL-2` gibi başka anlamdaki tag'ler yanlışlıkla
+  Jira'da aranmasın. Bilgi koşum bitince çekilir ve saklanır; rapor sayfaları Jira'ya gitmez (Jira yavaşsa
+  ya da kapalıysa rapor etkilenmez).
+
+## Değerlendir ve fix sınırları
+
+- Kullanıcı kararı: değerlendirmeye kalan senaryoların hepsi girer, kod değişikliği gereken (geçerli kararı
+  test kodu) senaryoların hepsi fix'e girer. `ULAK_DEGERLENDIR_MAX` / `ULAK_FIX_MAX` varsayılanı sınırsız
+  (eskiden 20 / 3); verilirse üst sınır. Uzun işin GitLab zaman aşımına takılmaması için fix işine
+  `timeout` verilir; model çökerse art arda zaman aşımı koruması kalanları bırakır.
+- Değişken adı `ulak-fix-max` gibi yazılırsa da okunur (uyarıyla): sahada değişkenin "çalışmaması"
+  ad yazımından olabiliyordu.

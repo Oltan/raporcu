@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <div class="alt"><a href="/?project={{ project_id }}&branch={{ branch|enc }}">← Dashboard</a></div>
+    <h1>{{ name }}</h1>
+    <div class="meta">
+      <span>Proje <b>{{ project_path }}</b></span><span>Branch <b>{{ branch }}</b></span>
+      {% if let Some(f) = file %}<span class="mono">{{ f }}</span>{% endif %}
+      <span>Son {{ heads.len() }} koşum</span>
+    </div>
+  </div>
+</div>
+
+{% if let Some((r, f)) = last %}
+<div class="sayaclar">
+  <div class="sayac"><div class="e">Son koşum</div><div class="n"><a href="/runs/{{ r.id }}#{{ self.anchor() }}">#{{ r.id }}</a></div></div>
+  <div class="sayac"><div class="e">Geçme (son koşum)</div><div class="n">%{{ f.pass_pct() }}</div></div>
+  <div class="sayac"><div class="e">Senaryo</div><div class="n">{{ f.total }}</div></div>
+  <div class="sayac"><div class="e">Kalan (son koşum)</div><div class="n">{{ f.failures() }}</div></div>
+  <div class="sayac"><div class="e">Flaky</div><div class="n">{{ flaky_count }}</div></div>
+  <div class="sayac"><div class="e">Ortalama süre</div><div class="n">{{ avg_duration }}</div></div>
+</div>
+{% endif %}
+
+<div class="izgara-esit">
+  <section class="kart">
+    <h2>Gidişat: geçme oranı</h2>
+    <div class="grafik-kap">{{ line|safe }}</div>
+  </section>
+  <section class="kart">
+    <div class="baslik-satir">
+      <h2>Koşum başına durumlar</h2>
+      <ul class="lejant-yatay"><li><i class="sw m-gecti"></i>Geçti</li><li><i class="sw m-kaldi"></i>Kaldı</li><li><i class="sw m-broken"></i>Broken</li><li><i class="sw m-diger"></i>Diğer</li></ul>
+    </div>
+    <div class="grafik-kap">{{ columns|safe }}</div>
+  </section>
+</div>
+
+<section class="kart">
+  <div class="baslik-satir">
+    <h2>Senaryo × koşum</h2>
+    <ul class="lejant-yatay">
+      <li><i class="sw m-gecti"></i>Geçti</li><li><i class="sw m-kaldi"></i>Kaldı</li><li><i class="sw m-broken"></i>Broken</li><li><i class="sw m-diger"></i>Bilinmiyor / atlandı</li><li><i class="sw m-yok"></i>Koşmadı</li><li><span class="rozet">2</span>tekrar denendi</li>
+    </ul>
+  </div>
+  <p class="alt">En çok kalan senaryolar üstte. Hücreye tıklayınca o koşumdaki senaryo (adımlar, ekler) açılır.</p>
+  {% if matrix.is_empty() %}<div class="bos">Bu feature için biten koşum yok.</div>{% else %}
+  <div class="tablo"><table class="matris">
+    <thead><tr>
+      <th>Senaryo</th><th class="num">Kalan</th>
+      {% for h in heads %}<th class="matris-bas" title="Koşum {{ h.label }} · {{ h.day }}"><a href="/runs/{{ h.run_id }}">{{ h.label }}</a></th>{% endfor %}
+    </tr></thead>
+    <tbody>
+    {% for m in matrix %}
+    <tr>
+      <td class="matris-ad">
+        {% if let Some(c) = m.cells.last() %}{% if let Some(sid) = c.scenario_id %}<a href="/scenarios/{{ sid }}">{{ m.name }}</a>{% else %}{{ m.name }}{% endif %}{% endif %}
+        <span class="mono kucuk">{{ m.location }}</span>
+        {% if m.flaky %}<span class="rozet flaky">flaky</span>{% endif %}
+      </td>
+      <td class="num">{% if m.failures > 0 %}<b>{{ m.failures }}</b>{% else %}0{% endif %}</td>
+      {% for c in m.cells %}
+      <td class="hucre">
+        {% if let Some(sid) = c.scenario_id %}<a href="/scenarios/{{ sid }}" class="kare m-{{ self::cell_class(c.status) }}" tabindex="0"
+           data-tip="Koşum #{{ c.run_id }}{% if c.attempts > 1 %} ({{ c.attempts }} deneme){% endif %}: {{ self::status_tr(c.status) }}">{% if c.attempts > 1 %}{{ c.attempts }}{% endif %}</a>
+        {% else %}<span class="kare m-yok" data-tip="Koşum #{{ c.run_id }}: koşmadı"></span>{% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</section>
+<script src="/static/charts.js" defer></script>
+{% endblock %}

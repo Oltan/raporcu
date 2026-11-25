@@ -1,0 +1,14 @@
+# GitLab runner ayarı (SW-1.7: aynı anda tek iş)
+concurrent = 1
+check_interval = 0
+
+[[runners]]
+  name = "divan-linux"          # Windows için: divan-windows
+  url = "https://gitlab.sirket.local/"
+  token = "glrt-..."                # runner kayıt token'ı
+  executor = "shell"
+  # Windows'ta: shell = "powershell"
+  limit = 1
+  # ulak ve kod ajanı ayarları (gizli olmayanlar) buraya da yazılabilir; tam liste: runner.env.example
+  # environment = ["VLLM_BASE_URL=http://llm.sirket.local:8000/v1", "VLLM_MODEL=qwen3-coder"]
+  [runners.custom_build_dir]

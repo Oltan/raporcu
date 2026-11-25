@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Canlı{% endblock %}
+{% block content %}
+<div class="baslik">
+  <div>
+    <h1>Canlı</h1>
+    <div class="meta"><span id="durum" class="kucuk">Koşum bekleniyor…</span></div>
+  </div>
+  <span class="durum running kosuyor-nokta">bekliyor</span>
+</div>
+<section class="kart">
+  <p>Şu an koşan bir test yok. Yeni koşum açılınca bu sayfa kendiliğinden canlı ekrana geçer.</p>
+</section>
+<script>
+(function () {
+  async function bak() {
+    try {
+      const r = await fetch("/api/canli");
+      const v = await r.json();
+      if (v.run_id) { location.replace("/runs/" + v.run_id + "/live"); return; }
+      document.getElementById("durum").textContent = "Koşum bekleniyor…";
+    } catch (e) {
+      document.getElementById("durum").textContent = "Sunucuya ulaşılamıyor, yeniden deneniyor…";
+    }
+    setTimeout(bak, 1000);
+  }
+  bak();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{"tur":"senaryo_basladi","zaman":1793340892175,"ad":"Geçerli bilgilerle giriş","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":10}
+{"tur":"adim_basladi","zaman":1793340895673,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340895710,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":37,"hata":null}
+{"tur":"adim_basladi","zaman":1793340895727,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"1234\" girilirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340897237,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"1234\" girilirse","sira":2,"durum":"PASSED","sure_ms":1510,"hata":null}
+{"tur":"adim_basladi","zaman":1793340897239,"metin":"Ve giriş butonuna basılırsa","sira":3}
+{"tur":"adim_bitti","zaman":1793340897574,"metin":"Ve giriş butonuna basılırsa","sira":3,"durum":"PASSED","sure_ms":335,"hata":null}
+{"tur":"adim_basladi","zaman":1793340897575,"metin":"O zaman \"Hoş geldin, admin\" mesajı görünür","sira":4}
+{"tur":"adim_bitti","zaman":1793340897580,"metin":"O zaman \"Hoş geldin, admin\" mesajı görünür","sira":4,"durum":"PASSED","sure_ms":4,"hata":null}
+{"tur":"senaryo_bitti","zaman":1793340897995,"ad":"Geçerli bilgilerle giriş","durum":"PASSED","sure_ms":5820}
+{"tur":"senaryo_basladi","zaman":1793340898035,"ad":"Hatalı girişlerde mesaj","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":23}
+{"tur":"adim_basladi","zaman":1793340898128,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340898128,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340898129,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"9999\" girilirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340899435,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"9999\" girilirse","sira":2,"durum":"PASSED","sure_ms":1305,"hata":null}
+{"tur":"adim_basladi","zaman":1793340899436,"metin":"Ve giriş butonuna basılırsa","sira":3}
+{"tur":"adim_bitti","zaman":1793340899779,"metin":"Ve giriş butonuna basılırsa","sira":3,"durum":"PASSED","sure_ms":343,"hata":null}
+{"tur":"adim_basladi","zaman":1793340899780,"metin":"O zaman \"Kullanıcı adı veya şifre yanlış\" mesajı görünür","sira":4}
+{"tur":"adim_bitti","zaman":1793340899781,"metin":"O zaman \"Kullanıcı adı veya şifre yanlış\" mesajı görünür","sira":4,"durum":"PASSED","sure_ms":1,"hata":null}
+{"tur":"senaryo_bitti","zaman":1793340900237,"ad":"Hatalı girişlerde mesaj","durum":"PASSED","sure_ms":2202}
+{"tur":"senaryo_basladi","zaman":1793340900245,"ad":"Hatalı girişlerde mesaj","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":24}
+{"tur":"adim_basladi","zaman":1793340900354,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340900355,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340900356,"metin":"Eğer ki kullanıcı adı \"\" ve şifre \"1234\" girilirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340901238,"metin":"Eğer ki kullanıcı adı \"\" ve şifre \"1234\" girilirse","sira":2,"durum":"PASSED","sure_ms":881,"hata":null}
+{"tur":"adim_basladi","zaman":1793340901240,"metin":"Ve giriş butonuna basılırsa","sira":3}
+{"tur":"adim_bitti","zaman":1793340901570,"metin":"Ve giriş butonuna basılırsa","sira":3,"durum":"PASSED","sure_ms":330,"hata":null}
+{"tur":"adim_basladi","zaman":1793340901571,"metin":"O zaman \"Kullanıcı adı boş olamaz\" mesajı görünür","sira":4}
+{"tur":"adim_bitti","zaman":1793340901572,"metin":"O zaman \"Kullanıcı adı boş olamaz\" mesajı görünür","sira":4,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"senaryo_bitti","zaman":1793340902036,"ad":"Hatalı girişlerde mesaj","durum":"PASSED","sure_ms":1791}
+{"tur":"senaryo_basladi","zaman":1793340902044,"ad":"Yanlış şifrede özel mesaj","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":28}
+{"tur":"adim_basladi","zaman":1793340902134,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340902134,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340902135,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"0000\" girilirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340903432,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"0000\" girilirse","sira":2,"durum":"PASSED","sure_ms":1296,"hata":null}
+{"tur":"adim_basladi","zaman":1793340903433,"metin":"Ve giriş butonuna basılırsa","sira":3}
+{"tur":"adim_bitti","zaman":1793340903761,"metin":"Ve giriş butonuna basılırsa","sira":3,"durum":"PASSED","sure_ms":327,"hata":null}
+{"tur":"adim_basladi","zaman":1793340903762,"metin":"O zaman \"Şifre hatalı\" mesajı görünür","sira":4}
+{"tur":"adim_bitti","zaman":1793340903768,"metin":"O zaman \"Şifre hatalı\" mesajı görünür","sira":4,"durum":"FAILED","sure_ms":5,"hata":"expected: <Şifre hatalı> but was: <Kullanıcı adı veya şifre yanlış>"}
+{"tur":"senaryo_bitti","zaman":1793340904460,"ad":"Yanlış şifrede özel mesaj","durum":"FAILED","sure_ms":2415}
+{"tur":"senaryo_basladi","zaman":1793340904473,"ad":"Şifremi unuttum bağlantısı","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":35}
+{"tur":"adim_basladi","zaman":1793340904568,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340904569,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340904570,"metin":"Eğer ki \"Şifremi unuttum\" bağlantısına tıklanırsa","sira":2}
+{"tur":"adim_bitti","zaman":1793340904571,"metin":"Eğer ki \"Şifremi unuttum\" bağlantısına tıklanırsa","sira":2,"durum":"FAILED","sure_ms":1,"hata":"the query \"#sifremiUnuttum\" returned no nodes."}
+{"tur":"adim_basladi","zaman":1793340904574,"metin":"O zaman \"Şifre sıfırlama\" mesajı görünür","sira":3}
+{"tur":"adim_bitti","zaman":1793340904574,"metin":"O zaman \"Şifre sıfırlama\" mesajı görünür","sira":3,"durum":"SKIPPED","sure_ms":0,"hata":null}
+{"tur":"senaryo_bitti","zaman":1793340904874,"ad":"Şifremi unuttum bağlantısı","durum":"FAILED","sure_ms":401}
+{"tur":"senaryo_basladi","zaman":1793340904880,"ad":"Yavaş açılan karşılama mesajı","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":41}
+{"tur":"adim_basladi","zaman":1793340904957,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340904957,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340904958,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"1234\" girilirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340906276,"metin":"Eğer ki kullanıcı adı \"admin\" ve şifre \"1234\" girilirse","sira":2,"durum":"PASSED","sure_ms":1317,"hata":null}
+{"tur":"adim_basladi","zaman":1793340906277,"metin":"Ve giriş butonuna basılırsa","sira":3}
+{"tur":"adim_bitti","zaman":1793340906606,"metin":"Ve giriş butonuna basılırsa","sira":3,"durum":"PASSED","sure_ms":329,"hata":null}
+{"tur":"adim_basladi","zaman":1793340906607,"metin":"O zaman karşılama mesajı ilk denemede gecikir","sira":4}
+{"tur":"adim_bitti","zaman":1793340906609,"metin":"O zaman karşılama mesajı ilk denemede gecikir","sira":4,"durum":"FAILED","sure_ms":1,"hata":"İlk denemede mesaj henüz güncellenmedi ==> expected: <Hoş geldin, admin!> but was: <Hoş geldin, admin>"}
+{"tur":"senaryo_bitti","zaman":1793340907074,"ad":"Yavaş açılan karşılama mesajı","durum":"FAILED","sure_ms":2193}
+{"tur":"senaryo_basladi","zaman":1793340907110,"ad":"Beni hatırla seçeneği","feature":"Giriş ekranı","uri":"classpath:features/giris.feature","satir":48}
+{"tur":"adim_basladi","zaman":1793340907195,"metin":"Diyelim ki giriş ekranı açık","sira":1}
+{"tur":"adim_bitti","zaman":1793340907196,"metin":"Diyelim ki giriş ekranı açık","sira":1,"durum":"PASSED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340907197,"metin":"Eğer ki beni hatırla kutusu işaretlenirse","sira":2}
+{"tur":"adim_bitti","zaman":1793340907197,"metin":"Eğer ki beni hatırla kutusu işaretlenirse","sira":2,"durum":"UNDEFINED","sure_ms":0,"hata":null}
+{"tur":"adim_basladi","zaman":1793340907198,"metin":"O zaman kullanıcı adı bir sonraki açılışta dolu gelir","sira":3}
+{"tur":"adim_bitti","zaman":1793340907198,"metin":"O zaman kullanıcı adı bir sonraki açılışta dolu gelir","sira":3,"durum":"SKIPPED","sure_ms":0,"hata":null}
+{"tur":"senaryo_bitti","zaman":1793340907513,"ad":"Beni hatırla seçeneği","durum":"UNDEFINED","sure_ms":402}
