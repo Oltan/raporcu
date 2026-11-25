@@ -17,6 +17,12 @@
   aranmaz). Önce
   `/rest/api/2/search` denenir; Jira Cloud bu ucu kaldırdığı için 410 dönerse `/rest/api/2/search/jql`.
 
+## Issue bilgisi (SW-6.2, `@ABC-123` tag'leri)
+- `get_issue(key)`: `GET /rest/api/2/issue/{key}?fields=summary,status,issuetype,assignee` → `IssueInfo`
+  (başlık, durum, `statusCategory.key`, tür, atanan); 404 → `bulunamadi`, 401 → token hatası, diğer → `hata`.
+- `issue_keys_to_refresh(c, koşum, yaş_dk, sınır)`, `save_issue`, `issues(c, anahtarlar)` (`jira_issues`
+  tablosu, migration 0008). `IssueInfo::{kapali, durum, ipucu}` rozet ve liste için.
+
 ## Bug içeriği — şablon (Admin > Ayarlar, `ayarlar.md`)
 - `vars(c, public_url, BugInput)`: yer tutucu değerleri (`ayarlar::Vars`, `String` anahtarlı);
   proje/branch/commit/tarih koşumdan okunur. Gereksinim numaraları hem `doors` (eski ad) hem önek

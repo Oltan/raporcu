@@ -132,3 +132,10 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
 - Açma: CI değişkeni `ULAK_FIX_PIPELINE=senaryo`. Sunucu push seçeneklerini kabul etmezse seçeneksiz
   push edilir; o pipeline'da test koşmaz (düzeltme kaybolmaz). MR'a sonradan elle eklenen commit'in
   pipeline'ı değişkeni almaz.
+
+## Jira issue tag'leri (SW-6.2)
+
+- `@ABC-123` biçimindeki tag yalnızca proje anahtarı `JIRA_TAG_PROJELERI` (verilmezse `JIRA_PROJECT`)
+  listesindeyse Jira issue'su sayılır (kullanıcı kararı): `@REL-2` gibi başka anlamdaki tag'ler yanlışlıkla
+  Jira'da aranmasın. Bilgi koşum bitince çekilir ve saklanır; rapor sayfaları Jira'ya gitmez (Jira yavaşsa
+  ya da kapalıysa rapor etkilenmez).

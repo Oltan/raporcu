@@ -167,7 +167,12 @@ impl Config {
                 .unwrap_or_default(),
             dry_run: parse("DRY_RUN", false)?,
             doors_dxl: parse("DOORS_DXL", false)?,
-            onekler: common::kimlik::Onekler::parse(var("GEREKSINIM_ONEKI").as_deref(), var("EK_KIMLIK_ONEKLERI").as_deref()),
+            onekler: common::kimlik::Onekler::parse(
+                var("GEREKSINIM_ONEKI").as_deref(),
+                var("EK_KIMLIK_ONEKLERI").as_deref(),
+                // @ABC-12 tag'i Jira issue'su sayılacak projeler; verilmezse JIRA_PROJECT
+                var("JIRA_TAG_PROJELERI").or_else(|| var("JIRA_PROJECT")).as_deref(),
+            ),
             triage_auto_confidence: parse("TRIAGE_AUTO_CONFIDENCE", 0.7)?,
             flaky_window: parse("FLAKY_WINDOW", 10)?,
             ulak_dir: var("ULAK_DIR").map(PathBuf::from),

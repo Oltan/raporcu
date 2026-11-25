@@ -1,4 +1,5 @@
-//! Gereksinim öneki (`GEREKSINIM_ONEKI=YTET_`) ve ek kimlikler (`EK_KIMLIK_ONEKLERI=YGÖ-`).
+//! Gereksinim öneki (`GEREKSINIM_ONEKI=YTET_`), ek kimlikler (`EK_KIMLIK_ONEKLERI=YGÖ-`) ve
+//! Jira tag projeleri (`JIRA_TAG_PROJELERI=STAJ`: `@STAJ-42` Jira issue'su).
 //!
 //! Önek süreç genelinde ayarlandığı için bu dosya ayrı bir test ikilisidir; buradaki tüm
 //! uygulamalar aynı önekle kurulur. Veri: gerçek örnek koşum (`testdata/allure/ornek-giris`),
@@ -13,7 +14,7 @@ const Q: &str = "project_id=7&project_path=ekip%2Fjavafx&branch=main&commit=abc1
 const KALAN: &str = "Yanlış şifrede özel mesaj";
 
 fn uygulama() -> TestApp {
-    app_with(|c| c.onekler = common::kimlik::Onekler::parse(Some("YTET_"), Some("YGÖ-")))
+    app_with(|c| c.onekler = common::kimlik::Onekler::parse(Some("YTET_"), Some("YGÖ-"), Some("STAJ")))
 }
 
 /// Örnek sonuçlar, tag'leri sahadaki gibi: `YTET_1003`, kalan senaryoda ayrıca `YGÖ-12`.
@@ -26,7 +27,19 @@ fn ornek_zip() -> Vec<u8> {
         let ad = p.file_name().unwrap().to_string_lossy().to_string();
         let mut veri = std::fs::read(&p).unwrap();
         if ad.ends_with(".json") {
-            let mut s = String::from_utf8(veri).unwrap().replace("\"value\":\"DOORS-", "\"value\":\"YTET_");
+            // sahadaki gibi: gereksinim YTET_, Jira issue'su doğrudan proje anahtarıyla (@STAJ-42)
+            let mut s = String::from_utf8(veri)
+                .unwrap()
+                .replace("\"value\":\"DOORS-", "\"value\":\"YTET_")
+                .replace("\"value\":\"JIRA-STAJ-42\"", "\"value\":\"STAJ-42\"");
+            if s.contains("\"name\":\"Geçerli bilgilerle giriş\"") {
+                // geçen senaryoda Jira'da olmayan bir anahtar
+                s = s.replacen(
+                    "\"name\":\"tag\",\"value\":\"giris\"",
+                    "\"name\":\"tag\",\"value\":\"giris\"},{\"name\":\"tag\",\"value\":\"STAJ-99\"",
+                    1,
+                );
+            }
             if s.contains(&format!("\"name\":\"{KALAN}\"")) && s.contains("\"value\":\"sample-fail\"") {
                 s = s.replace(
                     "\"name\":\"tag\",\"value\":\"sample-fail\"",
@@ -132,4 +145,68 @@ async fn test_sw_6_4_ytet_ve_ygo_rapor_arama_csv_jira() {
     let (_, ayarlar) = app.get_admin("/admin/ayarlar").await;
     assert!(ayarlar.contains("{{YTET}}") && ayarlar.contains("{{YGÖ}}"), "yer tutucu listesi");
     assert!(!ayarlar.contains("doors_label"), "label kutusu kaldırıldı");
+}
+
+/// Sahte Jira: yalnızca issue okuma (STAJ-42 işlemde, STAJ-99 yok).
+async fn sahte_jira() -> String {
+    use axum::extract::Path;
+    use axum::routing::get;
+    async fn issue(Path(k): Path<String>) -> (StatusCode, axum::Json<serde_json::Value>) {
+        match k.as_str() {
+            "STAJ-42" => (
+                StatusCode::OK,
+                axum::Json(serde_json::json!({ "key": k, "fields": {
+                    "summary": "Yanlış şifre mesajı ürün metniyle uyuşmuyor",
+                    "status": { "name": "İşlemde", "statusCategory": { "key": "indeterminate" } },
+                    "issuetype": { "name": "Bug" },
+                    "assignee": { "displayName": "Ayşe Yılmaz" }
+                } })),
+            ),
+            _ => (
+                StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({ "errorMessages": ["Issue Does Not Exist"] })),
+            ),
+        }
+    }
+    spawn_fake(axum::Router::new().route("/rest/api/2/issue/{key}", get(issue))).await
+}
+
+#[tokio::test]
+async fn test_sw_6_2_jira_tag_issue_bilgisi_raporda() {
+    let url = sahte_jira().await;
+    let app = app_with(move |c| {
+        c.onekler = common::kimlik::Onekler::parse(Some("YTET_"), Some("YGÖ-"), Some("STAJ"));
+        c.jira_url = Some(url);
+        c.jira_token = Some(divan::config::Secret::new("jira-gizli-pat"));
+        c.jira_project = Some("STAJ".into());
+        c.jira_mode = divan::config::JiraMode::Off;
+    });
+    let id = yukle(&app).await;
+    // koşum sonu işleri arka planda: Jira'dan çekilene kadar bekle
+    let run = run_json(&app, id).await;
+    let sid = scenario_id(&run, KALAN);
+    let mut sayfa = String::new();
+    for _ in 0..30 {
+        settle().await;
+        sayfa = app.get(&format!("/scenarios/{sid}")).await.1;
+        if sayfa.contains("İşlemde") {
+            break;
+        }
+    }
+    assert!(
+        sayfa.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"),
+        "başlık senaryo sayfasında"
+    );
+    assert!(sayfa.contains("STAJ-42 · İşlemde"), "rozette durum");
+    assert!(sayfa.contains("Ayşe Yılmaz") && sayfa.contains("/browse/STAJ-42"));
+    assert!(!sayfa.contains(">@STAJ-42<"), "düz tag olarak tekrar gösterilmez");
+    let (_, rapor) = app.get(&format!("/runs/{id}")).await;
+    assert!(rapor.contains("STAJ-42 · İşlemde"), "koşum sayfasında rozet");
+    let i = rapor
+        .find("STAJ-99")
+        .map(|i| &rapor[i.saturating_sub(120)..(i + 80).min(rapor.len())])
+        .unwrap_or("YOK");
+    assert!(i.contains("bulunamadı"), "yok olan anahtar işaretli: {i}");
+    // tag'le gelen anahtar kalan senaryoyu o issue'ya bağlar (mevcut akış)
+    assert!(sayfa.contains(">tag<"), "kaynak: feature tag'i");
 }

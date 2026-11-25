@@ -118,7 +118,7 @@
           {% if let Some(f) = r.fix %}{% if f.mr_iid.is_some() %}<span class="rozet opencode">{{ f.badge() }}</span>{% endif %}{% endif %}
           <div>
             {% for d in r.s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for d in r.s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
-            {% if l.share.is_none() %}{% for j in r.jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
+            {% if l.share.is_none() %}{% for j in r.jira %}{% if let Some(u) = jb.link(j) %}<a class="rozet jira {{ jb.sinif(j) }}" href="{{ u }}" title="{{ jb.ipucu(j) }}">{% else %}<span class="rozet jira {{ jb.sinif(j) }}" title="{{ jb.ipucu(j) }}">{% endif %}{{ j }}{% let d = jb.durum(j) %}{% if !d.is_empty() %} · {{ d }}{% endif %}{% if jb.link(j).is_some() %}</a>{% else %}</span>{% endif %}{% endfor %}{% endif %}
             {% for t in r.s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
           </div>
           {% if r.s.is_failure() %}<div class="hata-ozet">{{ r.s.short_message() }}</div>{% endif %}

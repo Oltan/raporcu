@@ -4,7 +4,7 @@
 `DOORS-1234`) ve ek kimlikler (`YGÖ-12`).
 
 ## Ayar
-- `Onekler { gereksinim, ek[] }`. `parse(GEREKSINIM_ONEKI, EK_KIMLIK_ONEKLERI)`: boş gereksinim öneki
+- `Onekler { gereksinim, ek[], jira_projeleri[] }`. `parse(GEREKSINIM_ONEKI, EK_KIMLIK_ONEKLERI, JIRA_TAG_PROJELERI)`: boş gereksinim öneki
   → `DOORS-`; ek önekler virgülle, baştaki `@` atılır, tekrarlar ve gereksinim önekiyle aynı olan atılır.
 - Süreç genelinde tek ayar: `ayarla(o)` (divan `AppState::new`), `gecerli()` (ayarlanmadıysa
   varsayılan). Rapor şablonları, CSV ve Jira bunu okur. Saf yöntemler testlerde genel ayara
@@ -20,6 +20,7 @@
 | `numara(id)` | önek atılmış (`{{no}}`, DXL) |
 | `arama(girdi)` | tanınan önekle başlıyorsa olduğu gibi (`DOORS-` büyük harfe), değilse gereksinim öneki eklenir |
 | `ek_onekli(değer)` | arama değeri ek önekli mi (o zaman `tags` sütununda aranır) |
+| `jira_anahtari(tag)` | `@JIRA-ABC-12` (her proje) ya da `@ABC-12` (`jira_projeleri`'nde; `JIRA_TAG_PROJELERI`, yoksa `JIRA_PROJECT`); gereksinim/ek kimlik Jira sayılmaz → `ABC-12` |
 | `ad(önek)` | sondaki `-`/`_` atılmış görünen ad: `YTET`, `YGÖ`, `DOORS` (CSV başlığı, Jira yer tutucusu, arayüz) |
 
 ## Testler

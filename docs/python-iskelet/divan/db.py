@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MIGRATIONS = ["0001_ilk.sql", "0002_triage_kolonu.sql", "0003_ayarlar.sql", "0004_bug_taslaklari.sql",
-              "0005_paylasim_gorunumu.sql", "0006_genel_portal.sql", "0007_uygulama_surumu.sql"]  # yeni dosya buraya eklenir
+              "0005_paylasim_gorunumu.sql", "0006_genel_portal.sql", "0007_uygulama_surumu.sql",
+              "0008_jira_issue.sql"]  # yeni dosya buraya eklenir
 
 
 def now() -> str:

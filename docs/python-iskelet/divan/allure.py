@@ -62,9 +62,22 @@ def doors_id(tag: str, onek: str | None = None):
     return t if rest and all(ch.isalnum() or ch in "-_" for ch in rest) else None
 
 
-def jira_key(tag: str):
-    m = re.fullmatch(r"(?:JIRA|jira)-([A-Za-z0-9_]+)-([0-9]+)", tag.lstrip("@"))
-    return f"{m.group(1).upper()}-{m.group(2)}" if m else None
+# @ABC-12 tag'inin Jira issue'su sayılacağı projeler (Rust: kimlik::Onekler.jira_projeleri)
+JIRA_TAG_PROJELERI = [p.strip().upper() for p in
+                      (os.environ.get("JIRA_TAG_PROJELERI") or os.environ.get("JIRA_PROJECT") or "").split(",") if p.strip()]
+
+
+def jira_key(tag: str, projeler=None):
+    """@JIRA-ABC-12 (her proje) ya da @ABC-12 (ABC listede; gereksinim kimliği değilse) → ABC-12."""
+    t = tag.lstrip("@")
+    m = re.fullmatch(r"(?:JIRA|jira)-([A-Za-z0-9_]+)-([0-9]+)", t)
+    if m:
+        return f"{m.group(1).upper()}-{m.group(2)}"
+    projeler = JIRA_TAG_PROJELERI if projeler is None else projeler
+    m = re.fullmatch(r"([A-Za-z0-9_]+)-([0-9]+)", t)
+    if not m or m.group(1).upper() not in projeler or doors_id(t):
+        return None
+    return f"{m.group(1).upper()}-{m.group(2)}"
 
 
 def duration_ms(o: dict):

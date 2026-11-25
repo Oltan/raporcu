@@ -14,7 +14,7 @@
     </div>
     <div style="margin-top:6px">
       {% for d in s.doors_ids %}{% if let Some(u) = l.doors_url(d) %}<a class="rozet doors" href="{{ u }}">{{ d }}</a>{% else %}<span class="rozet doors">{{ d }}</span>{% endif %}{% endfor %}{% for d in s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
-      {% if l.share.is_none() %}{% for j in jira %}<span class="rozet jira">{{ j }}</span>{% endfor %}{% endif %}
+      {% if l.share.is_none() %}{% for j in jira %}{% if let Some(u) = jb.link(j) %}<a class="rozet jira {{ jb.sinif(j) }}" href="{{ u }}" title="{{ jb.ipucu(j) }}">{% else %}<span class="rozet jira {{ jb.sinif(j) }}" title="{{ jb.ipucu(j) }}">{% endif %}{{ j }}{% let d = jb.durum(j) %}{% if !d.is_empty() %} · {{ d }}{% endif %}{% if jb.link(j).is_some() %}</a>{% else %}</span>{% endif %}{% endfor %}{% endif %}
       {% for t in s.plain_tags() %}<span class="rozet">@{{ t }}</span>{% endfor %}
     </div>
   </div>
@@ -87,8 +87,8 @@
 
   <section class="kart">
     <h2>Jira</h2>
-    {% if bugs.is_empty() %}<p class="kucuk">Bağlı bug yok.</p>{% else %}
-    <ul class="adimlar">{% for b in bugs %}<li><span class="ad">{% if let Some(u) = jira_url %}<a href="{{ u }}/browse/{{ b.jira_key }}">{{ b.jira_key }}</a>{% else %}{{ b.jira_key }}{% endif %}</span><span class="kucuk">{{ b.source }}</span></li>{% endfor %}</ul>
+    {% if jira.is_empty() %}<p class="kucuk">Bağlı bug ya da Jira tag'i yok.</p>{% else %}
+    <ul class="adimlar">{% for j in jira %}<li><span class="ad">{% if let Some(u) = jb.link(j) %}<a href="{{ u }}">{{ j }}</a>{% else %}{{ j }}{% endif %}{% if let Some(i) = jb.bilgi(j) %}{% if let Some(s) = i.summary %} — {{ s }}{% endif %}<div class="kucuk">{{ i.durum() }}{% if let Some(t) = i.issue_type %} · {{ t }}{% endif %}{% if let Some(a) = i.assignee %} · {{ a }}{% endif %}</div>{% endif %}</span><span class="kucuk">{{ self.jira_kaynak(j) }}</span></li>{% endfor %}</ul>
     {% endif %}
     {% include "_taslaklar.html" %}
     {% if l.admin && s.is_failure() %}

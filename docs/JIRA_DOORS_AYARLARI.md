@@ -138,12 +138,33 @@ Admin paneli ("Onay bekleyen Jira bug taslakları").
 Jira bir alanı reddederse hata alan adıyla gösterilir; "Düzenleyip aç…" ile eksik alanı girip açın.
 `JIRA_AUTO_CREATE=on` taslak beklemeden doğrudan açar; `off` hiçbir şey hazırlamaz.
 
+### Senaryoda Jira issue tag'i (`@ABC-123`)
+
+Feature dosyasında senaryoya (ya da feature'a) Jira issue anahtarı tag olarak yazılabilir:
+
+```gherkin
+@YTET_1234 @STAJ-42
+Senaryo: Yanlış şifrede özel mesaj
+```
+
+- Hangi projelerin anahtarı tanınır: `.env`'de `JIRA_TAG_PROJELERI=STAJ,ABC` (virgülle); verilmezse
+  `JIRA_PROJECT`. Listede olmayan `@REL-2` gibi tag'ler sıradan tag kalır. Eski `@JIRA-ABC-123` biçimi her
+  projede çalışmaya devam eder. Gereksinim kimliği (`@YTET_…`, `@DOORS-…`) Jira sayılmaz.
+- Koşum bitince divan bu anahtarların (ve senaryolara bağlı bug'ların) **başlık, durum, tür ve atanan**
+  bilgisini Jira'dan çeker (30 dk'dan eskiyse; koşum başına en fazla 200). Rapor sayfaları Jira'ya
+  gitmez, saklanan bilgiyi gösterir.
+- Raporda: koşum, senaryo ve arama sayfalarında rozet `STAJ-42 · İşlemde`, üzerine gelince başlık; kapalı
+  issue soluk ve üstü çizili, Jira'da olmayan anahtar kesikli çerçeveli "Jira'da bulunamadı". Senaryo
+  sayfasının Jira bölümünde başlık, durum, tür, atanan ve kaynak (`tag` ya da bağ türü).
+- Kalan senaryo tag'deki issue'ya bağlanır (yeni bug açılmaz). Paylaşım linklerinde Jira gösterilmez.
+- Eski koşumlar yeniden işlenmez: ayardan önce yüklenen koşumlarda `@STAJ-42` sıradan tag olarak durur.
+
 ### Otomatik eşleşme (koşum bitince, `JIRA_AUTO_CREATE`'ten bağımsız)
 
 Jira bağlıysa (`JIRA_URL`, `JIRA_TOKEN`, `JIRA_PROJECT` üçü de dolu) her koşumun sonunda, bağlı bug'ı
 olmayan her kalan (`failed`) senaryo için sırayla:
 
-1. `@JIRA-…` tag'i varsa senaryo o issue'ya bağlanır (Jira'ya gidilmez).
+1. Senaryoda Jira issue tag'i varsa (`@ABC-123` ya da `@JIRA-ABC-123`, aşağıda) senaryo o issue'ya bağlanır.
 2. Aynı hata (parmak izi) daha önce bir issue'ya bağlandıysa senaryo ona bağlanır (Jira'ya gidilmez).
 3. Jira'da aranır: `JIRA_PROJECT` içinde, türü `JIRA_ISSUE_TYPE` (varsayılan `Bug`), label'ı
    `JIRA_MATCH_LABEL` (varsayılan `divan`), kapanmamış ve **özetinde senaryo adı geçen** en yeni issue.

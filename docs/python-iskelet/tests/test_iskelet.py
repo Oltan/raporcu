@@ -178,3 +178,11 @@ def test_sw_2_7_gereksinim_oneki():
     assert allure.doors_id("ytet_1234", "YTET_") is None
     assert allure.doors_id("@DOORS-1003", "YTET_") is None
     assert allure.doors_id("@doors-1003", "DOORS-") == "DOORS-1003"
+
+
+def test_sw_6_2_jira_tag_listesi():
+    from divan import allure
+    assert allure.jira_key("@STAJ-42", ["STAJ"]) == "STAJ-42"
+    assert allure.jira_key("@REL-2", ["STAJ"]) is None
+    assert allure.jira_key("@JIRA-XYZ-9", []) == "XYZ-9"
+    assert allure.jira_key("DOORS-1003", ["DOORS"]) is None

@@ -48,6 +48,10 @@ pub const MIGRATIONS: &[Migration] = &[
         name: "0007_uygulama_surumu",
         sql: include_str!("../../../migrations/0007_uygulama_surumu.sql"),
     },
+    Migration {
+        name: "0008_jira_issue",
+        sql: include_str!("../../../migrations/0008_jira_issue.sql"),
+    },
 ];
 
 #[derive(Clone)]

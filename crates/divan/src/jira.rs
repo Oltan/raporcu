@@ -117,6 +117,38 @@ impl Jira {
         ))
     }
 
+    /// SW-6.2: issue bilgisi (başlık, durum, tür, atanan). 404 → `bulunamadi`.
+    pub fn get_issue(&self, key: &str) -> Result<IssueInfo> {
+        let (st, v) = self.call(
+            "GET",
+            &format!(
+                "/rest/api/2/issue/{}?fields=summary,status,issuetype,assignee",
+                urlencoding::encode(key)
+            ),
+            None,
+        )?;
+        let mut i = IssueInfo {
+            key: key.to_string(),
+            fetched_at: now(),
+            ..Default::default()
+        };
+        match st {
+            200..=299 => {
+                let f = &v["fields"];
+                let s = |x: &Value| x.as_str().map(String::from);
+                i.summary = s(&f["summary"]);
+                i.status = s(&f["status"]["name"]);
+                i.status_category = s(&f["status"]["statusCategory"]["key"]);
+                i.issue_type = s(&f["issuetype"]["name"]);
+                i.assignee = s(&f["assignee"]["displayName"]).or_else(|| s(&f["assignee"]["name"]));
+            }
+            404 => i.bulunamadi = true,
+            401 => bail!("{TOKEN_GECERSIZ}"),
+            _ => i.hata = Some(redact(&jira_error(st, &v), &self.secrets)),
+        }
+        Ok(i)
+    }
+
     /// Jira bu kimliği tanımıyor mu (token geçersiz, süresi dolmuş ya da kullanıcı yanlış).
     fn token_rejected(&self) -> bool {
         matches!(self.call("GET", "/rest/api/2/myself", None), Ok((401, _)))
@@ -288,6 +320,137 @@ pub fn open_bug_jql(project: &str, issue_type: &str, label: Option<&str>, scenar
         jql_str(scenario)
     ));
     jql
+}
+
+/// Jira issue'sunun rapora yazılan bilgisi (`jira_issues` tablosu).
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct IssueInfo {
+    pub key: String,
+    pub summary: Option<String>,
+    pub status: Option<String>,
+    /// Jira `statusCategory.key`: `new` | `indeterminate` | `done`
+    pub status_category: Option<String>,
+    pub issue_type: Option<String>,
+    pub assignee: Option<String>,
+    pub bulunamadi: bool,
+    pub hata: Option<String>,
+    pub fetched_at: String,
+}
+
+impl IssueInfo {
+    pub fn kapali(&self) -> bool {
+        self.status_category.as_deref() == Some("done")
+    }
+    /// Rozet ve listede durum yazısı.
+    pub fn durum(&self) -> String {
+        if self.bulunamadi {
+            "Jira'da bulunamadı".into()
+        } else if self.hata.is_some() {
+            "okunamadı".into()
+        } else {
+            self.status.clone().unwrap_or_default()
+        }
+    }
+    /// İpucu: "Başlık · Durum · Tür · Atanan".
+    pub fn ipucu(&self) -> String {
+        [
+            self.summary.clone(),
+            Some(self.durum()).filter(|d| !d.is_empty()),
+            self.issue_type.clone(),
+            self.assignee.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" · ")
+    }
+}
+
+/// Koşumun son denemelerindeki tag anahtarları ve bağlı bug'lar; hiç çekilmemiş ya da `yas_dk`'dan
+/// eski olanlar, en fazla `limit` tane.
+pub fn issue_keys_to_refresh(c: &Connection, run_id: i64, yas_dk: i64, limit: usize) -> Result<Vec<String>> {
+    let mut keys: Vec<String> = Vec::new();
+    let mut ekle = |k: String| {
+        if !k.is_empty() && !keys.contains(&k) {
+            keys.push(k);
+        }
+    };
+    let mut st = c.prepare("SELECT jira_keys FROM scenarios WHERE run_id = ?1 AND is_latest = 1 AND TRIM(jira_keys) <> ''")?;
+    for r in st.query_map([run_id], |r| r.get::<_, String>(0))? {
+        r?.split_whitespace().for_each(|k| ekle(k.to_string()));
+    }
+    let mut st = c.prepare(
+        "SELECT DISTINCT b.jira_key FROM bug_links b JOIN scenarios s ON s.id = b.scenario_id WHERE s.run_id = ?1 AND s.is_latest = 1",
+    )?;
+    for r in st.query_map([run_id], |r| r.get::<_, String>(0))? {
+        ekle(r?);
+    }
+    let sinir = (chrono::Utc::now() - chrono::Duration::minutes(yas_dk)).to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+    let mut taze = c.prepare("SELECT 1 FROM jira_issues WHERE key = ?1 AND fetched_at >= ?2")?;
+    let mut out = Vec::new();
+    for k in keys {
+        if out.len() >= limit {
+            break;
+        }
+        if !taze.exists(params![k, sinir])? {
+            out.push(k);
+        }
+    }
+    Ok(out)
+}
+
+pub fn save_issue(c: &Connection, i: &IssueInfo) -> Result<()> {
+    c.execute(
+        "INSERT INTO jira_issues (key, summary, status, status_category, issue_type, assignee, bulunamadi, hata, fetched_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+         ON CONFLICT(key) DO UPDATE SET summary = excluded.summary, status = excluded.status,
+             status_category = excluded.status_category, issue_type = excluded.issue_type, assignee = excluded.assignee,
+             bulunamadi = excluded.bulunamadi, hata = excluded.hata, fetched_at = excluded.fetched_at",
+        params![
+            i.key,
+            i.summary,
+            i.status,
+            i.status_category,
+            i.issue_type,
+            i.assignee,
+            i.bulunamadi as i64,
+            i.hata,
+            i.fetched_at
+        ],
+    )?;
+    Ok(())
+}
+
+/// Bilinen issue bilgileri (rapor; Jira'ya gidilmez).
+pub fn issues(c: &Connection, keys: &[String]) -> Result<std::collections::HashMap<String, IssueInfo>> {
+    let mut out = std::collections::HashMap::new();
+    let mut st = c.prepare(
+        "SELECT key, summary, status, status_category, issue_type, assignee, bulunamadi, hata, fetched_at FROM jira_issues WHERE key = ?1",
+    )?;
+    for k in keys {
+        if out.contains_key(k) {
+            continue;
+        }
+        let i = st
+            .query_row([k], |r| {
+                Ok(IssueInfo {
+                    key: r.get(0)?,
+                    summary: r.get(1)?,
+                    status: r.get(2)?,
+                    status_category: r.get(3)?,
+                    issue_type: r.get(4)?,
+                    assignee: r.get(5)?,
+                    bulunamadi: r.get::<_, i64>(6)? == 1,
+                    hata: r.get(7)?,
+                    fetched_at: r.get(8)?,
+                })
+            })
+            .ok();
+        if let Some(i) = i {
+            out.insert(k.clone(), i);
+        }
+    }
+    Ok(out)
 }
 
 fn base64(s: &str) -> String {

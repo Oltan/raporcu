@@ -46,7 +46,7 @@ başlamaz. Güvensiz adlı ek kaydı atlanır (SW-2.1 zip güvenliği).
 | `jira_keys()` | `JIRA-ABC-12` tag'leri → `ABC-12` (proje büyük harfe çevrilir; son parça rakam olmalı) |
 | `all_attachments()` | sonucun ve tüm (iç içe) adımların ekleri |
 
-`doors_id(tag)` (geçerli önekle, `kimlik::gecerli()`) / `jira_key(tag)` tek tag için aynı kural (paylaşımda Jira tag'ini gizlemek için de kullanılır).
+`doors_id(tag)` (geçerli önekle, `kimlik::gecerli()`) / `jira_key(tag)` (`kimlik::Onekler::jira_anahtari`: `@JIRA-ABC-12` ya da listedeki projede `@ABC-12`) tek tag için aynı kural (paylaşımda Jira tag'ini gizlemek için de kullanılır).
 
 ## Önemli gerçek-çıktı davranışları
 - `@After` hook'unda `scenario.attach(...)` ile eklenen ekran görüntüsü/video **result dosyasında

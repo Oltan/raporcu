@@ -18,6 +18,9 @@ pub struct Onekler {
     pub gereksinim: String,
     /// Ek kimlik önekleri (`YGÖ-`), yazıldığı sırayla.
     pub ek: Vec<String>,
+    /// `@ABC-1234` biçimindeki tag'in Jira issue'su sayılacağı proje anahtarları (`JIRA_TAG_PROJELERI`,
+    /// yoksa `JIRA_PROJECT`). Boşsa yalnızca `@JIRA-ABC-12` biçimi tanınır.
+    pub jira_projeleri: Vec<String>,
 }
 
 impl Default for Onekler {
@@ -25,6 +28,7 @@ impl Default for Onekler {
         Onekler {
             gereksinim: VARSAYILAN_ONEK.into(),
             ek: vec![],
+            jira_projeleri: vec![],
         }
     }
 }
@@ -54,7 +58,7 @@ fn onekli(tag: &str, onek: &str) -> Option<String> {
 impl Onekler {
     /// `.env` değerlerinden. Boş gereksinim öneki varsayılana döner; ek önekler virgülle
     /// ayrılır, gereksinim önekiyle aynı olan ya da tekrarlanan atılır.
-    pub fn parse(gereksinim: Option<&str>, ek: Option<&str>) -> Onekler {
+    pub fn parse(gereksinim: Option<&str>, ek: Option<&str>, jira_projeleri: Option<&str>) -> Onekler {
         let gereksinim = gereksinim
             .map(|g| g.trim().trim_start_matches('@').to_string())
             .filter(|g| !g.is_empty())
@@ -66,7 +70,42 @@ impl Onekler {
                 ekler.push(e);
             }
         }
-        Onekler { gereksinim, ek: ekler }
+        let mut jira: Vec<String> = Vec::new();
+        for p in jira_projeleri.unwrap_or("").split(',') {
+            let p = p.trim().to_ascii_uppercase();
+            let gecerli = p.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+                && p.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+            if gecerli && !jira.contains(&p) {
+                jira.push(p);
+            }
+        }
+        Onekler {
+            gereksinim,
+            ek: ekler,
+            jira_projeleri: jira,
+        }
+    }
+
+    /// Tag Jira issue anahtarı mı: `@JIRA-ABC-12` (her proje) ya da `@ABC-12` (ABC `jira_projeleri`'nde).
+    /// Gereksinim/ek kimlik olan tag (ör. `DOORS-1003`) Jira sayılmaz. Dönen: `ABC-12`.
+    pub fn jira_anahtari(&self, tag: &str) -> Option<String> {
+        let t = tag.trim_start_matches('@');
+        let ayir = |s: &str| -> Option<(String, String)> {
+            let (proj, num) = s.rsplit_once('-')?;
+            (!proj.is_empty()
+                && proj.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && !num.is_empty()
+                && num.chars().all(|c| c.is_ascii_digit()))
+            .then(|| (proj.to_ascii_uppercase(), num.to_string()))
+        };
+        if let Some(rest) = t.strip_prefix("JIRA-").or_else(|| t.strip_prefix("jira-")) {
+            return ayir(rest).map(|(p, n)| format!("{p}-{n}"));
+        }
+        if self.jira_projeleri.is_empty() || self.kimlik_mi(t) {
+            return None;
+        }
+        let (p, n) = ayir(t)?;
+        self.jira_projeleri.contains(&p).then(|| format!("{p}-{n}"))
     }
 
     fn eski_doors(&self) -> bool {
@@ -152,7 +191,7 @@ mod tests {
     use super::*;
 
     fn saha() -> Onekler {
-        Onekler::parse(Some("YTET_"), Some("YGÖ-, YTET_ ,YGÖ-"))
+        Onekler::parse(Some("YTET_"), Some("YGÖ-, YTET_ ,YGÖ-"), Some("STAJ, abc,1x"))
     }
 
     #[test]
@@ -194,8 +233,26 @@ mod tests {
     }
 
     #[test]
+    fn test_sw_6_2_jira_tag_anahtari_listeye_gore() {
+        let o = saha();
+        assert_eq!(o.jira_projeleri, vec!["STAJ", "ABC"], "geçersiz (1x) atılır, büyük harfe çevrilir");
+        assert_eq!(o.jira_anahtari("@STAJ-42"), Some("STAJ-42".into()));
+        assert_eq!(o.jira_anahtari("abc-7"), Some("ABC-7".into()));
+        assert_eq!(o.jira_anahtari("@REL-2"), None, "listede olmayan proje");
+        assert_eq!(o.jira_anahtari("@STAJ-4a"), None);
+        assert_eq!(o.jira_anahtari("@JIRA-XYZ-9"), Some("XYZ-9".into()), "eski biçim her projede");
+        let doors = Onekler::parse(None, None, Some("DOORS"));
+        assert_eq!(doors.jira_anahtari("DOORS-1003"), None, "gereksinim kimliği Jira sayılmaz");
+        assert_eq!(
+            Onekler::default().jira_anahtari("@STAJ-42"),
+            None,
+            "liste boşsa yalnızca JIRA- biçimi"
+        );
+    }
+
+    #[test]
     fn test_sw_2_7_varsayilan_doors_davranisi_aynen() {
-        let d = Onekler::parse(None, Some(""));
+        let d = Onekler::parse(None, Some(""), None);
         assert_eq!(d, Onekler::default());
         assert_eq!(d.gereksinim_adi(), "DOORS");
         assert_eq!(d.gereksinim_id("@doors-1003"), Some("DOORS-1003".into()));

@@ -250,15 +250,9 @@ pub fn doors_id(tag: &str) -> Option<String> {
     crate::kimlik::gecerli().gereksinim_id(tag)
 }
 
+/// Jira issue tag'i (`@JIRA-ABC-12`, ya da `JIRA_TAG_PROJELERI`'ndeki projelerde `@ABC-12`) → `ABC-12`.
 pub fn jira_key(tag: &str) -> Option<String> {
-    let t = tag.trim_start_matches('@');
-    let rest = t.strip_prefix("JIRA-").or_else(|| t.strip_prefix("jira-"))?;
-    let (proj, num) = rest.rsplit_once('-')?;
-    (!proj.is_empty()
-        && proj.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-        && !num.is_empty()
-        && num.chars().all(|c| c.is_ascii_digit()))
-    .then(|| format!("{}-{}", proj.to_ascii_uppercase(), num))
+    crate::kimlik::gecerli().jira_anahtari(tag)
 }
 
 pub fn parse_result(bytes: &[u8]) -> Result<TestResult, serde_json::Error> {

@@ -245,7 +245,7 @@ mod tests {
         assert_eq!(d.link("DOORS-1003"), None);
         d.link_sablonu = "doors://srv:36677/?urn=x-{{no}}&k={{id}}".into();
         assert_eq!(d.link("DOORS-1003").unwrap(), "doors://srv:36677/?urn=x-1003&k=DOORS-1003");
-        let ytet = common::kimlik::Onekler::parse(Some("YTET_"), None);
+        let ytet = common::kimlik::Onekler::parse(Some("YTET_"), None, None);
         assert_eq!(
             d.link_with(&ytet, "YTET_1234").unwrap(),
             "doors://srv:36677/?urn=x-1234&k=YTET_1234"

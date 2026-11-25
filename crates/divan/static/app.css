@@ -78,6 +78,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 .rozet { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 11.5px; border: 1px solid var(--line); color: var(--muted); margin: 1px 3px 1px 0; white-space: nowrap; }
 .rozet.doors { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); color: var(--accent); }
 .rozet.jira { border-color: color-mix(in srgb, var(--broken) 50%, var(--line)); color: var(--broken); }
+a.rozet { text-decoration: none; }
+.rozet.jira.kapali { opacity: .6; text-decoration: line-through; }
+.rozet.jira.bulunamadi { border-style: dashed; color: var(--muted); }
 .rozet.flaky { background: var(--unknown-bg); color: var(--unknown); border-color: transparent; }
 .rozet.opencode { background: var(--running-bg); color: var(--running); border-color: transparent; font-weight: 600; }
 .rozet.triage { background: var(--bg); }

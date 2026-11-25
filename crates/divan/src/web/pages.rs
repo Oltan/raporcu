@@ -319,6 +319,43 @@ struct RunPage {
     legend: Vec<LegendItem>,
     fixes: Vec<FixRow>,
     notice: Option<String>,
+    jb: JiraBilgi,
+}
+
+/// SW-6.2: rapordaki Jira rozetleri için issue bilgisi (Jira'dan koşum bitince çekilip saklananlar).
+/// Bilinmeyen anahtar yalnızca anahtar olarak gösterilir; paylaşım görünümünde Jira hiç gösterilmez.
+#[derive(Default)]
+pub struct JiraBilgi {
+    map: std::collections::HashMap<String, crate::jira::IssueInfo>,
+    url: Option<String>,
+}
+
+impl JiraBilgi {
+    pub fn yukle(c: &rusqlite::Connection, url: Option<String>, keys: &[String]) -> anyhow::Result<JiraBilgi> {
+        Ok(JiraBilgi {
+            map: crate::jira::issues(c, keys)?,
+            url,
+        })
+    }
+    pub fn bilgi(&self, k: &str) -> Option<&crate::jira::IssueInfo> {
+        self.map.get(k)
+    }
+    pub fn link(&self, k: &str) -> Option<String> {
+        self.url.as_ref().map(|u| format!("{u}/browse/{k}"))
+    }
+    pub fn ipucu(&self, k: &str) -> String {
+        self.map.get(k).map(|i| i.ipucu()).unwrap_or_default()
+    }
+    pub fn durum(&self, k: &str) -> String {
+        self.map.get(k).map(|i| i.durum()).unwrap_or_default()
+    }
+    pub fn sinif(&self, k: &str) -> &'static str {
+        match self.map.get(k) {
+            Some(i) if i.kapali() => "kapali",
+            Some(i) if i.bulunamadi => "bulunamadi",
+            _ => "",
+        }
+    }
 }
 
 /// Koşum raporunda bir feature: özet satırı + senaryoları (SW-4.1: koşum → feature → senaryo → adım).
@@ -445,6 +482,7 @@ impl RunPage {
             run,
             fixes,
             notice,
+            jb: JiraBilgi::default(),
         }
     }
 }
@@ -528,9 +566,16 @@ pub async fn run_page(
         }
         _ => None,
     };
+    let keys: Vec<String> = rows.iter().flat_map(|r| r.jira.iter().cloned()).collect();
     let mut page = RunPage::new(l, run, rows, fixes, notice);
     page.doors_dxl = st.cfg.doors_dxl;
-    page.drafts = st.db.read(move |c| crate::jira::drafts_for_run(c, id)).await?;
+    let url = st.cfg.jira_url.clone();
+    let (drafts, jb) = st
+        .db
+        .read(move |c| Ok((crate::jira::drafts_for_run(c, id)?, JiraBilgi::yukle(c, url, &keys)?)))
+        .await?;
+    page.drafts = drafts;
+    page.jb = jb;
     Ok(render(&page))
 }
 
@@ -561,6 +606,18 @@ struct ScenarioPage {
     fix_notice: bool,
     drafts: Vec<crate::jira::Draft>,
     taslak_geri: String,
+    jb: JiraBilgi,
+}
+
+impl ScenarioPage {
+    /// Jira bölümünde anahtarın kaynağı: bağlı bug'sa bağ türü, değilse feature tag'i.
+    fn jira_kaynak(&self, k: &str) -> String {
+        self.bugs
+            .iter()
+            .find(|b| b.jira_key == k)
+            .map(|b| b.source.clone())
+            .unwrap_or_else(|| "tag".into())
+    }
 }
 
 #[allow(clippy::type_complexity)]
@@ -600,6 +657,7 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
         triage: triage::current(c, id, conf)?,
         triage_history: triage::history(c, id)?,
         categories: triage::CATEGORIES,
+        jb: JiraBilgi::yukle(c, None, &jira)?,
         bugs,
         jira,
         jira_url: None,
@@ -624,6 +682,7 @@ pub async fn scenario_page(
         Some(mut p) => {
             p.l = l;
             p.jira_url = st.cfg.jira_url.clone();
+            p.jb.url = st.cfg.jira_url.clone();
             p.fix_notice = nq.notice.as_deref() == Some("fix");
             Ok(render(&p))
         }
@@ -746,6 +805,7 @@ struct SearchPage {
     page: i64,
     pages: i64,
     qs: String,
+    jb: JiraBilgi,
 }
 
 impl SearchPage {
@@ -808,7 +868,16 @@ pub async fn search_page(State(st): State<AppState>, headers: HeaderMap, RawQuer
     let l = layout(&st, &headers);
     let (f, _) = parse_filter(raw.as_deref());
     let f2 = f.clone();
-    let (projects, (rows, total)) = st.db.read(move |c| Ok((queries::projects(c)?, queries::search(c, &f2)?))).await?;
+    let url = st.cfg.jira_url.clone();
+    let (projects, (rows, total), jb) = st
+        .db
+        .read(move |c| {
+            let (rows, total) = queries::search(c, &f2)?;
+            let keys: Vec<String> = rows.iter().flat_map(|r| r.s.jira_keys.iter().cloned()).collect();
+            let jb = JiraBilgi::yukle(c, url, &keys)?;
+            Ok((queries::projects(c)?, (rows, total), jb))
+        })
+        .await?;
     let page = f.page.unwrap_or(1).max(1);
     let pages = ((total + queries::PAGE_SIZE - 1) / queries::PAGE_SIZE).max(1);
     let qs = f.query_string();
@@ -830,6 +899,7 @@ pub async fn search_page(State(st): State<AppState>, headers: HeaderMap, RawQuer
         page,
         pages,
         qs,
+        jb,
     }))
 }
 
