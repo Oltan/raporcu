@@ -11,7 +11,7 @@
 </nav>
 <div class="genel-sonuc {{ sonuc_sinif }}">
   <div>
-    <div class="genel-ust-yazi">{{ proje }} · {{ run.started_at|zaman }}{% if run.commit_sha.is_some() %} · Sürüm <span class="mono">{{ run.short_commit() }}</span>{% endif %}{% if let Some(os) = run.os %} · {{ os }}{% endif %}{% if let Some(u) = run.app_version %} · Uygulama <b>{{ u }}</b>{% endif %}</div>
+    <div class="genel-ust-yazi">{{ proje }} · {{ run.started_at|zaman }}{% if run.commit_sha.is_some() %} · Commit <span class="mono">{{ run.short_commit() }}</span>{% endif %}{% if let Some(os) = run.os %} · {{ os }}{% endif %} · Uygulama <b>{% if let Some(u) = run.app_version %}{{ u }}{% else %}—{% endif %}</b></div>
     <h1>{{ sonuc }}</h1>
   </div>
 </div>
@@ -66,6 +66,7 @@
   </a>
   {% endfor %}
 </section>
+{% include "_jira_ozeti.html" %}
 {% endif %}
 
 <section class="kart">

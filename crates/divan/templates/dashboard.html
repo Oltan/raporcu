@@ -25,7 +25,7 @@
 </div>
 
 {% if let Some(ch) = charts %}
-<p class="alt kapsam">Kapsam: <b>{{ ch.scope }}</b> · son biten koşum <a href="/runs/{{ ch.last.id }}">#{{ ch.last.id }}</a> ({{ ch.last.started_at|zaman }})</p>
+<p class="alt kapsam">Kapsam: <b>{{ ch.scope }}</b> · son biten koşum <a href="/runs/{{ ch.last.id }}">#{{ ch.last.id }}</a> ({{ ch.last.started_at|zaman }}){% if let Some(u) = ch.last.app_version %} · Uygulama <b>{{ u }}</b>{% endif %}</p>
 <div class="izgara-ozet">
   <section class="kart ozet-donut">
     <h2>Son koşum</h2>
@@ -104,11 +104,12 @@
   <div class="bos">Henüz koşum yok. CI'dan ilk yükleme gelince burada görünür.</div>
   {% else %}
   <div class="tablo"><table>
-    <tr><th>#</th><th>Proje / branch</th><th>Commit</th><th>Durum</th><th class="num">Senaryo</th><th class="num">Geçti</th><th class="num">Kaldı</th><th>Dağılım</th><th>Başladı</th></tr>
+    <tr><th>#</th><th>Proje / branch</th><th>Uygulama</th><th>Commit</th><th>Durum</th><th class="num">Senaryo</th><th class="num">Geçti</th><th class="num">Kaldı</th><th>Dağılım</th><th>Başladı</th></tr>
     {% for r in runs %}
     <tr>
       <td><a href="/runs/{{ r.id }}">#{{ r.id }}</a></td>
-      <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}{% if let Some(u) = r.app_version %} · uygulama {{ u }}{% endif %}</div></td>
+      <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}</div></td>
+      <td class="mono" title="Test edilen uygulama sürümü">{% if let Some(u) = r.app_version %}<b>{{ u }}</b>{% else %}<span class="kucuk" title="UYGULAMA_SURUMU verilmedi">—</span>{% endif %}</td>
       <td class="mono">{{ r.short_commit() }}</td>
       <td>
         {% if r.status == "running" %}<a href="/runs/{{ r.id }}/live" class="durum running kosuyor-nokta">çalışıyor {{ r.progress() }}</a>

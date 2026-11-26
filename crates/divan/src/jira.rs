@@ -399,6 +399,109 @@ pub fn issue_keys_to_refresh(c: &Connection, run_id: i64, yas_dk: i64, limit: us
     Ok(out)
 }
 
+/// Raporun "Jira issue'ları" bölümü: bir issue ve koşumda ona bağlı senaryolar (SW-6.2).
+#[derive(Debug, Clone)]
+pub struct IssueOzet {
+    pub key: String,
+    pub bilgi: Option<IssueInfo>,
+    /// (senaryo id, ad, durum)
+    pub senaryolar: Vec<(i64, String, String)>,
+}
+
+impl IssueOzet {
+    pub fn baslik(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.summary.clone()).unwrap_or_default()
+    }
+    pub fn durum(&self) -> String {
+        self.bilgi.as_ref().map(|i| i.durum()).unwrap_or_default()
+    }
+    pub fn tur(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.issue_type.clone()).unwrap_or_default()
+    }
+    pub fn atanan(&self) -> String {
+        self.bilgi.as_ref().and_then(|i| i.assignee.clone()).unwrap_or_default()
+    }
+    pub fn sinif(&self) -> &'static str {
+        match &self.bilgi {
+            Some(i) if i.kapali() => "kapali",
+            Some(i) if i.bulunamadi => "bulunamadi",
+            _ => "",
+        }
+    }
+    /// Senaryo durumunun nokta sınıfı ve Türkçe adı.
+    pub fn senaryo_durumu(&self, durum: &str) -> (&'static str, &'static str) {
+        match durum {
+            "passed" => ("gecti", "geçti"),
+            "failed" => ("kaldi", "kaldı"),
+            "broken" => ("broken", "broken"),
+            "skipped" => ("diger", "atlandı"),
+            _ => ("diger", "bilinmiyor"),
+        }
+    }
+    /// Sıralama: açık / bilinmeyen önce, kapalı ve bulunamayan sonra.
+    fn sira(&self) -> u8 {
+        match self.sinif() {
+            "" => 0,
+            "kapali" => 1,
+            _ => 2,
+        }
+    }
+}
+
+/// Koşumun son denemelerindeki Jira anahtarları (feature tag'i + bağlı bug), anahtara göre gruplu.
+/// `yalniz` verilirse yalnızca o senaryolar (genel rapor: görünen ürün hataları).
+pub fn kosum_issuelari(c: &Connection, run_id: i64, yalniz: Option<&[i64]>) -> Result<Vec<IssueOzet>> {
+    let mut eslesme: Vec<(String, i64, String, String)> = Vec::new();
+    let mut st = c.prepare("SELECT id, name, status, jira_keys FROM scenarios WHERE run_id = ?1 AND is_latest = 1 ORDER BY id")?;
+    for r in st.query_map([run_id], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, String>(1)?,
+            r.get::<_, String>(2)?,
+            r.get::<_, String>(3)?,
+        ))
+    })? {
+        let (id, ad, durum, keys) = r?;
+        for k in keys.split_whitespace() {
+            eslesme.push((k.to_string(), id, ad.clone(), durum.clone()));
+        }
+    }
+    let mut st = c.prepare(
+        "SELECT b.jira_key, s.id, s.name, s.status FROM bug_links b JOIN scenarios s ON s.id = b.scenario_id
+         WHERE s.run_id = ?1 AND s.is_latest = 1 ORDER BY b.id",
+    )?;
+    for r in st.query_map([run_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))? {
+        eslesme.push(r?);
+    }
+    let mut out: Vec<IssueOzet> = Vec::new();
+    for (k, id, ad, durum) in eslesme {
+        if yalniz.is_some_and(|y| !y.contains(&id)) {
+            continue;
+        }
+        let i = match out.iter().position(|o| o.key == k) {
+            Some(i) => i,
+            None => {
+                out.push(IssueOzet {
+                    key: k,
+                    bilgi: None,
+                    senaryolar: vec![],
+                });
+                out.len() - 1
+            }
+        };
+        if !out[i].senaryolar.iter().any(|s| s.0 == id) {
+            out[i].senaryolar.push((id, ad, durum));
+        }
+    }
+    let keys: Vec<String> = out.iter().map(|o| o.key.clone()).collect();
+    let mut bilgi = issues(c, &keys)?;
+    for o in &mut out {
+        o.bilgi = bilgi.remove(&o.key);
+    }
+    out.sort_by(|a, b| a.sira().cmp(&b.sira()).then_with(|| a.key.cmp(&b.key)));
+    Ok(out)
+}
+
 pub fn save_issue(c: &Connection, i: &IssueInfo) -> Result<()> {
     c.execute(
         "INSERT INTO jira_issues (key, summary, status, status_category, issue_type, assignee, bulunamadi, hata, fetched_at)
@@ -875,6 +978,69 @@ pub fn create_for_scenario(c: &Connection, paths: &Paths, j: &Jira, sid: i64, bu
     Ok(k)
 }
 
+/// Girilen issue anahtarı (`abc-123`, ` ABC-123 `, `@ABC-123`, `.../browse/ABC-123`) → `ABC-123`.
+pub fn issue_anahtari(girdi: &str) -> Option<String> {
+    let s = girdi.trim().trim_start_matches('@');
+    let s = s.rsplit('/').next().unwrap_or(s).trim().to_uppercase();
+    let (proje, no) = s.rsplit_once('-')?;
+    let proje_gecerli =
+        proje.chars().next().is_some_and(|c| c.is_ascii_alphabetic()) && proje.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+    (proje_gecerli && !no.is_empty() && no.chars().all(|c| c.is_ascii_digit())).then_some(s)
+}
+
+/// Admin: senaryoyu var olan bir issue'ya elle bağlar (SW-6.2). Hata mesajının parmak izi de saklanır;
+/// sonraki koşumlarda aynı hatayla kalan senaryolar (`process_run`, "aynı hata parmak izi") bu issue'ya
+/// kendiliğinden bağlanır. Mesajı olmayan (geçen) senaryoda parmak izi tutulmaz: boş mesaj her şeyle eşleşirdi.
+/// Dönen: yeni bağ kuruldu mu (zaten bağlıysa false).
+pub fn link_manual(c: &Connection, sid: i64, key: &str) -> Result<bool> {
+    let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
+    let msg = s.message.as_deref().unwrap_or("");
+    let fp = (!msg.trim().is_empty()).then(|| fingerprint(s.project_id, msg));
+    let yeni = c.execute(
+        "INSERT OR IGNORE INTO bug_links (scenario_id, project_id, scenario_key, jira_key, source, fingerprint, created_at) VALUES (?1, ?2, ?3, ?4, 'elle', ?5, ?6)",
+        params![sid, s.project_id, s.scenario_key, key, fp, now()],
+    )? > 0;
+    if yeni {
+        record(c, s.run_id, Some(sid), "baglandi", fp.as_deref(), Some(key), "admin elle bağladı")?;
+        tracing::info!(run_id = s.run_id, senaryo_id = sid, issue = %key, "Jira issue'suna elle bağlandı");
+    }
+    Ok(yeni)
+}
+
+/// Admin: bağı kaldırır. Yanlış bağ sonraki koşumlarda geri gelmesin diye aynı issue'nun bu hataya ait
+/// eski bağlarının parmak izi de silinir (geçmiş koşumlardaki bağ görünmeye devam eder).
+pub fn unlink(c: &Connection, sid: i64, key: &str) -> Result<bool> {
+    let s = crate::queries::scenario(c, sid)?.ok_or_else(|| anyhow::anyhow!("senaryo yok"))?;
+    let fp: Option<String> = c
+        .query_row(
+            "SELECT fingerprint FROM bug_links WHERE scenario_id = ?1 AND jira_key = ?2",
+            params![sid, key],
+            |r| r.get(0),
+        )
+        .ok()
+        .flatten();
+    let silindi = c.execute("DELETE FROM bug_links WHERE scenario_id = ?1 AND jira_key = ?2", params![sid, key])? > 0;
+    if let Some(fp) = &fp {
+        c.execute(
+            "UPDATE bug_links SET fingerprint = NULL WHERE project_id = ?1 AND jira_key = ?2 AND fingerprint = ?3",
+            params![s.project_id, key, fp],
+        )?;
+    }
+    if silindi {
+        record(
+            c,
+            s.run_id,
+            Some(sid),
+            "bag_kaldirildi",
+            fp.as_deref(),
+            Some(key),
+            "admin bağı kaldırdı",
+        )?;
+        tracing::info!(run_id = s.run_id, senaryo_id = sid, issue = %key, "Jira bağı kaldırıldı");
+    }
+    Ok(silindi)
+}
+
 // ---------------------------------------------------------------------------------------------
 // Bug taslakları: Jira'ya yazılmadan hazırlanır, admin tek tıkla açar (SW-6.3)
 
@@ -1076,6 +1242,16 @@ pub fn mark_draft(c: &Connection, id: i64, status: &str, key: Option<&str>) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_6_2_elle_girilen_issue_anahtari() {
+        assert_eq!(issue_anahtari(" abc-123 ").as_deref(), Some("ABC-123"));
+        assert_eq!(issue_anahtari("@STAJ-7").as_deref(), Some("STAJ-7"));
+        assert_eq!(issue_anahtari("https://jira.sirket/browse/PRJ_2-45").as_deref(), Some("PRJ_2-45"));
+        for k in ["", "ABC", "ABC-", "-12", "1AB-3", "AB-12x", "A B-1"] {
+            assert_eq!(issue_anahtari(k), None, "{k}");
+        }
+    }
 
     #[test]
     fn test_sw_6_1_base64_and_fingerprint() {

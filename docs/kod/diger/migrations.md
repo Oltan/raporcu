@@ -18,7 +18,7 @@ Zamanlar ISO-8601 metin (`TEXT`), süreler milisaniye tamsayı.
 | `attachments` | ek dosyası | `origin` (`result`/`step`/`before`/`after`), `source` (Allure dosya adı; disk yolu `DATA_DIR/runs/<run>/files/<source>`), `scenario_id` (container üzerinden sonradan da bağlanabilir), `deleted_at/reason`, `size` (0002) |
 | `expected_scenarios` | ulak start'ın bildirdiği beklenen senaryo | canlı ekrandaki "bekliyor" satırları |
 | `triage_decisions` | triage kararı (geçmişiyle) | `category` (`flaky`/`test_kodu`/`urun`/`ortam`/`bilinmiyor`), `source` (`kural`/`opencode`/`admin`), `confidence` |
-| `bug_links` | senaryo ↔ Jira bug | `source` (`tag`/`eslesme`/`otomatik`/`admin`), `fingerprint` (hata parmak izi) |
+| `bug_links` | senaryo ↔ Jira bug | `source` (`tag`/`eslesme`/`otomatik`/`admin`/`elle`), `fingerprint` (hata parmak izi) |
 | `jira_actions` | Jira otomasyonu kaydı | `action` (`acilacakti` gözlem modu, `acildi`, `eslesti`, `hata`) |
 | `share_links` | salt okunur paylaşım | `token` (tekil, tahmin edilemez), `revoked_at`, `gorunum` (`ekip`/`genel`, 0005) |
 | `genel_portallar` | genel ana sayfa linki (0006) | `token`, `project_id` + `branch` kapsamı, `revoked_at` |

@@ -3,9 +3,11 @@
 **Amaç:** SW-5.3 — gece pipeline'ı bitince pipeline başına **tek** özet e-posta.
 
 - Tetik: webhook'ta `object_kind=pipeline`, durum `success|failed`, kaynak `schedule`.
-- `summary(c, public_url, proje, pipeline)`: o pipeline'ın koşumları; konu
-  `[divan] <proje> <branch>: N geçti, M kaldı`; gövde: toplamlar, her koşumun rapor linki,
-  açılan OpenCode MR'ları (Draft işaretli) ya da "yok".
+- `summary(c, public_url, jira_url?, proje, pipeline)`: o pipeline'ın koşumları; konu
+  `[divan] <proje> <branch> · uygulama <sürüm(ler) ya da —>: N geçti, M kaldı`; gövde: `Uygulama sürümü:`
+  satırı, toplamlar, her koşumun rapor linki ve uygulama sürümü, "Jira issue'ları" bölümü (varsa;
+  `jira::kosum_issuelari`, koşumlar arasında anahtara göre birleşik: `KEY [durum] başlık — N senaryo`
+  + `JIRA_URL/browse/KEY`), açılan OpenCode MR'ları (Draft işaretli) ya da "yok".
 - `send_for_pipeline(st, c, proje, pipeline)`: `emails.pipeline_key = "<proje>:<pipeline>"` varsa
   gönderilmez. `MAIL_TO` boşsa WARN. `DRY_RUN` ya da `SMTP_HOST` yoksa `outbox/<anahtar>-<zaman>.eml`
   dosyasına yazılır ("simüle edildi"). Değilse düz SMTP: `HELO`, `MAIL FROM`, her alıcı `RCPT TO`,

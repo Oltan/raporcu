@@ -213,6 +213,19 @@ async fn fake_jira(log: JL) -> String {
             StatusCode::OK
         }
     }
+    /// STAJ-5xx var; gerisi 404
+    async fn issue_get(Path(k): Path<String>) -> (StatusCode, Json<Value>) {
+        if k.starts_with("STAJ-5") {
+            (
+                StatusCode::OK,
+                Json(
+                    json!({ "key": k, "fields": { "summary": "Elle bağlanan bug", "status": { "name": "Açık", "statusCategory": { "key": "new" } }, "issuetype": { "name": "Bug" } } }),
+                ),
+            )
+        } else {
+            (StatusCode::NOT_FOUND, Json(json!({ "errorMessages": ["Issue Does Not Exist"] })))
+        }
+    }
     async fn issuetypes() -> Json<Value> {
         Json(json!({ "values": [{ "id": "10004", "name": "Bug" }, { "id": "10001", "name": "Task" }] }))
     }
@@ -236,6 +249,7 @@ async fn fake_jira(log: JL) -> String {
             .route("/rest/api/2/issue", post(create))
             .route("/rest/api/2/myself", get(myself))
             .route("/rest/api/2/issue/{key}/attachments", post(attach))
+            .route("/rest/api/2/issue/{key}", get(issue_get))
             .route("/rest/api/2/search", get(search_old))
             .route("/rest/api/2/search/jql", get(search))
             .with_state(log),
@@ -422,6 +436,59 @@ async fn test_sw_6_2_auto_match_after_upload() {
     assert!(g.created.is_empty());
     drop(g);
     assert!(log_lines("Jira bug'ı eşleşti").iter().any(|l| l["issue"] == "STAJ-77"));
+}
+
+#[tokio::test]
+async fn test_sw_6_2_elle_baglama_sonraki_kosumda_ayni_hataya_tasinir() {
+    let log: JL = Default::default();
+    let url = fake_jira(log.clone()).await;
+    let app = app_with(jira_cfg(url, divan::config::JiraMode::Off));
+    let id = upload_zip(&app, zip_without_jira_tag()).await;
+    settle().await;
+    let sid = scenario_id(&run_json(&app, id).await, "Yanlış şifrede özel mesaj");
+    let ck = app.admin_cookie();
+    let bagla = |a: &'static str| format!("anahtar={}", urlencoding::encode(a));
+    let konum = |r: &axum::http::Response<axum::body::Body>| r.headers()["location"].to_str().unwrap().to_string();
+    // yetkisiz istek reddedilir
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira/bagla"), "", &bagla("STAJ-500")).await;
+    assert_ne!(r.status(), StatusCode::SEE_OTHER);
+    // biçim ve varlık denetimi
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira/bagla"), &ck, &bagla("olmaz")).await;
+    assert!(konum(&r).ends_with("notice=jira-gecersiz"));
+    let r = post_form(&app, &format!("/admin/scenarios/{sid}/jira/bagla"), &ck, &bagla("STAJ-404")).await;
+    assert!(konum(&r).ends_with("notice=jira-bulunamadi"));
+    // küçük harf ve tarayıcı adresi de kabul edilir
+    let r = post_form(
+        &app,
+        &format!("/admin/scenarios/{sid}/jira/bagla"),
+        &ck,
+        &bagla("https://jira.sirket/browse/staj-501"),
+    )
+    .await;
+    assert!(konum(&r).ends_with("notice=jira-baglandi"));
+    let (_, page) = app.get_admin(&format!("/scenarios/{sid}?notice=jira-baglandi")).await;
+    assert!(page.contains("STAJ-501") && page.contains("Elle bağlanan bug") && page.contains(">elle"));
+    assert!(page.contains("Issue bağlandı.") && page.contains("Bağı kaldır"));
+    assert!(log_lines("Jira issue'suna elle bağlandı").iter().any(|l| l["issue"] == "STAJ-501"));
+    // ertesi koşum: aynı hata → aynı issue'ya kendiliğinden bağlanır
+    let id2 = upload_zip(&app, zip_without_jira_tag()).await;
+    settle().await;
+    let sid2 = scenario_id(&run_json(&app, id2).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get(&format!("/scenarios/{sid2}")).await;
+    assert!(
+        page.contains("STAJ-501") && page.contains(">eslesme"),
+        "aynı hata parmak iziyle taşındı"
+    );
+    // bağ kaldırılınca bir sonraki koşumda geri gelmez; eski koşumdaki bağ kalır
+    let r = post_form(&app, &format!("/admin/scenarios/{sid2}/jira/kaldir"), &ck, "anahtar=STAJ-501").await;
+    assert!(konum(&r).ends_with("notice=jira-kaldirildi"));
+    let id3 = upload_zip(&app, zip_without_jira_tag()).await;
+    settle().await;
+    let sid3 = scenario_id(&run_json(&app, id3).await, "Yanlış şifrede özel mesaj");
+    let (_, page) = app.get(&format!("/scenarios/{sid3}")).await;
+    assert!(!page.contains("STAJ-501"), "kaldırılan bağ geri gelmedi");
+    let (_, page) = app.get(&format!("/scenarios/{sid}")).await;
+    assert!(page.contains("STAJ-501"), "geçmiş koşumda görünür");
 }
 
 #[tokio::test]

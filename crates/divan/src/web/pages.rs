@@ -320,10 +320,15 @@ struct RunPage {
     fixes: Vec<FixRow>,
     notice: Option<String>,
     jb: JiraBilgi,
+    /// SW-6.2: koşumda bağlı Jira issue'ları; paylaşımda da gösterilir (link ve atanan olmadan)
+    jira_ozeti: Vec<crate::jira::IssueOzet>,
+    /// Jira adresi; paylaşımda None
+    jira_link: Option<String>,
 }
 
 /// SW-6.2: rapordaki Jira rozetleri için issue bilgisi (Jira'dan koşum bitince çekilip saklananlar).
-/// Bilinmeyen anahtar yalnızca anahtar olarak gösterilir; paylaşım görünümünde Jira hiç gösterilmez.
+/// Bilinmeyen anahtar yalnızca anahtar olarak gösterilir; paylaşım görünümünde rozetler gösterilmez
+/// (koşum özeti `jira::kosum_issuelari` ise link ve atanan olmadan gösterilir).
 #[derive(Default)]
 pub struct JiraBilgi {
     map: std::collections::HashMap<String, crate::jira::IssueInfo>,
@@ -483,6 +488,8 @@ impl RunPage {
             fixes,
             notice,
             jb: JiraBilgi::default(),
+            jira_ozeti: vec![],
+            jira_link: None,
         }
     }
 }
@@ -570,12 +577,20 @@ pub async fn run_page(
     let mut page = RunPage::new(l, run, rows, fixes, notice);
     page.doors_dxl = st.cfg.doors_dxl;
     let url = st.cfg.jira_url.clone();
-    let (drafts, jb) = st
+    page.jira_link = url.clone();
+    let (drafts, jb, ozet) = st
         .db
-        .read(move |c| Ok((crate::jira::drafts_for_run(c, id)?, JiraBilgi::yukle(c, url, &keys)?)))
+        .read(move |c| {
+            Ok((
+                crate::jira::drafts_for_run(c, id)?,
+                JiraBilgi::yukle(c, url, &keys)?,
+                crate::jira::kosum_issuelari(c, id, None)?,
+            ))
+        })
         .await?;
     page.drafts = drafts;
     page.jb = jb;
+    page.jira_ozeti = ozet;
     Ok(render(&page))
 }
 
@@ -604,6 +619,7 @@ struct ScenarioPage {
     jira_url: Option<String>,
     fixes: Vec<FixRow>,
     fix_notice: bool,
+    jira_notice: Option<&'static str>,
     drafts: Vec<crate::jira::Draft>,
     taslak_geri: String,
     jb: JiraBilgi,
@@ -618,6 +634,22 @@ impl ScenarioPage {
             .map(|b| b.source.clone())
             .unwrap_or_else(|| "tag".into())
     }
+    /// Kaldırılabilir bağ mı; feature tag'inden gelen bağ her koşumda yeniden kurulduğu için değil.
+    fn bagli_mi(&self, k: &str) -> bool {
+        self.bugs.iter().any(|b| b.jira_key == k && b.source != "tag")
+    }
+}
+
+/// Elle Jira bağlama sonucunun senaryo sayfasındaki satırı (SW-6.2).
+fn jira_notice(n: Option<&str>) -> Option<&'static str> {
+    Some(match n? {
+        "jira-baglandi" => "Issue bağlandı.",
+        "jira-zaten" => "Bu senaryo o issue'ya zaten bağlı.",
+        "jira-kaldirildi" => "Bağ kaldırıldı; aynı hata sonraki koşumlarda bu issue'ya bağlanmayacak.",
+        "jira-gecersiz" => "Geçersiz anahtar: PROJE-123 biçiminde girin.",
+        "jira-bulunamadi" => "Jira'da bu anahtarla issue bulunamadı; bağlanmadı.",
+        _ => return None,
+    })
 }
 
 #[allow(clippy::type_complexity)]
@@ -662,6 +694,7 @@ fn load_scenario(c: &rusqlite::Connection, paths: &crate::Paths, id: i64, conf: 
         jira,
         jira_url: None,
         fix_notice: false,
+        jira_notice: None,
         drafts: crate::jira::drafts_for_scenario(c, id)?,
         taslak_geri: format!("/scenarios/{id}"),
         fixes: queries::fixes_for_scenario(c, id)?,
@@ -684,6 +717,7 @@ pub async fn scenario_page(
             p.jira_url = st.cfg.jira_url.clone();
             p.jb.url = st.cfg.jira_url.clone();
             p.fix_notice = nq.notice.as_deref() == Some("fix");
+            p.jira_notice = jira_notice(nq.notice.as_deref());
             Ok(render(&p))
         }
         None => Ok(message(
@@ -1026,7 +1060,9 @@ pub async fn share_page(
         return Err(AppError::not_found());
     };
     sanitize_run(&st, &mut run, &mut rows);
-    Ok(render(&RunPage::new(share_layout(&token), run, rows, vec![], None)))
+    let mut page = RunPage::new(share_layout(&token), run, rows, vec![], None);
+    page.jira_ozeti = st.db.read(move |c| crate::jira::kosum_issuelari(c, id, None)).await?;
+    Ok(render(&page))
 }
 
 pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path<(String, i64)>) -> Result<Response, AppError> {

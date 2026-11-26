@@ -69,6 +69,23 @@ Her `failed` son deneme için:
 
 `create_for_scenario(c, paths, jira, sid, bug)`: formdan gelen bug'ı moddan bağımsız açar, bağlar (`admin`), ekran görüntüsünü ekler.
 
+## Rapor özeti (SW-6.2)
+`kosum_issuelari(c, koşum, yalnız?)`: son denemelerin `jira_keys`'i + `bug_links`, anahtara göre gruplu
+`IssueOzet { key, bilgi (jira_issues), senaryolar: (id, ad, durum) }`; açık/bilinmeyen önce, kapalı,
+sonra bulunamayan; aynı gruptakiler anahtar sırasıyla. `yalnız` verilirse yalnızca o senaryolar.
+Koşum sayfası, paylaşım linkleri ve e-posta kullanır.
+
+## Elle bağlama (SW-6.2)
+- `issue_anahtari(girdi)`: `abc-123`, `@ABC-123`, `…/browse/ABC-123` → `ABC-123` (büyük harf; proje harfle
+  başlar, harf/rakam/`_`; `-` sonrası yalnızca rakam). Geçersizse yok.
+- `link_manual(c, sid, anahtar)`: `bug_links`'e kaynak `elle`; senaryonun mesajı boş değilse parmak izi de
+  yazılır (boş mesajın izi her mesajsız senaryoyla eşleşirdi). Böylece sonraki koşumlarda aynı hatayla
+  kalan senaryo yukarıdaki 2. adımla (`eslesme`) bu issue'ya bağlanır. `jira_actions: baglandi`. Zaten
+  bağlıysa false.
+- `unlink(c, sid, anahtar)`: senaryonun o bağını siler; aynı projede aynı issue + aynı parmak izli eski
+  bağların parmak izini boşaltır (bağ geçmiş koşumlarda görünmeye devam eder, ama 2. adım artık onu
+  bulmaz). `jira_actions: bag_kaldirildi`.
+
 ## Testler
 `test_sw_6_1_*` (şablon, alan türleri, hata metni); `tests/entegrasyon.rs` (sahte Jira sunucusuyla 6.1, 6.2, 6.3).
 

@@ -133,6 +133,41 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   push edilir; o pipeline'da test koşmaz (düzeltme kaybolmaz). MR'a sonradan elle eklenen commit'in
   pipeline'ı değişkeni almaz.
 
+## auto-fix pipeline'ı kendiliğinden test edilir (SW-7.2, 0.1.4)
+
+- İstek: auto-fix branch'leri de pipeline'a girsin, build → test → report elle açmadan koşsun.
+- Karar: test/report işlerindeki "auto-fix branch'inde yalnızca `ULAK_FIX_PIPELINE=on` ile" kuralı kaldırıldı;
+  fix işi auto-fix branch'inde yine hiç koşmaz (döngü olmasın). Şablonda `ULAK_FIX_PIPELINE` varsayılanı
+  `senaryo`: `ulak fix` push'ta filtreyi verir, yalnızca düzeltilen senaryo koşar; `hepsi` (ya da başka
+  her değer) bütün e2e.
+- Değişen davranış: GitLab push seçeneklerini kabul etmezse ulak seçeneksiz push eder; artık o pipeline'da
+  test koşmamak yerine **bütün** e2e koşar (filtre yok). Böyle bir sunucuda `ULAK_FIX_PIPELINE` CI
+  değişkeni yerine şablondaki değer kalır; gerekirse auto-fix pipeline'larını GitLab'da iptal edin.
+
+## Elle Jira bağlama (SW-6.2, 0.1.4)
+
+- İstek: admin arayüzden senaryoyu var olan bir issue'ya bağlayabilsin; aynı hata sonraki gecelerde de
+  o issue'ya bağlansın.
+- Karar: bağ `bug_links`'e kaynak `elle` ile, senaryonun hata parmak iziyle yazılır; mevcut "aynı hata
+  parmak izi" eşleşmesi sonraki koşumlarda taşır (şema değişmedi). Eşleşme senaryo adına değil hataya
+  bakar: aynı hatayla kalan başka senaryo da bağlanır (otomatik eşleşmeyle aynı kural). Jira ayarlıysa
+  anahtar önce Jira'da denetlenir; o an ulaşılamıyorsa denetimsiz bağlanır. Bağı kaldırmak aynı issue'nun o
+  hataya ait eski bağlarının parmak izini de siler. Jira bağlantı ayarları (adres, token) arayüze
+  taşınmadı: tokenlar yalnızca `.env`'de.
+
+## Raporda Jira issue'ları ve uygulama sürümü her yerde (SW-6.2, SW-4.3, 0.1.5)
+
+- İstek: dashboard'da ve raporda (koşum sayfası, ekip linki, genel rapor linki, gece e-postası)
+  uygulama sürümü ve bağlı Jira issue'ları görünsün.
+- Karar: paylaşım linklerinde Jira artık tamamen gizli değil. Anahtar, başlık ve durum gösteriliyor
+  (raporu okuyan "bilinen hata mı" görsün). Jira'ya link, atanan kişi ve senaryo rozetleri gizli kalıyor
+  (Jira iç ağda, kişi adı dışarı çıkmasın). Genel rapor linkinde yalnızca orada görünen ürün
+  hatalarının issue'ları.
+- Uygulama sürümü değer yoksa da yer tutar (`—`): "nerede yazıyor" sorusu kalmasın. Değişken boşsa
+  ulak pom'daki varsayılanı gönderir, böylece schedule'da da sürüm görünür. Sahada görünmemesinin olası
+  nedeni sunucunun ya da runner'ın indirdiği ulak'ın 0.1.3'ten eski olması; `ulak start` logundaki
+  `uygulama sürümü:` satırı bunu ayırt eder.
+
 ## Jira issue tag'leri (SW-6.2)
 
 - `@ABC-123` biçimindeki tag yalnızca proje anahtarı `JIRA_TAG_PROJELERI` (verilmezse `JIRA_PROJECT`)

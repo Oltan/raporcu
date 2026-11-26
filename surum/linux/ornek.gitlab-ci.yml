@@ -4,10 +4,16 @@
 #   - kendi VM'inde koşturmak için: Run pipeline / schedule değişkeni RUNNER=<kendi etiketin>
 # fix işi yalnızca "ajan" etiketli VM'lerde koşar (opencode kurulu ve modele erişen makineler).
 #
+# Kendi projene göre doldur:
+#   ULAK_SERVER        merkezi divan'ın adresi (aşağıda)
+#   runner etiketleri  her VM: "linux" + kişi adı; opencode kurulu VM'ler ayrıca "ajan"
+#   ci/settings.xml    Maven ayar dosyanın yolu (build ve ULAK_TEST_COMMAND'da)
+#   pom.xml            uygulama bağımlılığının sürümü <version>${uygulama.version}</version>
+#
 # Gerekli proje (ya da grup) CI değişkeni:
 #   CI_API_TOKEN   masked; divan .env'indeki CI_API_TOKEN ile aynı
 # İsteğe bağlı CI değişkenleri: ULAK_FIX_TOKEN (auto-fix MR), VLLM_BASE_URL / VLLM_API_KEY / VLLM_MODEL,
-#   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX, ULAK_FIX_PIPELINE ("senaryo")
+#   ULAK_FIX_MAX, ULAK_DEGERLENDIR_MAX
 
 # --- Pipeline ne zaman başlar ----------------------------------------------------------------
 # Push'larda test koşmaz. Koşum yalnızca: zamanlama (schedule), elle "Run pipeline", divan'ın
@@ -44,6 +50,9 @@ variables:
   ULAK_RESULTS_DIR: "target/allure-results"
   # ulak start bu komutu Xvfb sanal ekranında çalıştırır; fix'in doğrulama koşusu da bunu kullanır
   ULAK_TEST_COMMAND: "mvn --batch-mode -s ci/settings.xml test -Dscenario.timeout.seconds=300 -Dreport.video.enabled=true"
+  # aynı mvn test'te koşan JUnit testleri rapora girmesin istersen yalnızca Cucumber suite'i koştur
+  # (sınıf adı projene göre):
+  # ULAK_TEST_COMMAND: "mvn --batch-mode -s ci/settings.xml test -Dtest=RunCucumberTest -Dsurefire.failIfNoSpecifiedTests=false -Dscenario.timeout.seconds=300 -Dreport.video.enabled=true"
   ULAK_XVFB: "on"
   ULAK_SCREEN: "1920x1080"
   # bellek sınırları: Maven ve test JVM'i
@@ -53,9 +62,11 @@ variables:
   # ağ kısa süre koparsa işler kod/artifact çekerken düşmesin
   GET_SOURCES_ATTEMPTS: "5"
   ARTIFACT_DOWNLOAD_ATTEMPTS: "5"
-  # ULAK_TAGS: "@smoke"            # boşsa features.txt kullanılır
   # ULAK_FIX: "off"                # self-healing'i ve LLM değerlendirmesini kapatır
-  # ULAK_FIX_PIPELINE: "senaryo"   # auto-fix branch'inde yalnızca düzeltilen senaryo koşar
+  # ulak fix'in açtığı auto-fix/... branch'inin pipeline'ı build → test → report'u kendiliğinden koşar
+  # (fix işi koşmaz). Hangi senaryolar: "senaryo" = yalnızca düzeltilen senaryo (ulak fix push'ta
+  # filtreyi verir), "hepsi" = bütün e2e.
+  ULAK_FIX_PIPELINE: "senaryo"
 
 # --- Ortak: ulak'ı divan'dan indir ------------------------------------------------------------
 .ulak:
@@ -97,10 +108,7 @@ test:
   rules:
     - if: '$ULAK_FIX_ONLY == "true"'
       when: never
-    # auto-fix branch'i: düzeltme fix işinde zaten doğrulandı; ULAK_FIX_PIPELINE=on (ya da ulak fix'in
-    # push'ta verdiği on + filtre) gelirse koşar
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de buraya girer: build → test → report kendiliğinden koşar
     - when: on_success
 
 # --- report ----------------------------------------------------------------------------------
@@ -122,9 +130,7 @@ report:
   rules:
     - if: '$ULAK_FIX_ONLY == "true"'
       when: never
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
-    # test kalsa da rapor gönderilir
+    # test kalsa da rapor gönderilir (auto-fix branch'inde de)
     - when: always
 
 # --- fix -------------------------------------------------------------------------------------

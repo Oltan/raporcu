@@ -196,7 +196,7 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         stages == ["test", "report", "fix"],
         format!("{stages:?}"),
     );
-    // auto-fix push'u yeni bir tam koşum ve fix döngüsü başlatmaz; MR pipeline'ında tekrar koşulmaz
+    // auto-fix push'u test + report'u koşar (yalnızca düzeltilen senaryo), fix döngüsü başlatmaz; MR pipeline'ında tekrar koşulmaz
     let first_rule_ifs = |job: &str| -> Vec<String> {
         y[job]["rules"]
             .as_sequence()
@@ -208,9 +208,11 @@ fn template_checks(ck: &mut Checks) -> Result<()> {
         let test = first_rule_ifs(&format!("ulak-test-{os}"));
         ck.check(
             "SW-7.2",
-            &format!("{os}: auto-fix branch'inde fix işi yok, test işi yalnızca ULAK_FIX_PIPELINE=on ile; MR pipeline'ında yok"),
+            &format!("{os}: auto-fix branch'inde fix işi yok, test ve report kendiliğinden koşar (ULAK_FIX_PIPELINE=senaryo); MR pipeline'ında yok"),
             fix.iter().any(|r| r.contains("auto-fix") && !r.contains("ULAK_FIX_PIPELINE"))
-                && test.iter().any(|r| r.contains("auto-fix") && r.contains("ULAK_FIX_PIPELINE"))
+                && !test.iter().any(|r| r.contains("auto-fix"))
+                && !first_rule_ifs(&format!("ulak-report-{os}")).iter().any(|r| r.contains("auto-fix"))
+                && y["variables"]["ULAK_FIX_PIPELINE"].as_str() == Some("senaryo")
                 && fix.iter().chain(&test).filter(|r| r.contains("merge_request_event")).count() == 2,
             format!("{fix:?} {test:?}"),
         );
@@ -747,6 +749,42 @@ fn senaryo_filtresi(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) 
         "UYGULAMA_SURUMU koşumla divan'a gider",
         run["kosum"]["app_version"] == "9.9.9",
         run["kosum"].to_string(),
+    );
+    ck.check(
+        "SW-4.3",
+        "ulak start logunda uygulama sürümü ve kaynağı",
+        o.text.contains("uygulama sürümü: 9.9.9 (UYGULAMA_SURUMU)"),
+        o.text.lines().find(|l| l.contains("uygulama sürümü")).unwrap_or("satır yok"),
+    );
+    let (_, sayfa) = rehearse::get(&format!("{}/runs/{rid}", server.url()))?;
+    let (_, pano) = rehearse::get(&format!("{}/", server.url()))?;
+    ck.check(
+        "SW-4.3",
+        "CI değişkenindeki uygulama sürümü dashboard'da ve koşum sayfasında görünür",
+        sayfa.contains("Uygulama <b>9.9.9</b>") && pano.contains("<th>Uygulama</th>") && pano.contains("<b>9.9.9</b>"),
+        format!("koşum: {}, dashboard: {}", sayfa.contains("9.9.9"), pano.contains("9.9.9")),
+    );
+    // değişken boşsa pom.xml'deki <uygulama.version>
+    let proj2 = project_copy(root, "proje-pom-surum")?;
+    let pom = std::fs::read_to_string(proj2.join("pom.xml"))?;
+    let pom = pom.replacen("<properties>", "<properties>\n    <uygulama.version>4.2.0</uygulama.version>", 1);
+    std::fs::write(proj2.join("pom.xml"), pom)?;
+    let mut s2 = Ulak::new(ulak, &proj2, &server.url());
+    s2.set("ULAK_TEST_COMMAND", fake_cmd(&sample_dir(), 0, &root.join("env-pom.json"), ""))
+        .set("ULAK_FORCE_MAVEN_ARGS", "1")
+        .set("ULAK_XVFB", "off")
+        .set("CI_PROJECT_PATH", "prova/pom-surum")
+        .set("CI_PROJECT_ID", "4747");
+    let o2 = s2.run(&["start"])?;
+    let rid2 = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj2.join(".ulak/run.json"))?)?["run_id"]
+        .as_i64()
+        .unwrap_or(0);
+    let run2 = get_json(&format!("{}/api/runs/{rid2}", server.url()))?;
+    ck.check(
+        "SW-4.3",
+        "UYGULAMA_SURUMU boşsa pom.xml'deki sürüm gönderilir",
+        run2["kosum"]["app_version"] == "4.2.0" && o2.text.contains("uygulama sürümü: 4.2.0 (pom.xml)"),
+        run2["kosum"]["app_version"].to_string(),
     );
     let info: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&env_out).unwrap_or("{}".into()))?;
     let args: Vec<String> = info["args"]

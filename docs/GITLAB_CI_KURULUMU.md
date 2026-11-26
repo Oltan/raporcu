@@ -158,7 +158,7 @@ açık bir mesajla düşürür.
 | `ULAK_FIX_TOKEN` | test projesinde masked CI değişkeni (proje erişim tokenı, `api` + `write_repository`) | `ulak fix`: auto-fix branch push + MR (SW-7.2) |
 | `ULAK_FIX_AGENT` | CI değişkeni: `opencode` (varsayılan) ya da `claude` | self-healing ajanı |
 | `UYGULAMA_SURUMU` | CI / Run pipeline formu / schedule değişkeni (isteğe bağlı) | Test edilen uygulama sürümü: pom'da `<version>${uygulama.version}</version>` ise Maven'a `-Duygulama.version=…` olarak verilir (`surum/linux/ornek.gitlab-ci.yml`); ulak divan'a da gönderir, koşum sayfasında "Uygulama 1.5.0", aramada `uygulama` süzgeci, CSV'de sütun |
-| `ULAK_FIX_PIPELINE` | CI değişkeni (isteğe bağlı), varsayılan kapalı | auto-fix branch'ine push'ta: kapalı → test koşmaz; `senaryo` → yalnızca düzeltilen senaryo koşar (`ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve `ULAK_TAGS=@YTET_…` ya da `ULAK_SENARYO=<ad>` verir); `on` → tüm e2e. Fix işi auto-fix'te yine koşmaz |
+| `ULAK_FIX_PIPELINE` | şablonda `senaryo` | auto-fix branch'inde build → test → report kendiliğinden koşar (fix koşmaz). `senaryo` → yalnızca düzeltilen senaryo (`ulak fix` push'ta `ci.variable` ile `ULAK_FIX_PIPELINE=on` ve `ULAK_TAGS=@YTET_…` ya da `ULAK_SENARYO=<ad>` verir); `hepsi` → tüm e2e. Push seçenekleri kabul edilmezse tüm e2e koşar |
 | `ULAK_OPENCODE_AGENT` | CI değişkeni (isteğe bağlı), varsayılan `fix` | `.opencode/agents/<ad>.md` ajan adı |
 | `ULAK_OPENCODE_MODEL` | CI değişkeni (isteğe bağlı) | `saglayici/model`; ajandaki ve `opencode.json`'daki modeli ezer |
 | `ULAK_OPENCODE_BIN` | CI değişkeni (isteğe bağlı), varsayılan `opencode` | Windows'ta gerçek `opencode.exe` yolu |

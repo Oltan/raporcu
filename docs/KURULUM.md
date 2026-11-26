@@ -362,7 +362,7 @@ description: Projedeki sayfa nesnesi sınıfları. Yeni seçici ya da adım yaza
 ## 9. Güncelleme
 
 divan'ı durdurun, yeni `divan`/`divan.exe` ile `tools` altındaki `ulak` ikililerini değiştirin, yeniden
-başlatın. Veritabanı güncellemeleri açılışta kendiliğinden uygulanır, önce yedek alınır. Runner'lar
+başlatın. Veritabanı güncellemeleri açılışta kendiliğinden uygulanır; divan bundan önce yedek almaz, güncellemeden önce veri klasörünü kopyalayın (ya da `divan backup`). Runner'lar
 yeni `ulak`'ı sonraki koşumda sunucudan indirir. Sunucu ve `ulak` sürümleri uyumlu olmalıdır.
 
 ## 10. Sorun giderme

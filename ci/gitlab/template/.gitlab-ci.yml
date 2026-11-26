@@ -39,7 +39,9 @@ variables:
   # ULAK_TAGS: "@smoke"           # boşsa features.txt kullanılır
   # ULAK_FIX: "off"               # self-healing'i (ve LLM değerlendirmesini) kapatmak için
   # ULAK_DEGERLENDIR: "off"       # yalnızca LLM değerlendirmesini kapatmak için; ULAK_FIX=off iken "on" yalnızca onu açar
-  # ULAK_FIX_PIPELINE: "senaryo"  # auto-fix branch'inde yalnızca düzeltilen senaryo koşsun (on: hepsi)
+  # SW-7.2: self-healing'in açtığı auto-fix/... branch'inin pipeline'ı test ve report'u kendiliğinden koşar.
+  # "senaryo": ulak fix push'ta filtre verir, yalnızca düzeltilen senaryo koşar. "hepsi": bütün e2e koşar.
+  ULAK_FIX_PIPELINE: "senaryo"
   # CI_API_TOKEN: proje/grup CI değişkeni olarak (masked) tanımlanır (SW-9.1)
 
 stages:
@@ -115,11 +117,8 @@ stages:
 ulak-test-linux:
   extends: [.ulak-linux, .ulak-test]
   rules:
-    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
-    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de test edilir (build → test → report kendiliğinden); hangi senaryoların
+    # koşacağını ULAK_FIX_PIPELINE belirler (değişkenlere bakın)
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
@@ -132,11 +131,8 @@ ulak-test-windows:
   variables:
     ULAK_XVFB: "off"
   rules:
-    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
-    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de test edilir (build → test → report kendiliğinden); hangi senaryoların
+    # koşacağını ULAK_FIX_PIPELINE belirler (değişkenlere bakın)
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
@@ -147,11 +143,8 @@ ulak-test-windows:
 ulak-report-linux:
   extends: [.ulak-linux, .ulak-report]
   rules:
-    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
-    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de test edilir (build → test → report kendiliğinden); hangi senaryoların
+    # koşacağını ULAK_FIX_PIPELINE belirler (değişkenlere bakın)
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never
@@ -162,11 +155,8 @@ ulak-report-linux:
 ulak-report-windows:
   extends: [.ulak-windows, .ulak-report]
   rules:
-    # self-healing'in açtığı auto-fix/... branch'i: düzeltme fix işinde tek senaryoyla doğrulandı;
-    # ULAK_FIX_PIPELINE=senaryo: ulak fix push'ta bu pipeline'a ULAK_FIX_PIPELINE=on + filtre verir
-    # (yalnızca düzeltilen senaryo); tüm e2e'yi yeniden koşmak için ULAK_FIX_PIPELINE=on
-    - if: '$CI_COMMIT_BRANCH =~ /^auto-fix\// && $ULAK_FIX_PIPELINE != "on"'
-      when: never
+    # auto-fix/... branch'i de test edilir (build → test → report kendiliğinden); hangi senaryoların
+    # koşacağını ULAK_FIX_PIPELINE belirler (değişkenlere bakın)
     # MR pipeline'ında tekrar koşma (aynı commit'in branch pipeline'ı zaten koşuyor)
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       when: never

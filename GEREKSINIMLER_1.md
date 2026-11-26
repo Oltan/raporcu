@@ -226,6 +226,7 @@ Koşum sonuçları ayrıntılı olarak ve geçmişiyle birlikte görüntülenir.
 - Test: B
 - Doğrulama: `test_sw_4_3_*`
 - Ek: test edilen uygulamanın sürümü (`UYGULAMA_SURUMU` → `runs.app_version`, migration 0007) koşum başlığında, dashboard'da, paylaşımda; aramada `uygulama` süzgeci, CSV'de `uygulama` sütunu. Doğrulama: `test_sw_4_3_uygulama_surumu_raporda_aramada_csvde`, rehearse SW-4.3.
+- Ek (0.1.5): sürüm her yerde yer tutar (yoksa `—`): dashboard'da ayrı Uygulama sütunu, koşum başlığı, ekip/genel rapor linki, genel ana sayfa Raporlar tablosu, gece e-postası (konu ve her rapor satırı). `UYGULAMA_SURUMU` boşsa `ULAK_EXTRA_ARGS`'taki `-Duygulama.version=` ya da `pom.xml`'deki `<uygulama.version>` gönderilir; `ulak start` `uygulama sürümü: X (kaynak)` yazar. Doğrulama: `test_sw_4_3_uygulama_surumu_kaynaklari`, rehearse SW-4.3 (CI değişkeni → dashboard ve koşum sayfası; pom varsayılanı).
 
 ### SW-4.4 [MEVCUT] OpenCode düzeltme kutusu ve senaryo rozeti
 - SW-7.3'e bağlıdır.
@@ -331,6 +332,11 @@ Başarısız senaryolar Jira bug'larıyla eşleşir, gerektiğinde bug açılır
 - Doğrulama: `test_sw_6_2_auto_match_after_upload`
 - Ek: senaryoda `@ABC-123` tag'i (`JIRA_TAG_PROJELERI`, yoksa `JIRA_PROJECT`) Jira issue'su sayılır; koşum bitince başlık, durum, tür, atanan Jira'dan çekilip (`jira_issues`) koşum/senaryo/arama sayfalarında gösterilir; kalan senaryo o issue'ya bağlanır. Doğrulama: `test_sw_6_2_jira_tag_anahtari_listeye_gore`, `test_sw_6_2_jira_tag_issue_bilgisi_raporda`.
 - Ek: Jira araması yalnızca `JIRA_ISSUE_TYPE` türünde ve `JIRA_MATCH_LABEL` (varsayılan `divan`) label'lı issue'larla eşleşir; divan bu label'ı açtığı her bug'a ekler (story/task'a fotoğraf gitmez). Doğrulama: `test_sw_6_2_acik_bug_jql_tur_ve_label`, `test_sw_6_2_auto_match_after_upload`.
+- Ek: admin senaryo sayfasından senaryoyu var olan bir issue'ya elle bağlar (`ABC-123`, küçük harf ya da
+  tarayıcı adresi de olur; Jira'da yoksa bağlanmaz) ve bağı kaldırır. Hata parmak izi saklandığı için sonraki
+  koşumlarda aynı hatayla kalan senaryo kendiliğinden o issue'ya bağlanır; kaldırılan bağ geri gelmez.
+  Doğrulama: `test_sw_6_2_elle_girilen_issue_anahtari`, `test_sw_6_2_elle_baglama_sonraki_kosumda_ayni_hataya_tasinir`.
+- Ek (0.1.5): koşumda bağlı issue'lar (tag + bağ) raporda "Jira issue'ları" kartında: anahtar, başlık, durum, bağlı senaryolar. Koşum sayfasında Jira ve senaryo linkleri, tür, atanan da var; ekip linkinde link ve atanan yok; genel rapor linkinde yalnızca görünen ürün hatalarınınki; gece e-postasında bölüm. Doğrulama: `test_sw_6_2_bagli_jira_issuelari_raporda`, `test_sw_5_1_share_link_hides_internal_info`.
 - Not: Sahte Jira ile B/E testleri geçer; gerçek Jira ile E testi bekliyor.
 
 ### SW-6.3 [MEVCUT] Sınırlı otomatik bug açma

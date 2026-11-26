@@ -553,3 +553,64 @@ mod tests {
         assert_eq!(d.summary, "x");
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Senaryoyu var olan Jira issue'suna elle bağlama (SW-6.2)
+
+#[derive(Deserialize)]
+pub struct BagForm {
+    #[serde(default)]
+    anahtar: String,
+}
+
+/// Admin: girilen anahtar (`ABC-123`) Jira'da varsa senaryo ona bağlanır; bilgisi (başlık, durum) kaydedilir.
+/// Jira ayarlı değilse ya da o an ulaşılamıyorsa denetimsiz bağlanır (bilgi sonraki koşumda çekilir).
+/// Sonuç senaryo sayfasına `?notice=` ile döner.
+pub async fn issue_bagla(
+    State(st): State<AppState>,
+    _a: Admin,
+    Path(sid): Path<i64>,
+    Form(f): Form<BagForm>,
+) -> Result<Response, AppError> {
+    let geri = |n: &str| Ok(Redirect::to(&format!("/scenarios/{sid}?notice={n}")).into_response());
+    let Some(key) = jira::issue_anahtari(&f.anahtar) else {
+        return geri("jira-gecersiz");
+    };
+    let bilgi = match Jira::from_config(&st.cfg) {
+        Some(j) => {
+            let k = key.clone();
+            match tokio::task::spawn_blocking(move || j.get_issue(&k)).await {
+                Ok(Ok(i)) if i.bulunamadi => return geri("jira-bulunamadi"),
+                Ok(Ok(i)) => Some(i),
+                Ok(Err(e)) => {
+                    tracing::warn!(servis = "jira", hata = %e, "issue denetlenemedi, denetimsiz bağlanıyor");
+                    None
+                }
+                Err(_) => None,
+            }
+        }
+        None => None,
+    };
+    let yeni = st
+        .db
+        .write(move |c| {
+            if let Some(i) = &bilgi {
+                jira::save_issue(c, i)?;
+            }
+            jira::link_manual(c, sid, &key)
+        })
+        .await?;
+    geri(if yeni { "jira-baglandi" } else { "jira-zaten" })
+}
+
+/// Admin: senaryonun issue bağını kaldırır (feature tag'inden gelenler kaldırılamaz).
+pub async fn issue_bag_kaldir(
+    State(st): State<AppState>,
+    _a: Admin,
+    Path(sid): Path<i64>,
+    Form(f): Form<BagForm>,
+) -> Result<Response, AppError> {
+    let key = f.anahtar.trim().to_string();
+    st.db.write(move |c| jira::unlink(c, sid, &key)).await?;
+    Ok(Redirect::to(&format!("/scenarios/{sid}?notice=jira-kaldirildi")).into_response())
+}

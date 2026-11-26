@@ -88,7 +88,15 @@
   <section class="kart">
     <h2>Jira</h2>
     {% if jira.is_empty() %}<p class="kucuk">Bağlı bug ya da Jira tag'i yok.</p>{% else %}
-    <ul class="adimlar">{% for j in jira %}<li><span class="ad">{% if let Some(u) = jb.link(j) %}<a href="{{ u }}">{{ j }}</a>{% else %}{{ j }}{% endif %}{% if let Some(i) = jb.bilgi(j) %}{% if let Some(s) = i.summary %} — {{ s }}{% endif %}<div class="kucuk">{{ i.durum() }}{% if let Some(t) = i.issue_type %} · {{ t }}{% endif %}{% if let Some(a) = i.assignee %} · {{ a }}{% endif %}</div>{% endif %}</span><span class="kucuk">{{ self.jira_kaynak(j) }}</span></li>{% endfor %}</ul>
+    <ul class="adimlar">{% for j in jira %}<li><span class="ad">{% if let Some(u) = jb.link(j) %}<a href="{{ u }}">{{ j }}</a>{% else %}{{ j }}{% endif %}{% if let Some(i) = jb.bilgi(j) %}{% if let Some(s) = i.summary %} — {{ s }}{% endif %}<div class="kucuk">{{ i.durum() }}{% if let Some(t) = i.issue_type %} · {{ t }}{% endif %}{% if let Some(a) = i.assignee %} · {{ a }}{% endif %}</div>{% endif %}</span><span class="kucuk">{{ self.jira_kaynak(j) }}{% if l.admin && self.bagli_mi(j) %}<form method="post" action="/admin/scenarios/{{ s.id }}/jira/kaldir" style="display:inline"><input type="hidden" name="anahtar" value="{{ j }}"><button class="kucuk" title="Bu senaryonun bağını kaldırır; aynı hata sonraki koşumlarda bu issue'ya bağlanmaz">Bağı kaldır</button></form>{% endif %}</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% if let Some(n) = jira_notice %}<p class="kucuk">{{ n }}</p>{% endif %}
+    {% if l.admin %}
+    <form method="post" action="/admin/scenarios/{{ s.id }}/jira/bagla" class="satir" style="margin-top:8px">
+      <label style="flex:1">Var olan issue'ya bağla<input name="anahtar" required placeholder="ABC-123" pattern="@?[A-Za-z][A-Za-z0-9_]*-[0-9]+|.*/browse/.*" title="Jira anahtarı, ör. ABC-123"></label>
+      <button class="ana">Bağla</button>
+    </form>
+    <p class="kucuk">Aynı hata mesajıyla kalan senaryolar sonraki koşumlarda da bu issue'ya bağlanır.</p>
     {% endif %}
     {% include "_taslaklar.html" %}
     {% if l.admin && s.is_failure() %}

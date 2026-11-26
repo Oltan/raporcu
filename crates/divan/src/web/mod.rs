@@ -45,6 +45,8 @@ pub fn routes() -> Router<AppState> {
         .route("/admin/portallar/{id}/revoke", post(genel::portal_iptal))
         .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
         .route("/admin/scenarios/{id}/jira", get(ayarlar::bug_form).post(ayarlar::bug_create))
+        .route("/admin/scenarios/{id}/jira/bagla", post(ayarlar::issue_bagla))
+        .route("/admin/scenarios/{id}/jira/kaldir", post(ayarlar::issue_bag_kaldir))
         .route("/admin/taslaklar/{id}/ac", post(ayarlar::draft_open))
         .route("/admin/taslaklar/{id}/yoksay", post(ayarlar::draft_dismiss))
         .route("/admin/ayarlar", get(ayarlar::page))

@@ -66,11 +66,12 @@
 <section class="kart">
   <h2>Raporlar</h2>
   <div class="tablo"><table>
-    <tr><th>Rapor</th><th>Tarih</th><th>Sürüm</th><th>Sonuç</th><th class="num">Senaryo</th><th class="num">Oran</th><th>Dağılım</th></tr>
+    <tr><th>Rapor</th><th>Tarih</th><th>Uygulama</th><th>Commit</th><th>Sonuç</th><th class="num">Senaryo</th><th class="num">Oran</th><th>Dağılım</th></tr>
     {% for k in kosumlar %}
     <tr>
       <td><a href="{{ a }}/runs/{{ k.run.id }}">#{{ k.run.id }}</a></td>
       <td class="kucuk">{{ k.run.started_at|zaman }}</td>
+      <td class="mono">{% if let Some(u) = k.run.app_version %}<b>{{ u }}</b>{% else %}—{% endif %}</td>
       <td class="mono">{{ k.run.short_commit() }}</td>
       <td><span class="genel-durum {{ k.durum_sinif }}">{{ k.durum }}</span></td>
       <td class="num">{{ k.sayim.toplam() }}</td>

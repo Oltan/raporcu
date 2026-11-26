@@ -210,3 +210,79 @@ async fn test_sw_6_2_jira_tag_issue_bilgisi_raporda() {
     // tag'le gelen anahtar kalan senaryoyu o issue'ya bağlar (mevcut akış)
     assert!(sayfa.contains(">tag<"), "kaynak: feature tag'i");
 }
+
+#[tokio::test]
+async fn test_sw_6_2_bagli_jira_issuelari_raporda() {
+    let url = sahte_jira().await;
+    let jira = url.clone();
+    let app = app_with(move |c| {
+        c.onekler = common::kimlik::Onekler::parse(Some("YTET_"), Some("YGÖ-"), Some("STAJ"));
+        c.jira_url = Some(url);
+        c.jira_token = Some(divan::config::Secret::new("jira-gizli-pat"));
+        c.jira_project = Some("STAJ".into());
+        c.jira_mode = divan::config::JiraMode::Off;
+    });
+    let (st, body) = app
+        .ci_post(&format!("/api/ci/runs?{Q}&app_version=2.0.1"), "application/zip", ornek_zip())
+        .await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let id = serde_json::from_str::<serde_json::Value>(&body).unwrap()["run_id"]
+        .as_i64()
+        .unwrap();
+    let mut rapor = String::new();
+    for _ in 0..30 {
+        settle().await;
+        rapor = app.get(&format!("/runs/{id}")).await.1;
+        if rapor.contains("İşlemde") {
+            break;
+        }
+    }
+    // koşum sayfası: issue, başlık, durum, atanan, bağlı senaryo (linkli)
+    let kart = &rapor[rapor.find("Jira issue'ları (").expect("Jira özeti kartı")..];
+    let kart = &kart[..kart.find("</section>").unwrap()];
+    assert!(kart.contains("STAJ-42") && kart.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
+    assert!(kart.contains("İşlemde") && kart.contains("Ayşe Yılmaz"));
+    assert!(kart.contains(KALAN) && kart.contains("/browse/STAJ-42"));
+    assert!(
+        kart.contains("STAJ-99") && kart.contains("bulunamadı"),
+        "Jira'da olmayan da listelenir"
+    );
+    assert!(kart.find("STAJ-42") < kart.find("STAJ-99"), "açık issue önce");
+    // ekip linki: anahtar, başlık, durum var; Jira linki ve atanan yok
+    let ck = app.admin_cookie();
+    let paylas = |g: &'static str| {
+        let (app, ck) = (&app, ck.clone());
+        async move {
+            let r = post_form(app, &format!("/admin/runs/{id}/share"), &ck, g).await;
+            let loc = r.headers()["location"].to_str().unwrap().to_string();
+            app.get(&format!("/s/{}", loc.split("share:").nth(1).unwrap())).await.1
+        }
+    };
+    let ekip = paylas("").await;
+    assert!(ekip.contains("Jira issue'ları") && ekip.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
+    assert!(ekip.contains("İşlemde") && !ekip.contains("Ayşe Yılmaz") && !ekip.contains("/browse/"));
+    assert!(ekip.contains("Uygulama <b>2.0.1</b>"));
+    // genel rapor: yalnızca görünen ürün hatasının issue'su
+    let genel = paylas("gorunum=genel").await;
+    assert!(genel.contains("STAJ-42") && genel.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
+    assert!(!genel.contains("STAJ-99"), "geçen senaryonun issue'su genel raporda yok");
+    assert!(!genel.contains("/browse/") && genel.contains("Uygulama <b>2.0.1</b>"));
+    // e-posta: sürüm ve Jira bölümü
+    let mail = app
+        .state
+        .db
+        .read(move |c| {
+            let pid: i64 = c.query_row("SELECT project_id FROM runs WHERE id = ?1", [id], |r| r.get(0))?;
+            divan::email::summary(c, "http://divan.test", Some(&jira), pid, "9001")
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(mail.subject.contains("uygulama 2.0.1"), "{}", mail.subject);
+    assert!(mail.body.contains("Uygulama sürümü: 2.0.1") && mail.body.contains("uygulama 2.0.1,"));
+    assert!(mail.body.contains("Jira issue'ları:"), "{}", mail.body);
+    assert!(mail
+        .body
+        .contains("STAJ-42 [İşlemde] Yanlış şifre mesajı ürün metniyle uyuşmuyor — 1 senaryo"));
+    assert!(mail.body.contains("/browse/STAJ-42"));
+}
