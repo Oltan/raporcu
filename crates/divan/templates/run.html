@@ -13,6 +13,7 @@
       {% if let Some(u) = run.job_url %}<span><a href="{{ u }}">CI işi</a></span>{% endif %}
       {% endif %}
       {% if let Some(os) = run.os %}<span>{{ os }}</span>{% endif %}
+      {% if let Some(a) = run.app_name %}<span title="UYGULAMA_ADI">Yazılım <b>{{ a }}</b></span>{% endif %}
       <span title="Test edilen uygulama sürümü">Uygulama {% if let Some(u) = run.app_version %}<b>{{ u }}</b>{% else %}<b title="UYGULAMA_SURUMU verilmedi">—</b>{% endif %}</span>
       <span>{{ run.started_at|zaman }}</span>
       <span>
@@ -29,8 +30,7 @@
     <a class="btn" href="/runs/{{ run.id }}/doors.csv">{{ l.kimlik_adi() }} CSV</a>
     {% if doors_dxl %}<a class="btn" href="/runs/{{ run.id }}/doors.dxl">DOORS DXL</a>{% endif %}
     {% if l.admin %}
-    <form method="post" action="/admin/runs/{{ run.id }}/portal"><button title="Bu proje ve branch için tüm raporları, grafikleri ve gidişatı gösteren genel sayfa; aynı kapsam için tek link üretilir">Genel ana sayfa linki</button></form>
-    <form method="post" action="/admin/runs/{{ run.id }}/share"><input type="hidden" name="gorunum" value="genel"><button title="Yalnızca doğrulanan senaryolar ve ürün hataları görünür; test kodu, ortam ve flaky ayrıntıları görünmez">Genel rapor linki</button></form>
+    {% if run.app_version.is_some() %}<a class="btn" href="/admin/yayinlar/yeni?run={{ run.id }}" title="Bu koşumun yazılım adı ve sürümü için dışa açık raporu yayınlar ya da günceller; aynı yazılım + sürümün diğer koşumları birleşir">Sürüm raporunu yayınla</a>{% endif %}
     <form method="post" action="/admin/runs/{{ run.id }}/share"><button title="Bu ayrıntılı rapor, iç linkler ve Jira bilgileri olmadan açılır">Ekip linki</button></form>
     {% if run.failures() > 0 %}<form method="post" action="/admin/runs/{{ run.id }}/fix"><button class="ana" title="GitLab'da yalnızca fix işini tetikler">OpenCode ile düzelt</button></form>{% endif %}
     {% endif %}

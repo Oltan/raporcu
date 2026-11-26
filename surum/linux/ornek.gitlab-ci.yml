@@ -43,6 +43,12 @@ variables:
   UYGULAMA_SURUMU:
     value: ""
     description: "Test edilecek uygulama sürümü (Nexus'taki). Boş = pom.xml'deki sürüm. Ör: 1.5.0"
+  # Test edilen yazılımın adı (0.2.0). Aynı repo farklı konfigürasyonları farklı adlarla koşabilir
+  # (ör. schedule'larda UYGULAMA_ADI=Kontrol Yazılımı + ULAK_TAGS=@kontrol, UYGULAMA_ADI=Simülatör + ULAK_TAGS=@sim).
+  # Dışa açık ana sayfada her yazılım ayrı sekme; rapor yazılım adı + sürüm başına. Boş = repo adı.
+  UYGULAMA_ADI:
+    value: ""
+    description: "Test edilen yazılımın adı (dışa açık raporda sekme). Boş = repo adı. Ör: Kontrol Yazılımı"
   # merkezi divan (bütün VM'ler sonuçları buraya gönderir)
   ULAK_SERVER: "http://divan.sirket.local:8080"
   # işin koşacağı runner etiketi; Run pipeline / schedule'da değiştirilir

@@ -29,6 +29,8 @@ pub struct RunRow {
     pub finished_at: Option<String>,
     /// test edilen uygulamanın sürümü (varsa)
     pub app_version: Option<String>,
+    /// test edilen yazılımın adı (`UYGULAMA_ADI`, 0.2.0)
+    pub app_name: Option<String>,
 }
 
 impl RunRow {
@@ -54,7 +56,7 @@ impl RunRow {
 
 const RUN_COLS: &str = "r.id, r.project_id, p.path, p.url, r.branch, r.commit_sha, r.pipeline_id, r.pipeline_url, r.job_url, r.os,
     r.status, r.total_expected, r.total, r.passed, r.failed, r.broken, r.skipped, r.unknown, r.started_at, r.finished_at,
-    r.app_version";
+    r.app_version, r.app_name";
 
 fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
     Ok(RunRow {
@@ -79,6 +81,7 @@ fn run_row(r: &Row) -> rusqlite::Result<RunRow> {
         started_at: r.get(18)?,
         finished_at: r.get(19)?,
         app_version: r.get(20)?,
+        app_name: r.get(21)?,
     })
 }
 
@@ -544,45 +547,6 @@ pub fn share_run(c: &Connection, token: &str) -> Result<Option<(i64, String)>> {
     .optional()?)
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct PortalRow {
-    pub id: i64,
-    pub token: String,
-    pub project_path: String,
-    pub branch: String,
-    pub created_at: String,
-    pub revoked_at: Option<String>,
-}
-
-pub fn portallar(c: &Connection, limit: i64) -> Result<Vec<PortalRow>> {
-    let mut st = c.prepare(
-        "SELECT g.id, g.token, p.path, g.branch, g.created_at, g.revoked_at
-         FROM genel_portallar g JOIN projects p ON p.id = g.project_id
-         ORDER BY g.id DESC LIMIT ?1",
-    )?;
-    let rows = st.query_map([limit], |r| {
-        Ok(PortalRow {
-            id: r.get(0)?,
-            token: r.get(1)?,
-            project_path: r.get(2)?,
-            branch: r.get(3)?,
-            created_at: r.get(4)?,
-            revoked_at: r.get(5)?,
-        })
-    })?;
-    Ok(rows.collect::<rusqlite::Result<_>>()?)
-}
-
-/// Geçerli (iptal edilmemiş) genel ana sayfa linkinin kapsamı: proje ve branch.
-pub fn portal(c: &Connection, token: &str) -> Result<Option<(i64, String)>> {
-    Ok(c.query_row(
-        "SELECT project_id, branch FROM genel_portallar WHERE token = ?1 AND revoked_at IS NULL",
-        [token],
-        |r| Ok((r.get(0)?, r.get(1)?)),
-    )
-    .optional()?)
-}
-
 // ---------------------------------------------------------------------------------------------
 // SW-4.7 arama
 
@@ -766,6 +730,16 @@ pub fn search(c: &Connection, f: &SearchFilter) -> Result<(Vec<SearchRow>, i64)>
 // Grafikler: gidişat ve feature bazlı özet
 
 /// Proje + branch'in son `limit` biten koşumu, eskiden yeniye.
+/// Projenin biten (sonuç gelmiş) koşumları, en yeni önce (yayın adayları).
+pub fn project_runs_finished(c: &Connection, project_id: i64) -> Result<Vec<RunRow>> {
+    let mut st = c.prepare(&format!(
+        "SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id
+          WHERE r.project_id = ?1 AND r.status <> 'running' AND r.total > 0 ORDER BY r.id DESC"
+    ))?;
+    let rows = st.query_map([project_id], run_row)?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
 pub fn trend(c: &Connection, project_id: i64, branch: &str, limit: i64) -> Result<Vec<RunRow>> {
     let mut st = c.prepare(&format!(
         "SELECT * FROM (SELECT {RUN_COLS} FROM runs r JOIN projects p ON p.id = r.project_id

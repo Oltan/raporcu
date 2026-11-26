@@ -43,7 +43,7 @@ def watch(server: str, token: str, run_id: int, results: Path, events_file: Path
           interval=1.0, max_secs=6 * 3600):
     s = requests.Session()
     s.trust_env = False                     # sistem proxy'si kullanılmaz (aynı makine)
-    s.headers.update({"Authorization": f"Bearer {token}", "x-ulak-version": "0.1.0"})
+    s.headers.update({"Authorization": f"Bearer {token}", "x-ulak-version": "0.2.0"})
     base = f"{server}/api/ci/runs/{run_id}"
     sent_file = state / "sent.txt"
     sent = set(sent_file.read_text(encoding="utf-8").split()) if sent_file.exists() else set()

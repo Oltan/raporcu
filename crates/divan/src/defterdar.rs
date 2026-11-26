@@ -64,8 +64,8 @@ pub fn create_run(c: &Connection, project_id: i64, ci: &CiInfo, status: &str, to
     let t = now();
     c.execute(
         "INSERT INTO runs (project_id, branch, commit_sha, pipeline_id, pipeline_url, job_id, job_url, os, status,
-                           total_expected, started_at, last_activity_at, app_version)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12)",
+                           total_expected, started_at, last_activity_at, app_version, app_name)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?11, ?12, ?13)",
         params![
             project_id,
             branch,
@@ -78,7 +78,8 @@ pub fn create_run(c: &Connection, project_id: i64, ci: &CiInfo, status: &str, to
             status,
             total_expected,
             t,
-            ci.app_version.as_deref().map(str::trim).filter(|v| !v.is_empty())
+            ci.app_version.as_deref().map(str::trim).filter(|v| !v.is_empty()),
+            ci.app_name.as_deref().map(str::trim).filter(|v| !v.is_empty())
         ],
     )?;
     let run_id = c.last_insert_rowid();

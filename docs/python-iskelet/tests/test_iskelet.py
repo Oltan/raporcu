@@ -72,9 +72,10 @@ def test_sw_2_1_upload_real_sample(client):
 
 
 def test_sw_4_3_uygulama_surumu(client):
-    rid = client.post(f"/api/ci/runs?{Q}&app_version=1.5.0", content=sample_zip(), headers=H).json()["run_id"]
+    rid = client.post(f"/api/ci/runs?{Q}&app_version=1.5.0&app_name=Kontrol", content=sample_zip(), headers=H).json()["run_id"]
     c = client.app.state.db.reader()
-    assert c.execute("SELECT app_version FROM runs WHERE id=?", (rid,)).fetchone()["app_version"] == "1.5.0"
+    r = c.execute("SELECT app_version, app_name FROM runs WHERE id=?", (rid,)).fetchone()
+    assert r["app_version"] == "1.5.0" and r["app_name"] == "Kontrol"
 
 
 def test_sw_2_2_after_screenshot_only_on_failed(client):

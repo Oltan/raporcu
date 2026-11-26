@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Raporlar{% endblock %}
+{% block content %}
+<div class="baslik"><div><h1>Dışa açık raporlar</h1><div class="alt">Rapor = repo + yazılım adı (UYGULAMA_ADI) + sürüm (UYGULAMA_SURUMU). Seçilen koşumlar tek raporda birleşir; ana sayfada (<a href="/">/</a>) yalnızca yayınlananlar görünür.</div></div></div>
+
+<section class="kart">
+  <h2>Yayınlanabilir sürümler</h2>
+  {% if adaylar.is_empty() %}<p class="kucuk">Uygulama sürümü verilmiş biten koşum yok. GitLab'da Run pipeline formunda UYGULAMA_ADI ve UYGULAMA_SURUMU doldurun.</p>{% else %}
+  <div class="tablo"><table>
+    <tr><th>Yazılım</th><th>Sürüm</th><th>Repo</th><th class="num">Koşum</th><th>Son koşum</th><th>Durum</th><th></th></tr>
+    {% for a in adaylar %}
+    <tr>
+      <td><b>{{ a.yazilim }}</b></td>
+      <td class="mono">{{ a.surum }}</td>
+      <td class="kucuk">{{ a.project_path }}</td>
+      <td class="num">{{ a.kosum }}</td>
+      <td class="kucuk">{{ a.son|zaman }}</td>
+      <td>{% if let Some(y) = a.yayin %}<a href="/rapor/{{ y.0 }}">yayında</a>{% if y.1 > 0 %} · <b>{{ y.1 }} yeni koşum</b>{% endif %}{% else %}<span class="kucuk">yayınlanmadı</span>{% endif %}</td>
+      <td><a class="btn{% if a.yayin.is_none() %} ana{% endif %}" href="/admin/yayinlar/yeni?proje={{ a.project_id }}&yazilim={{ a.yazilim|enc }}&surum={{ a.surum|enc }}">{% if a.yayin.is_some() %}Güncelle{% else %}Yayınla{% endif %}</a></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+</section>
+
+<section class="kart">
+  <h2>Yayınlanmış raporlar</h2>
+  {% if yayinlar.is_empty() %}<p class="kucuk">Henüz yok.</p>{% else %}
+  <div class="tablo"><table>
+    <tr><th>Yazılım</th><th>Sürüm</th><th>Repo</th><th>Tarih</th><th class="num">Toplam</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Başarı</th><th></th></tr>
+    {% for o in yayinlar %}
+    <tr>
+      <td><b>{{ o.y.app_name }}</b></td>
+      <td class="mono"><a href="/rapor/{{ o.y.id }}">{{ o.y.app_version }}</a></td>
+      <td class="kucuk">{{ o.y.project_path }}</td>
+      <td class="kucuk">{{ o.tarih|zaman }}</td>
+      <td class="num">{{ o.sayim.toplam() }}</td>
+      <td class="num">{{ o.sayim.gecen }}</td>
+      <td class="num">{{ o.sayim.kalan }}</td>
+      <td class="num">%{{ o.sayim.oran() }}</td>
+      <td class="satir"><a class="btn" href="/admin/yayinlar/yeni?proje={{ o.y.project_id }}&yazilim={{ o.y.app_name|enc }}&surum={{ o.y.app_version|enc }}">Düzenle</a><form method="post" action="/admin/yayinlar/{{ o.y.id }}/sil" onsubmit="return confirm('Rapor ana sayfadan kaldırılsın mı? Koşumlar silinmez.')"><button class="tehlike">Kaldır</button></form></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+</section>
+{% endblock %}

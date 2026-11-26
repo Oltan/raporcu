@@ -21,6 +21,9 @@ pub struct CiInfo {
     pub os: Option<String>,
     /// Test edilen uygulamanın sürümü (`UYGULAMA_SURUMU`; ör. pom'daki `-Duygulama.version`). Eski ulak göndermez.
     pub app_version: Option<String>,
+    /// Test edilen yazılımın adı (`UYGULAMA_ADI`; 0.2.0). Aynı repo farklı adlarla (konfigürasyon)
+    /// koşulabilir; dışa açık raporlar yazılım adı + sürüm başınadır. Yoksa proje adı.
+    pub app_name: Option<String>,
 }
 
 impl CiInfo {
@@ -43,6 +46,7 @@ impl CiInfo {
         push("job_url", &self.job_url);
         push("os", &self.os);
         push("app_version", &self.app_version);
+        push("app_name", &self.app_name);
         parts.join("&")
     }
 }

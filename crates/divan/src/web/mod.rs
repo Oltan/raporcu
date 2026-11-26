@@ -8,6 +8,7 @@ pub mod genel;
 pub mod gitlab_hook;
 pub mod pages;
 pub mod tools;
+pub mod yayinlar;
 
 use crate::AppState;
 use axum::http::StatusCode;
@@ -15,9 +16,49 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 
+/// Giriş istemeyen uçlar: dışa açık raporlar, ekip linki (token), giriş, statik dosyalar, ulak indirme.
+/// Admin uçları kendi `Admin` çıkarıcısıyla korunur.
 pub fn routes() -> Router<AppState> {
     Router::new()
-        .route("/", get(pages::dashboard))
+        // dışa açık: yayınlanmış sürüm raporları
+        .route("/", get(genel::ana_sayfa))
+        .route("/rapor/{id}", get(genel::rapor_sayfasi))
+        .route("/rapor/{id}/test/{sid}", get(genel::test_sayfasi))
+        .route("/rapor/{id}/dosya/{aid}", get(genel::rapor_dosya))
+        .route("/g/{*rest}", get(genel::eski_link))
+        // ekip linki (token)
+        .route("/s/{token}", get(pages::share_page))
+        .route("/s/{token}/scenarios/{id}", get(pages::share_scenario))
+        .route("/s/{token}/files/{id}", get(pages::share_file))
+        // admin
+        .route("/admin", get(pages::admin_page))
+        .route("/admin/runs/{id}/share", post(pages::create_share))
+        .route("/admin/shares/{id}/revoke", post(pages::revoke_share))
+        .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
+        .route("/admin/scenarios/{id}/jira", get(ayarlar::bug_form).post(ayarlar::bug_create))
+        .route("/admin/scenarios/{id}/jira/bagla", post(ayarlar::issue_bagla))
+        .route("/admin/scenarios/{id}/jira/kaldir", post(ayarlar::issue_bag_kaldir))
+        .route("/admin/taslaklar/{id}/ac", post(ayarlar::draft_open))
+        .route("/admin/taslaklar/{id}/yoksay", post(ayarlar::draft_dismiss))
+        .route("/admin/yayinlar", get(yayinlar::liste).post(yayinlar::kaydet))
+        .route("/admin/yayinlar/yeni", get(yayinlar::form))
+        .route("/admin/yayinlar/{id}/sil", post(yayinlar::sil))
+        .route("/admin/ayarlar", get(ayarlar::page))
+        .route("/admin/ayarlar/jira", post(ayarlar::save_jira))
+        .route("/admin/ayarlar/doors", post(ayarlar::save_doors))
+        .route("/admin/runs/{id}/fix", post(pages::trigger_fix))
+        .route("/admin/scenarios/{id}/fix", post(pages::trigger_fix_scenario))
+        .route("/login", get(admin::login_page).post(admin::login))
+        .route("/logout", post(admin::logout))
+        .route("/api/admin/me", get(admin::me))
+        .route("/static/{*path}", get(static_file))
+        .route("/api/tools/ulak", get(tools::ulak))
+}
+
+/// Ekip paneli: `EKIP_SIFRESI` verilmişse ekip ya da admin girişi ister (`auth::ekip_guard`).
+pub fn ekip_routes() -> Router<AppState> {
+    Router::new()
+        .route("/panel", get(pages::dashboard))
         .route("/runs/{id}", get(pages::run_page))
         .route("/runs/{id}/live", get(pages::live_page))
         .route("/canli", get(pages::canli_page))
@@ -30,36 +71,7 @@ pub fn routes() -> Router<AppState> {
         .route("/search", get(pages::search_page))
         .route("/export.csv", get(pages::export_csv))
         .route("/healing", get(pages::healing_page))
-        .route("/s/{token}", get(pages::share_page))
-        .route("/s/{token}/scenarios/{id}", get(pages::share_scenario))
-        .route("/s/{token}/files/{id}", get(pages::share_file))
-        .route("/g/{token}", get(genel::ana_sayfa))
-        .route("/g/{token}/ozellik", get(genel::ozellik_sayfasi))
-        .route("/g/{token}/runs/{id}", get(genel::portal_rapor))
-        .route("/g/{token}/runs/{id}/scenarios/{sid}", get(genel::portal_senaryo))
-        .route("/g/{token}/runs/{id}/files/{aid}", get(genel::portal_dosya))
-        .route("/admin", get(pages::admin_page))
-        .route("/admin/runs/{id}/share", post(pages::create_share))
-        .route("/admin/runs/{id}/portal", post(genel::portal_olustur))
-        .route("/admin/shares/{id}/revoke", post(pages::revoke_share))
-        .route("/admin/portallar/{id}/revoke", post(genel::portal_iptal))
-        .route("/admin/scenarios/{id}/triage", post(pages::set_triage))
-        .route("/admin/scenarios/{id}/jira", get(ayarlar::bug_form).post(ayarlar::bug_create))
-        .route("/admin/scenarios/{id}/jira/bagla", post(ayarlar::issue_bagla))
-        .route("/admin/scenarios/{id}/jira/kaldir", post(ayarlar::issue_bag_kaldir))
-        .route("/admin/taslaklar/{id}/ac", post(ayarlar::draft_open))
-        .route("/admin/taslaklar/{id}/yoksay", post(ayarlar::draft_dismiss))
-        .route("/admin/ayarlar", get(ayarlar::page))
-        .route("/admin/ayarlar/jira", post(ayarlar::save_jira))
-        .route("/admin/ayarlar/doors", post(ayarlar::save_doors))
-        .route("/admin/runs/{id}/fix", post(pages::trigger_fix))
-        .route("/admin/scenarios/{id}/fix", post(pages::trigger_fix_scenario))
-        .route("/login", get(admin::login_page).post(admin::login))
-        .route("/logout", post(admin::logout))
-        .route("/api/admin/me", get(admin::me))
-        .route("/static/{*path}", get(static_file))
         .route("/files/{id}", get(files::attachment))
-        .route("/api/tools/ulak", get(tools::ulak))
         .route("/api/canli", get(api::canli))
         .route("/api/runs", get(api::runs))
         .route("/api/runs/{id}", get(api::run))

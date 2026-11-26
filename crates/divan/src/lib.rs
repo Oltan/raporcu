@@ -23,6 +23,7 @@ pub mod stall;
 pub mod triage;
 pub mod upload;
 pub mod web;
+pub mod yayin;
 
 use axum::routing::{get, post};
 use axum::Router;
@@ -39,6 +40,8 @@ pub struct AppState {
     pub db: Db,
     pub auth: Arc<dyn auth::Authenticator>,
     pub sessions: auth::Sessions,
+    /// ekip paneli oturumları (`EKIP_SIFRESI` ile giriş)
+    pub ekip: auth::Sessions,
     pub throttle: auth::LoginThrottle,
     pub recent_logs: logging::RecentLogs,
     /// Sonucu değişen koşumun id'si (SW-3.4)
@@ -69,6 +72,7 @@ impl AppState {
             db,
             auth,
             sessions: Default::default(),
+            ekip: Default::default(),
             throttle: Default::default(),
             recent_logs,
             live: tokio::sync::broadcast::channel(256).0,
@@ -99,6 +103,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/gitlab/webhook", post(web::gitlab_hook::webhook))
         .nest("/api/ci", ci)
         .merge(web::routes())
+        .merge(web::ekip_routes().route_layer(axum::middleware::from_fn_with_state(state.clone(), auth::ekip_guard)))
         .with_state(state)
 }
 

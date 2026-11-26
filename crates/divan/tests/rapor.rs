@@ -75,7 +75,7 @@ async fn test_sw_4_3_uygulama_surumu_raporda_aramada_csvde() {
         eski_html.contains("UYGULAMA_SURUMU verilmedi") && !eski_html.contains("<b>1.5.0</b>"),
         "sürümsüz koşumda yer görünür, değer —"
     );
-    let (_, pano) = app.get("/").await;
+    let (_, pano) = app.get("/panel").await;
     assert!(pano.contains("<th>Uygulama</th>"), "dashboard'da ayrı sütun");
     assert!(pano.contains("<b>1.5.0</b>"), "dashboard koşum listesinde");
     assert!(pano.contains("UYGULAMA_SURUMU verilmedi"), "sürümsüz koşum satırında —");
@@ -131,12 +131,12 @@ async fn test_sw_4_2_dashboard_history_and_flaky_detection() {
         .await;
     assert_eq!(st, StatusCode::OK, "{body}");
     // geçerken kalmaya başlayan senaryo bozulmadır, flaky değil
-    let (_, dash) = app.get("/").await;
+    let (_, dash) = app.get("/panel").await;
     let flaky_section = dash.split("Flaky senaryolar").nth(1).unwrap();
     assert!(!flaky_section.contains("Geçerli bilgilerle giriş"), "bozulma flaky sayılmaz");
     // 3. koşum: aynı sürümde yeniden geçer → kaldıktan sonra geçti, flaky
     upload_sample(&app, q).await;
-    let (st, dash) = app.get("/").await;
+    let (st, dash) = app.get("/panel").await;
     assert_eq!(st, StatusCode::OK);
     assert!(dash.contains("Koşumlar") && dash.contains("#2"));
     assert!(dash.contains("Flaky senaryolar"));
@@ -218,9 +218,9 @@ async fn test_sw_4_6_dashboard_filtered_by_project_and_branch() {
     let app = app();
     upload_sample(&app, "project_path=ekip%2Fa&branch=main").await;
     upload_sample(&app, "project_path=ekip%2Fb&branch=develop").await;
-    let (_, all) = app.get("/").await;
+    let (_, all) = app.get("/panel").await;
     assert!(all.contains("ekip/a") && all.contains("ekip/b"));
-    let (_, only_b) = app.get("/?project=2&branch=develop").await;
+    let (_, only_b) = app.get("/panel?project=2&branch=develop").await;
     let table = only_b.split("<h2>Koşumlar</h2>").nth(1).unwrap();
     assert!(table.contains("ekip/b") && !table.contains("ekip/a<"));
 }
@@ -371,179 +371,258 @@ async fn test_sw_5_1_share_link_hides_internal_info() {
     assert!(!log_lines("paylaşım linki oluşturuldu").is_empty());
 }
 
-#[tokio::test]
-async fn test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope() {
-    let app = app();
-    let id = upload_sample(&app, Q).await;
-    app.state
-        .db
-        .write(move |c| divan::triage::apply_rules(c, id, 10, 0.7).map(|_| ()))
-        .await
-        .unwrap();
-    let cookie = app.admin_cookie();
-    let yol = format!("/admin/runs/{id}/portal");
-    let r = post_form(&app, &yol, &cookie, "").await;
-    let loc = r.headers()["location"].to_str().unwrap().to_string();
-    let token = loc.split("portal:").nth(1).unwrap().to_string();
-    // aynı kapsam için ikinci link üretilmez
-    let r = post_form(&app, &yol, &cookie, "").await;
-    assert!(r.headers()["location"].to_str().unwrap().ends_with(&token));
-
-    let (st, html) = app.get(&format!("/g/{token}")).await;
-    assert_eq!(st, StatusCode::OK);
-    for var in [
-        "1 ürün hatası bulundu",
-        "class=\"donut\"",
-        "class=\"cizgi-grafik\"",
-        "class=\"sutun-grafik\"",
-        "class=\"mini-cizgi\"",
-        "Giriş ekranı",
-    ] {
-        assert!(html.contains(var), "ana sayfada olmalı: {var}");
-    }
-    let (st, ozellik) = app.get(&format!("/g/{token}/ozellik?ad=Giri%C5%9F%20ekran%C4%B1")).await;
-    assert_eq!(st, StatusCode::OK);
-    assert!(ozellik.contains("Geçerli bilgilerle giriş") && ozellik.contains("class=\"matris\""));
-    for sayfa in [&html, &ozellik] {
-        for gizli in [
-            "Şifremi unuttum bağlantısı",
-            "Yavaş açılan karşılama mesajı",
-            "flaky",
-            "deneme",
-            "broken",
-            "Branch",
-            "main",
-        ] {
-            assert!(
-                !sayfa.replace("<main>", "").replace("</main>", "").contains(gizli),
-                "genel sayfada görünmemeli: {gizli}"
-            );
+/// Örnek sonuçların ikinci bir feature olarak koşulmuş kopyası (`Ayarlar`, farklı anahtarlar), ve
+/// istenirse feature dosyası olmayan bir JUnit/ortam yoklama sonucu.
+fn feature_kopyasi(feature: Option<&str>, probe: bool) -> Vec<u8> {
+    let mut girdiler: Vec<(String, Vec<u8>)> = Vec::new();
+    for e in std::fs::read_dir(sample_dir()).unwrap() {
+        let p = e.unwrap().path();
+        let n = p.file_name().unwrap().to_string_lossy().to_string();
+        let mut data = std::fs::read(&p).unwrap();
+        if let Some(f) = feature {
+            if n.ends_with(".json") {
+                let s = String::from_utf8(data)
+                    .unwrap()
+                    .replace("\"Giriş ekranı\"", &format!("\"{f}\""))
+                    .replace("features/giris.feature", "features/ayarlar.feature")
+                    .replace("\"historyId\":\"", "\"historyId\":\"ay-")
+                    .replace("\"testCaseId\":\"", "\"testCaseId\":\"ay-");
+                data = s.into_bytes();
+            }
+            // aynı result uuid'leri ikinci kez sayılmasın diye dosya adı ve uuid değişir
+            let n2 = format!("ay-{n}");
+            let s = String::from_utf8_lossy(&data).replace("\"uuid\":\"", "\"uuid\":\"ay-").into_bytes();
+            girdiler.push((n2, s));
+        } else {
+            girdiler.push((n, data));
         }
     }
+    if probe {
+        let v = serde_json::json!({
+            "uuid": "probe-1", "historyId": "probe-hist", "name": "AwtDisplayProbeTest",
+            "fullName": "core.HeadlessEnvironmentProbe.AwtDisplayProbeTest", "status": "failed",
+            "statusDetails": { "message": "Headless ortam" }, "stage": "finished",
+            "start": 1, "stop": 2, "labels": [{ "name": "framework", "value": "junit-platform" }]
+        });
+        girdiler.push(("probe-1-result.json".into(), v.to_string().into_bytes()));
+    }
+    let refs: Vec<(&str, &[u8])> = girdiler.iter().map(|(n, d)| (n.as_str(), d.as_slice())).collect();
+    zip_entries(&refs)
+}
 
-    let run = run_json(&app, id).await;
-    let gecen = scenario_id(&run, "Geçerli bilgilerle giriş");
-    let test_kodu = scenario_id(&run, "Şifremi unuttum bağlantısı");
-    let (st, _) = app.get(&format!("/g/{token}/runs/{id}/scenarios/{gecen}")).await;
-    assert_eq!(st, StatusCode::OK);
-    let (st, _) = app.get(&format!("/g/{token}/runs/{id}/scenarios/{test_kodu}")).await;
-    assert_eq!(st, StatusCode::NOT_FOUND);
-
-    // feature sekmesi: yalnızca o feature'ın senaryoları ve sayıları
-    app.state
-        .db
-        .write(move |c| {
-            c.execute("UPDATE scenarios SET feature = 'Ayarlar' WHERE id = ?1", [gecen])?;
-            Ok(())
-        })
-        .await
-        .unwrap();
-    let (_, tumu) = app.get(&format!("/g/{token}/runs/{id}")).await;
-    assert!(tumu.contains("?bolum=Ayarlar") && tumu.contains("Yanlış şifrede özel mesaj"));
-    let (_, sekme) = app.get(&format!("/g/{token}/runs/{id}?bolum=Ayarlar")).await;
-    assert!(sekme.contains("Geçerli bilgilerle giriş"));
-    assert!(!sekme.contains("Yanlış şifrede özel mesaj") && !sekme.contains("ürün hatası bulundu"));
-    let (st, bilinmeyen) = app.get(&format!("/g/{token}/runs/{id}?bolum=Yok")).await;
-    assert_eq!(st, StatusCode::OK);
-    assert!(bilinmeyen.contains("Yanlış şifrede özel mesaj"));
-
-    // başka proje ya da branch'in koşumu bu linkten açılmaz
-    let baska = upload_sample(&app, &Q.replace("branch=main", "branch=gizli")).await;
-    assert_ne!(baska, id);
-    let (st, _) = app.get(&format!("/g/{token}/runs/{baska}")).await;
-    assert_eq!(st, StatusCode::NOT_FOUND);
-
-    let portal_id: i64 = app
-        .state
-        .db
-        .read(|c| Ok(c.query_row("SELECT id FROM genel_portallar", [], |r| r.get(0))?))
-        .await
-        .unwrap();
-    post_form(&app, &format!("/admin/portallar/{portal_id}/revoke"), &cookie, "").await;
-    let (st, _) = app.get(&format!("/g/{token}")).await;
-    assert_eq!(st, StatusCode::NOT_FOUND);
+async fn yukle_zip(app: &TestApp, q: &str, zip: Vec<u8>) -> i64 {
+    let (st, b) = app.ci_post(&format!("/api/ci/runs?{q}"), "application/zip", zip).await;
+    assert_eq!(st, StatusCode::OK, "{b}");
+    serde_json::from_str::<serde_json::Value>(&b).unwrap()["run_id"].as_i64().unwrap()
 }
 
 #[tokio::test]
-async fn test_sw_5_1_genel_rapor_shows_only_product_results() {
+async fn test_sw_5_1_yayin_iki_kosum_tek_raporda_ve_ana_sayfa() {
     let app = app();
-    let id = upload_sample(&app, Q).await;
-    app.state
+    let k = format!("{Q}&app_name=Kontrol%20Yaz%C4%B1l%C4%B1m%C4%B1&app_version=2.1.0");
+    let r1 = yukle_zip(&app, &k, feature_kopyasi(None, true)).await;
+    let r2 = yukle_zip(&app, &k, feature_kopyasi(Some("Ayarlar"), false)).await;
+    let sim = yukle_zip(
+        &app,
+        &format!("{Q}&app_name=Sim%C3%BClat%C3%B6r&app_version=1.0"),
+        feature_kopyasi(None, false),
+    )
+    .await;
+    let cookie = app.admin_cookie();
+
+    // yayınlanmadan ana sayfa boş; panel girişsiz (EKIP_SIFRESI yok) açık
+    let (st, ana) = app.get("/").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(ana.contains("Henüz yayınlanmış rapor yok"));
+
+    // admin: aday listesi ve form (koşumun üçlüsüyle)
+    let (_, liste) = app.get_admin("/admin/yayinlar").await;
+    assert!(liste.contains("Kontrol Yazılımı") && liste.contains("Simülatör") && liste.contains("2.1.0"));
+    let (st, form) = app.get_admin(&format!("/admin/yayinlar/yeni?run={r1}")).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(form.contains(&format!("value=\"{r1}\" checked")) && form.contains(&format!("value=\"{r2}\" checked")));
+    assert!(!form.contains(&format!("value=\"{sim}\"")), "başka yazılımın koşumu listede yok");
+    assert!(form.contains("1 sonuç (JUnit"), "yoklama testi kendiliğinden dışarıda");
+    let (st, _) = app.get("/admin/yayinlar/yeni?run=1").await;
+    assert_ne!(st, StatusCode::OK, "admin girişi gerekir");
+
+    // bir testi rapordan çıkararak yayınla
+    let haric: String = app
+        .state
         .db
-        .write(move |c| divan::triage::apply_rules(c, id, 10, 0.7).map(|_| ()))
+        .read(move |c| {
+            Ok(c.query_row(
+                "SELECT scenario_key FROM scenarios WHERE run_id = ?1 AND name = 'Geçerli bilgilerle giriş'",
+                [r1],
+                |r| r.get(0),
+            )?)
+        })
         .await
         .unwrap();
-    let cookie = app.admin_cookie();
-    let r = post_form(&app, &format!("/admin/runs/{id}/share"), &cookie, "gorunum=genel").await;
-    let loc = r.headers()["location"].to_str().unwrap().to_string();
-    let token = loc.split("share:").nth(1).unwrap().to_string();
+    let govde = format!(
+        "proje=1&yazilim=Kontrol%20Yaz%C4%B1l%C4%B1m%C4%B1&surum=2.1.0&kosum={r1}&kosum={r2}&haric={}",
+        urlencoding::encode(&haric)
+    );
+    let r = post_form(&app, "/admin/yayinlar", &cookie, &govde).await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    let yer = r.headers()["location"].to_str().unwrap().to_string();
+    assert!(yer.starts_with("/rapor/"));
+    let r = post_form(
+        &app,
+        "/admin/yayinlar",
+        &cookie,
+        &format!("proje=1&yazilim=Sim%C3%BClat%C3%B6r&surum=1.0&kosum={sim}"),
+    )
+    .await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert!(!log_lines("rapor yayınlandı").is_empty());
 
-    let (st, html) = app.get(&format!("/s/{token}")).await;
+    // test raporu: girişsiz, iki feature tek raporda
+    let (st, rapor) = app.get(&yer).await;
     assert_eq!(st, StatusCode::OK);
-    assert!(html.contains("1 ürün hatası bulundu"));
-    assert!(html.contains("Yanlış şifrede özel mesaj"));
-    assert!(html.contains("Geçerli bilgilerle giriş"));
-    for gizli in [
-        "Şifremi unuttum bağlantısı",
-        "Yavaş açılan karşılama mesajı",
-        "Beni hatırla seçeneği",
-        "flaky",
-        "deneme",
-        "Triage",
-        "Test kodu",
-        "broken",
+    assert!(rapor.contains("Kontrol Yazılımı · sürüm 2.1.0"));
+    assert!(
+        rapor.contains("Giriş ekranı") && rapor.contains("Ayarlar"),
+        "iki koşumun feature'ları birleşti"
+    );
+    // ikinci denemede geçen test görünür ve "Geçti" (eski hata: hiç görünmüyor, inceleniyor sayılıyordu)
+    let i = rapor.find("Yavaş açılan karşılama mesajı").expect("tekrarda geçen test raporda");
+    assert!(rapor[i.saturating_sub(200)..i].contains("Geçti"), "tekrarda geçen = Geçti");
+    // giriş: 2 hatalı giriş + yavaş = 3 geçti (geçerli giriş çıkarıldı), 2 kaldı; ayarlar: 4 geçti, 2 kaldı
+    assert!(rapor.contains("<b>11</b><span>Toplam test</span>"), "toplam");
+    assert!(rapor.contains("<b>7</b><span>Geçen test</span>") && rapor.contains("<b>4</b><span>Kalan test</span>"));
+    assert!(rapor.contains("Başarı oranı") && rapor.contains("<details class=\"test-case"));
+    for yok in [
+        "nceleniyor",
+        "AwtDisplayProbeTest",
+        "abc123de",
+        "Commit",
         "Branch",
+        "Koşum #",
+        "Ürün hataları",
+        "?bolum=",
         "/browse/",
-        "giris.feature",
-        "@smoke",
+        "Doğrulan",
     ] {
-        assert!(!html.contains(gizli), "genel raporda görünmemeli: {gizli}");
+        assert!(!rapor.contains(yok), "raporda olmamalı: {yok}");
     }
+    assert!(rapor.contains("STAJ-42"), "Jira issue'su test case'in içinde");
+    assert_eq!(
+        rapor.matches("Geçerli bilgilerle giriş").count(),
+        1,
+        "çıkarılan test yalnızca diğer feature'da"
+    );
 
-    let run = run_json(&app, id).await;
-    let urun = scenario_id(&run, "Yanlış şifrede özel mesaj");
-    let (st, sp) = app.get(&format!("/s/{token}/scenarios/{urun}")).await;
+    // test ayrıntısı ve ekran görüntüsü yalnızca rapordaki testler için
+    let id: i64 = yer.trim_start_matches("/rapor/").parse().unwrap();
+    let (kalan, probe, disari): (i64, i64, i64) = app
+        .state
+        .db
+        .read(move |c| {
+            let q = |n: &str, r: i64| {
+                c.query_row(
+                    "SELECT id FROM scenarios WHERE run_id = ?1 AND name = ?2 AND is_latest = 1",
+                    rusqlite::params![r, n],
+                    |x| x.get::<_, i64>(0),
+                )
+            };
+            Ok((
+                q("Yanlış şifrede özel mesaj", r1)?,
+                q("AwtDisplayProbeTest", r1)?,
+                q("Yanlış şifrede özel mesaj", sim)?,
+            ))
+        })
+        .await
+        .unwrap();
+    let (st, ayrinti) = app.get(&format!("/rapor/{id}/test/{kalan}")).await;
     assert_eq!(st, StatusCode::OK);
-    assert!(!sp.contains("Yığın izi") && !sp.contains("STAJ-42") && !sp.contains("<video"));
-    let shot = sp
-        .split(&format!("/s/{token}/files/"))
-        .nth(1)
-        .expect("ürün hatasının ekran görüntüsü")
-        .split('"')
-        .next()
-        .unwrap()
-        .to_string();
-    let (st, _) = app.get(&format!("/s/{token}/files/{shot}")).await;
-    assert_eq!(st, StatusCode::OK);
+    assert!(ayrinti.contains("Adımlar") && ayrinti.contains("Beklenen ve görülen") && !ayrinti.contains("abc123de"));
+    assert_eq!(app.get(&format!("/rapor/{id}/test/{probe}")).await.0, StatusCode::NOT_FOUND);
+    assert_eq!(app.get(&format!("/rapor/{id}/test/{disari}")).await.0, StatusCode::NOT_FOUND);
+    let aid: i64 = app
+        .state
+        .db
+        .read(move |c| {
+            Ok(c.query_row(
+                "SELECT id FROM attachments WHERE scenario_id = ?1 AND mime LIKE 'image/%' LIMIT 1",
+                [kalan],
+                |r| r.get(0),
+            )?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(app.get(&format!("/rapor/{id}/dosya/{aid}")).await.0, StatusCode::OK);
 
-    // gizlenen senaryolar ve ekleri adresi bilinse de açılmaz
-    let test_kodu = scenario_id(&run, "Şifremi unuttum bağlantısı");
-    let (st, _) = app.get(&format!("/s/{token}/scenarios/{test_kodu}")).await;
-    assert_eq!(st, StatusCode::NOT_FOUND);
-    let gecen = scenario_id(&run, "Geçerli bilgilerle giriş");
-    let (st, sp) = app.get(&format!("/s/{token}/scenarios/{gecen}")).await;
-    assert_eq!(st, StatusCode::OK);
-    assert!(sp.contains("Doğrulandı") && sp.contains("Adımlar") && !sp.contains("@smoke"));
-    let atts = app.state.db.read(move |c| divan::queries::attachments(c, test_kodu)).await.unwrap();
-    assert!(!atts.is_empty());
-    for a in atts {
-        let (st, _) = app.get(&format!("/s/{token}/files/{}", a.id)).await;
-        assert_eq!(st, StatusCode::NOT_FOUND);
+    // ana sayfa: yazılım sekmeleri, sürüm başına grafik, raporlar; commit ve inceleniyor yok
+    let (_, ana) = app.get("/").await;
+    assert!(ana.contains("Kontrol Yazılımı") && ana.contains("Simülatör"), "sekmeler");
+    assert!(ana.contains("Sürümlere göre başarı") && ana.contains("Sürüm başına test sonuçları"));
+    assert!(ana.contains("Toplam test") && ana.contains("Başarı oranı"));
+    for yok in ["nceleniyor", "Bölümlere göre", "Commit", "ürün hatası bulundu", "Doğrulan"] {
+        assert!(!ana.contains(yok), "ana sayfada olmamalı: {yok}");
     }
+    let (_, sim_ana) = app.get("/?yazilim=Sim%C3%BClat%C3%B6r").await;
+    assert!(sim_ana.contains("sürüm <b>1.0</b>") && !sim_ana.contains("2.1.0"));
 
-    // ekip linki eski ayrıntılı görünümde kalır
-    let r = post_form(&app, &format!("/admin/runs/{id}/share"), &cookie, "").await;
-    let ekip = r.headers()["location"]
-        .to_str()
+    // eski genel linkler ana sayfaya
+    let r = app
+        .send(
+            axum::http::Request::get("/g/eski-token/runs/1")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(r.headers()["location"], "/");
+
+    // kaldırınca ana sayfadan çıkar
+    let r = post_form(&app, &format!("/admin/yayinlar/{id}/sil"), &cookie, "").await;
+    assert_eq!(r.status(), StatusCode::SEE_OTHER);
+    assert_eq!(app.get(&yer).await.0, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_sw_9_5_ekip_paneli_sifreyle() {
+    let app = app_with(|c| c.ekip_sifresi = Some(divan::config::Secret::new("ekip-gizli")));
+    let id = upload_sample(&app, Q).await;
+    let html = |uri: &str, cookie: &str| {
+        axum::http::Request::get(uri)
+            .header("accept", "text/html")
+            .header("cookie", cookie)
+            .body(axum::body::Body::empty())
+            .unwrap()
+    };
+    // girişsiz: panel ve iç sayfalar giriş sayfasına, API 401; dışa açık sayfa açık
+    for yol in ["/panel".to_string(), format!("/runs/{id}"), "/search".to_string()] {
+        let r = app.send(html(&yol, "")).await;
+        assert!(r.status().is_redirection(), "{yol}");
+        assert!(r.headers()["location"].to_str().unwrap().starts_with("/login?next="));
+    }
+    assert_eq!(app.get(&format!("/api/runs/{id}")).await.0, StatusCode::UNAUTHORIZED);
+    assert_eq!(app.get("/").await.0, StatusCode::OK);
+    // yanlış şifre
+    let r = post_form(&app, "/login", "", "password=yanlis&next=%2Fpanel").await;
+    assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
+    // ekip şifresi: ekip oturumu; admin işleri yine kapalı (hatalı denemeden sonraki bekleme geçsin)
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    let r = post_form(&app, "/login", "", "password=ekip-gizli&next=%2Fpanel").await;
+    assert!(r.status().is_redirection());
+    let cerez = r.headers()["set-cookie"].to_str().unwrap().split(';').next().unwrap().to_string();
+    assert!(cerez.starts_with("divan_ekip="));
+    let r = app.send(html("/panel", &cerez)).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    let r = app.send(html(&format!("/runs/{id}"), &cerez)).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    let r = app.send(html("/admin", &cerez)).await;
+    assert!(r.status().is_redirection(), "ekip oturumu admin değildir");
+    // admin oturumu ekip sayılır
+    let r = app.send(html("/panel", &app.admin_cookie())).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    // şifre loglara yazılmaz
+    assert!(!divan::logging::test_capture()
+        .lock()
         .unwrap()
-        .split("share:")
-        .nth(1)
-        .unwrap()
-        .to_string();
-    let (_, html) = app.get(&format!("/s/{ekip}")).await;
-    assert!(html.contains("Şifremi unuttum bağlantısı"));
-    let (_, admin) = app.get_admin("/admin").await;
-    assert!(admin.contains("<td>Genel</td>") && admin.contains("<td>Ekip</td>"));
+        .iter()
+        .any(|l| l.contains("ekip-gizli")));
 }
 
 #[tokio::test]
@@ -811,7 +890,7 @@ async fn test_sw_4_1_run_grouped_by_feature_with_charts() {
     assert!(html.contains("href=\"#f-giris-ekrani\""));
     // dashboard: halka, gidişat çizgisi, sütunlar, feature tablosu
     upload_sample(&app, Q).await;
-    let (_, d) = app.get("/?project=1&branch=main").await;
+    let (_, d) = app.get("/panel?project=1&branch=main").await;
     for needle in [
         "class=\"donut\"",
         "class=\"cizgi-grafik\"",

@@ -36,11 +36,11 @@ def create_run(c, project_id: int, ci: dict, status: str, total_expected=None) -
     t = now()
     cur = c.execute(
         """INSERT INTO runs (project_id, branch, commit_sha, pipeline_id, pipeline_url, job_id, job_url, os,
-                             status, total_expected, started_at, last_activity_at, app_version)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                             status, total_expected, started_at, last_activity_at, app_version, app_name)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (project_id, ci.get("branch") or "unknown", ci.get("commit"), ci.get("pipeline_id"), ci.get("pipeline_url"),
          ci.get("job_id"), ci.get("job_url"), ci.get("os"), status, total_expected, t, t,
-         (ci.get("app_version") or "").strip() or None))
+         (ci.get("app_version") or "").strip() or None, (ci.get("app_name") or "").strip() or None))
     log.info("koşum açıldı", extra={"run_id": cur.lastrowid})
     return cur.lastrowid
 

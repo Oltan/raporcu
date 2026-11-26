@@ -356,7 +356,8 @@ description: Projedeki sayfa nesnesi sınıfları. Yeni seçici ya da adım yaza
 - [ ] `ulak preflight` uyarısız geçiyor.
 - [ ] Pipeline'da `Canlı` sayfası koşan adımı gösteriyor.
 - [ ] Kalan senaryoda adımlar, ekran görüntüsü ve sahne ağacı var.
-- [ ] Koşum sayfasında **Genel ana sayfa linki** üretiliyor, gizli pencerede giriş istemeden açılıyor.
+- [ ] `.env`'de `EKIP_SIFRESI` var; gizli pencerede `/panel` giriş istiyor, `/` istemiyor.
+- [ ] Admin → Raporlar'dan bir sürüm raporu yayınlanıyor; `/`'de yazılım sekmesinde görünüyor.
 - [ ] Self-healing denemesi koşum sayfasında sonuç gösteriyor.
 
 ## 9. Güncelleme

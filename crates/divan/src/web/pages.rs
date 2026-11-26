@@ -144,6 +144,8 @@ pub struct DashCharts {
 
 pub struct DashFeature {
     pub anchor: String,
+    /// feature'ın en son koşulduğu koşum (feature'lar ayrı koşulunca farklı olabilir)
+    pub run_id: i64,
     pub f: queries::FeatureRow,
     pub bar: String,
     pub spark: String,
@@ -194,13 +196,28 @@ fn dash_charts(c: &rusqlite::Connection, project_id: i64, branch: &str) -> anyho
         })
         .collect();
     let ftrends = queries::feature_trends(c, project_id, branch, FEATURE_TREND_RUNS)?;
-    let features = queries::run_features(c, last.id)?
+    // son koşumlarda görülen her feature'ın en son sonucu: feature'lar ayrı koşulunca hepsi görünsün
+    let mut son_sonuc: Vec<(i64, queries::FeatureRow)> = Vec::new();
+    for r in trend.iter().rev().take(FEATURE_TREND_RUNS as usize) {
+        for f in queries::run_features(c, r.id)? {
+            if !son_sonuc.iter().any(|(_, g)| g.feature == f.feature) {
+                son_sonuc.push((r.id, f));
+            }
+        }
+    }
+    son_sonuc.sort_by(|(_, a), (_, b)| {
+        (b.failed + b.broken)
+            .cmp(&(a.failed + a.broken))
+            .then_with(|| a.feature.cmp(&b.feature))
+    });
+    let features = son_sonuc
         .into_iter()
-        .map(|f| {
+        .map(|(run_id, f)| {
             let vals = ftrends.get(&f.feature).cloned().unwrap_or_default();
             let bar = crate::charts::thin_bar(&crate::charts::status_slices(f.passed, f.failed, f.broken, f.other));
             DashFeature {
                 anchor: feature_anchor(&f.feature),
+                run_id,
                 spark: crate::charts::sparkline(&vals, &format!("{} geçme oranı gidişatı", f.feature)),
                 last_pct: vals.last().copied().unwrap_or(0.0).round() as i64,
                 first_pct: vals.first().copied().unwrap_or(0.0).round() as i64,
@@ -565,11 +582,6 @@ pub async fn run_page(
             let tok = &t[6..];
             let url = format!("{}/s/{}", st.cfg.public_url, html_escape(tok));
             Some(format!("Paylaşım linki: <a href=\"{url}\">{url}</a>"))
-        }
-        Some(t) if t.starts_with("portal:") => {
-            let tok = &t[7..];
-            let url = format!("{}/g/{}", st.cfg.public_url, html_escape(tok));
-            Some(format!("Genel ana sayfa linki: <a href=\"{url}\">{url}</a>"))
         }
         _ => None,
     };
@@ -1039,11 +1051,7 @@ pub(super) fn share_layout(token: &str) -> Layout {
     }
 }
 
-pub async fn share_page(
-    State(st): State<AppState>,
-    Path(token): Path<String>,
-    Query(q): Query<super::genel::BolumQuery>,
-) -> Result<Response, AppError> {
+pub async fn share_page(State(st): State<AppState>, Path(token): Path<String>) -> Result<Response, AppError> {
     let Some((id, gorunum)) = share_run_id(&st, &token).await? else {
         return Ok(message(
             share_layout(&token),
@@ -1052,8 +1060,9 @@ pub async fn share_page(
             "Bu paylaşım linki iptal edilmiş ya da hiç yok.",
         ));
     };
+    // 0.1.x'in genel rapor linki: artık dışa açık ana sayfa
     if gorunum == "genel" {
-        return super::genel::rapor_sayfasi(&st, &token, format!("/s/{token}"), None, id, q.bolum).await;
+        return Ok(Redirect::to("/").into_response());
     }
     let (conf, window) = (st.cfg.triage_auto_confidence, st.cfg.flaky_window);
     let Some((mut run, mut rows, _)) = st.db.read(move |c| load_run(c, id, conf, window)).await? else {
@@ -1070,7 +1079,7 @@ pub async fn share_scenario(State(st): State<AppState>, Path((token, sid)): Path
         return Err(AppError::not_found());
     };
     if gorunum == "genel" {
-        return super::genel::senaryo_sayfasi(&st, &token, format!("/s/{token}"), None, run_id, sid).await;
+        return Ok(Redirect::to("/").into_response());
     }
     let conf = st.cfg.triage_auto_confidence;
     let paths = st.paths.clone();
@@ -1108,26 +1117,17 @@ pub async fn share_file(State(st): State<AppState>, Path((token, aid)): Path<(St
     let Some(att) = st.db.read(move |c| queries::attachment(c, aid)).await? else {
         return Err(AppError::not_found());
     };
-    if att.run_id != run_id || (gorunum == "genel" && !super::genel::ek_acik(&st, run_id, &att).await?) {
+    if att.run_id != run_id || gorunum == "genel" {
         return Err(AppError::not_found());
     }
     Ok(crate::web::files::serve_attachment_file(&st, &att, req).await)
 }
 
-#[derive(Deserialize, Default)]
-pub struct ShareForm {
-    gorunum: Option<String>,
-}
-
-pub async fn create_share(
-    State(st): State<AppState>,
-    _a: Admin,
-    Path(id): Path<i64>,
-    Form(f): Form<ShareForm>,
-) -> Result<Response, AppError> {
+/// Ekip linki (ayrıntılı rapor, iç linkler ve Jira linkleri olmadan). Dışa açık rapor yayınla ile.
+pub async fn create_share(State(st): State<AppState>, _a: Admin, Path(id): Path<i64>) -> Result<Response, AppError> {
     let token = auth::random_token();
     let t2 = token.clone();
-    let gorunum = if f.gorunum.as_deref() == Some("genel") { "genel" } else { "ekip" };
+    let gorunum = "ekip";
     st.db
         .write(move |c| {
             c.execute(
@@ -1193,7 +1193,6 @@ pub async fn set_triage(
 struct AdminPage {
     l: Layout,
     shares: Vec<queries::ShareRow>,
-    portallar: Vec<queries::PortalRow>,
     logs: Vec<(String, String, String, String)>,
     jira_actions: Vec<(i64, String, String, String, String)>,
     disk_pct: String,
@@ -1212,15 +1211,14 @@ pub async fn admin_page(
     Query(nq): Query<NoticeQuery>,
 ) -> Result<Response, AppError> {
     let l = layout(&st, &headers);
-    let (shares, portallar, jira_actions, drafts) = st
+    let (shares, jira_actions, drafts) = st
         .db
         .read(|c| {
             let shares = queries::share_links(c, 200)?;
-            let portallar = queries::portallar(c, 50)?;
             let drafts = crate::jira::pending_drafts(c)?;
             let mut s = c.prepare("SELECT run_id, action, COALESCE(jira_key, ''), COALESCE(detail, ''), created_at FROM jira_actions ORDER BY id DESC LIMIT 100")?;
             let ja = s.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?.collect::<rusqlite::Result<_>>()?;
-            Ok((shares, portallar, ja, drafts))
+            Ok((shares, ja, drafts))
         })
         .await?;
     let logs = st
@@ -1240,7 +1238,6 @@ pub async fn admin_page(
     Ok(render(&AdminPage {
         l,
         shares,
-        portallar,
         logs,
         jira_actions,
         disk_pct: format!("%{:.0} dolu{}", d.used_pct, if d.warning { " (uyarı)" } else { "" }),

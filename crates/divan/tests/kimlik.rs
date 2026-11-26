@@ -262,11 +262,20 @@ async fn test_sw_6_2_bagli_jira_issuelari_raporda() {
     assert!(ekip.contains("Jira issue'ları") && ekip.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
     assert!(ekip.contains("İşlemde") && !ekip.contains("Ayşe Yılmaz") && !ekip.contains("/browse/"));
     assert!(ekip.contains("Uygulama <b>2.0.1</b>"));
-    // genel rapor: yalnızca görünen ürün hatasının issue'su
-    let genel = paylas("gorunum=genel").await;
-    assert!(genel.contains("STAJ-42") && genel.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
-    assert!(!genel.contains("STAJ-99"), "geçen senaryonun issue'su genel raporda yok");
-    assert!(!genel.contains("/browse/") && genel.contains("Uygulama <b>2.0.1</b>"));
+    // dışa açık rapor: Jira issue'su test case'in içinde, başlık ve durumuyla; Jira linki yok
+    let r = post_form(
+        &app,
+        "/admin/yayinlar",
+        &ck,
+        &format!("proje=1&yazilim=javafx&surum=2.0.1&kosum={id}"),
+    )
+    .await;
+    let yer = r.headers()["location"].to_str().unwrap().to_string();
+    let genel = app.get(&yer).await.1;
+    let i = genel.find(&format!(">{KALAN}<")).expect("kalan test raporda");
+    let test = &genel[i..i + genel[i..].find("</details>").unwrap()];
+    assert!(test.contains("STAJ-42") && test.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor") && test.contains("İşlemde"));
+    assert!(!genel.contains("/browse/") && !genel.contains("Ayşe Yılmaz") && genel.contains("javafx · sürüm 2.0.1"));
     // e-posta: sürüm ve Jira bölümü
     let mail = app
         .state

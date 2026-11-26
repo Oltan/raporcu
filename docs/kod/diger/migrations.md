@@ -27,6 +27,7 @@ Zamanlar ISO-8601 metin (`TEXT`), süreler milisaniye tamsayı.
 | `emails` | gönderilen özet e-posta | `pipeline_key` tekil → pipeline başına bir e-posta |
 | `settings` | arayüz ayarı (0003) | `key` (`jira`, `doors`), `value` JSON (`ayarlar.md`) |
 | `bug_taslaklari` | Jira bug taslağı (0004) | `source` (`kural`/`opencode`), `reason`, `summary`, `description`, `labels`/`fields` JSON, `status` (`bekliyor`/`acildi`/`yok_sayildi`), `jira_key`, `fingerprint` |
+| `yayinlar` | dışa açık sürüm raporu (0009) | `(project_id, app_name, app_version)` tekil; `yayin_kosumlari` (seçili koşumlar), `yayin_haric` (rapordan çıkarılan `scenario_key`'ler). `runs.app_name` aynı migration'da (`yayin.md`) |
 | `users` | kullanıcı | şimdilik tek `admin` satırı; şifre hash'i `.env`'de |
 
 ## Kritik kural: is_latest

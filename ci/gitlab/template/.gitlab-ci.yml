@@ -20,6 +20,14 @@
 # ulak'ı sunucudan indiren before_script satırlarıdır (SW-10.9).
 
 variables:
+  # 0.2.0: test edilen yazılımın adı ve sürümü; dışa açık raporlar yazılım adı + sürüm başına (SW-5.1).
+  # Boş UYGULAMA_ADI = repo adı; boş UYGULAMA_SURUMU = pom.xml'deki <uygulama.version>.
+  UYGULAMA_ADI:
+    value: ""
+    description: "Test edilen yazılımın adı (dışa açık raporda sekme). Boş = repo adı."
+  UYGULAMA_SURUMU:
+    value: ""
+    description: "Test edilen uygulama sürümü. Boş = pom.xml'deki sürüm."
   ULAK_OS: "linux"
   # divan sunucusu runner ile aynı makinede (SW-3.2)
   ULAK_SERVER: "http://127.0.0.1:8080"

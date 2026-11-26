@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}divan{% endblock %} · divan</title>
-<link rel="stylesheet" href="/static/app.css?v=4">
+<link rel="stylesheet" href="/static/app.css?v=5">
 <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
@@ -12,13 +12,15 @@
   {% if l.share.is_some() %}
   {% block paylasim_ust %}<span class="logo">divan</span><span class="alt">Salt okunur paylaşım</span>{% endblock %}
   {% else %}
-  <a class="logo" href="/">divan</a>
+  <a class="logo" href="/panel">divan</a>
   <nav>
-    <a href="/">Dashboard</a>
+    <a href="/panel">Dashboard</a>
     <a href="/canli">Canlı</a>
     <a href="/search">Arama</a>
     <a href="/healing">Self-healing</a>
+    <a href="/admin/yayinlar">Raporlar</a>
     <a href="/admin">Admin</a>
+    <a href="/" title="Dışa açık ana sayfa: yayınlanmış raporlar">Dışa açık sayfa</a>
   </nav>
   <div class="sag">
     {% if l.admin %}<span>admin</span><form method="post" action="/logout" class="cikis"><button>Çıkış</button></form>

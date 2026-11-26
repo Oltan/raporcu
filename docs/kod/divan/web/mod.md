@@ -2,28 +2,34 @@
 
 **Amaç:** Sayfa ve salt-okur API yönlendirmeleri, statik dosyalar, ortak hata/şablon yardımcıları.
 
-## Yollar (giriş gerektirmez; kapalı ağ — admin işlemleri hariç)
+## Yollar
+İki grup (`routes()` ve `ekip_routes()`); `lib.rs` ekip grubuna `auth::ekip_guard` ara katmanını takar.
+
+**Giriş istemeyen** (`routes()`):
 | Yol | İşleyici | Not |
 |-----|----------|-----|
-| `GET /` | pages::dashboard | `?project=&branch=&page=` |
+| `GET /?yazilim=` | genel::ana_sayfa | dışa açık ana sayfa (`genel.md`) |
+| `GET /rapor/{id}`, `/rapor/{id}/test/{sid}`, `/rapor/{id}/dosya/{aid}` | yayınlanmış sürüm raporu | |
+| `GET /g/{*}` | 0.1.x genel linkleri → `/` | |
+| `GET /s/{token}`, `/s/{token}/scenarios/{id}`, `/s/{token}/files/{id}` | ekip linki (token); eski `genel` görünüm → `/` | |
+| `GET /admin`, `/admin/yayinlar*`, `/admin/ayarlar`; `POST /admin/...` | admin (`Admin` çıkarıcısı giriş ister) | `yayinlar.md` |
+| `GET/POST /login`, `POST /logout`, `GET /api/admin/me` | giriş (ekip ya da admin şifresi) | |
+| `GET /static/{yol}` | ikiliye gömülü dosyalar (`static/`), MIME tahmini, 1 saat önbellek | |
+| `GET /api/tools/ulak?os=linux\|windows` | ulak dağıtımı | |
+| `GET /api/health` | `{"durum":"ok","surum":"0.2.0"}` | `lib.rs` |
+
+**Ekip paneli** (`ekip_routes()`; `EKIP_SIFRESI` verilmişse ekip ya da admin oturumu):
+| Yol | İşleyici | Not |
+|-----|----------|-----|
+| `GET /panel` | pages::dashboard | `?project=&branch=&page=` |
 | `GET /runs/{id}`, `/runs/{id}/live` | rapor, canlı ekran | |
 | `GET /canli` | etkin koşumu bekleyen canlı giriş sayfası | |
 | `GET /runs/{id}/doors.csv`, `.dxl` | DOORS dışa aktarma | |
 | `GET /ws/runs/{id}` | live::ws | WebSocket |
 | `GET /scenarios/{id}` | senaryo detayı | |
-| `GET /history?project=&branch=&key=` | senaryo geçmişi | |
-| `GET /feature?project=&branch=&name=` | feature geçmişi | |
-| `GET /search`, `/export.csv` | arama, CSV | |
-| `GET /healing` | self-healing paneli | |
-| `GET /s/{token}`, `/s/{token}/scenarios/{id}`, `/s/{token}/files/{id}` | paylaşım | |
-| `GET /g/{token}`, `/g/{token}/ozellik`, `/g/{token}/runs/{id}`, `…/scenarios/{sid}`, `…/files/{aid}` | genel ana sayfa (`genel.md`) | |
-| `GET /admin`; `POST /admin/runs/{id}/share`, `/admin/shares/{id}/revoke`, `/admin/scenarios/{id}/triage`, `/admin/scenarios/{id}/jira`, `/admin/runs/{id}/fix` | admin (giriş ister) | |
-| `GET/POST /login`, `POST /logout`, `GET /api/admin/me` | giriş | |
-| `GET /static/{yol}` | ikiliye gömülü dosyalar (`static/`), MIME tahmini, 1 saat önbellek | |
+| `GET /history`, `/feature`, `/search`, `/export.csv`, `/healing` | geçmiş, arama, CSV, self-healing | |
 | `GET /files/{id}` | ek dosyası (range destekli) | |
-| `GET /api/tools/ulak?os=linux\|windows` | ulak dağıtımı | |
 | `GET /api/canli`, `/api/runs`, `/api/runs/{id}`, `/api/runs/{id}/live`, `/api/scenarios/{id}` | JSON | |
-| `GET /api/health` | `{"durum":"ok","surum":"0.1.0"}` | |
 
 ## JSON API biçimi
 - `/api/runs?project=&branch=&page=` → `{"sayfa":1,"kosumlar":[RunRow…]}` (50'lik).

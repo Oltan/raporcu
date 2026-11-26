@@ -1,4 +1,5 @@
-//! SW-9.5: admin girişi.
+//! SW-9.5: admin girişi ve ekip paneli girişi (`EKIP_SIFRESI`). Tek şifre kutusu: admin şifresi
+//! tutarsa admin oturumu (ekip de sayılır), ekip şifresi tutarsa ekip oturumu.
 
 use crate::auth::{self, Admin};
 use crate::web::render;
@@ -34,7 +35,7 @@ pub struct NextQuery {
 
 fn safe_next(n: Option<String>) -> String {
     n.filter(|n| n.starts_with('/') && !n.starts_with("//"))
-        .unwrap_or_else(|| "/".into())
+        .unwrap_or_else(|| "/panel".into())
 }
 
 pub async fn login_page(Query(q): Query<NextQuery>) -> Response {
@@ -67,9 +68,16 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
         return (StatusCode::TOO_MANY_REQUESTS, render(&page)).into_response();
     }
     let auth = st.auth.clone();
-    let ok = tokio::task::spawn_blocking(move || auth.verify("admin", &form.password))
+    let pw = form.password.clone();
+    let ok = tokio::task::spawn_blocking(move || auth.verify("admin", &pw))
         .await
         .unwrap_or(false);
+    if !ok && auth::ekip_sifresi_dogru(&st, &form.password) {
+        st.throttle.success(ip);
+        tracing::info!(ip = %ip, "ekip girişi başarılı");
+        let token = st.ekip.create();
+        return ([(header::SET_COOKIE, auth::ekip_cookie(&token))], Redirect::to(&next)).into_response();
+    }
     if ok {
         st.throttle.success(ip);
         tracing::info!(ip = %ip, "admin girişi başarılı");
@@ -77,7 +85,7 @@ pub async fn login(State(st): State<AppState>, req: Request) -> Response {
         ([(header::SET_COOKIE, auth::session_cookie(&token))], Redirect::to(&next)).into_response()
     } else {
         st.throttle.failure(ip);
-        tracing::warn!(ip = %ip, "admin girişi başarısız");
+        tracing::warn!(ip = %ip, "giriş başarısız");
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         let page = LoginPage {
             next,
@@ -92,7 +100,17 @@ pub async fn logout(State(st): State<AppState>, headers: axum::http::HeaderMap) 
     if let Some(t) = auth::cookie_value(&headers, auth::SESSION_COOKIE) {
         st.sessions.remove(&t);
     }
-    ([(header::SET_COOKIE, auth::clear_cookie())], Redirect::to("/")).into_response()
+    if let Some(t) = auth::cookie_value(&headers, auth::EKIP_COOKIE) {
+        st.ekip.remove(&t);
+    }
+    (
+        [
+            (header::SET_COOKIE, auth::clear_cookie()),
+            (header::SET_COOKIE, auth::clear_ekip_cookie()),
+        ],
+        Redirect::to("/"),
+    )
+        .into_response()
 }
 
 pub async fn me(_a: Admin) -> &'static str {

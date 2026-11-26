@@ -49,10 +49,10 @@ async fn test_sw_9_3_webhook_wrong_token_rejected() {
 async fn test_sw_3_6_pipeline_status_on_dashboard() {
     let app = app();
     hook(&app, "test-webhook-token", pipeline_hook("pending", "schedule")).await;
-    let (_, d) = app.get("/").await;
+    let (_, d) = app.get("/panel").await;
     assert!(d.contains("Pipeline'lar") && d.contains("#9001") && d.contains("kuyrukta"));
     hook(&app, "test-webhook-token", pipeline_hook("running", "schedule")).await;
-    let (_, d) = app.get("/").await;
+    let (_, d) = app.get("/panel").await;
     assert!(d.contains("çalışıyor"));
     assert!(log_lines("webhook alındı").iter().any(|l| l["durum"] == "running"));
 }

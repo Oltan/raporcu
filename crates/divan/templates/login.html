@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Admin girişi{% endblock %}
+{% block title %}Giriş{% endblock %}
 {% block content %}
 <section class="kart dar">
-  <h1>Admin girişi</h1>
-  <p class="alt">Raporları görmek için giriş gerekmez. Paylaşım linki iptali, triage kararı, OpenCode ve Jira işlemleri için giriş yapın.</p>
+  <h1>Giriş</h1>
+  <p class="alt">Yayınlanmış raporlar için giriş gerekmez (<a href="/">ana sayfa</a>). Ekip paneli için ekip şifresi; paylaşım, yayınlama, triage, OpenCode ve Jira işlemleri için admin şifresi.</p>
   {% if let Some(e) = error %}<p class="hata">{{ e }}</p>{% endif %}
   <form method="post" action="/login" class="satir">
     <input type="hidden" name="next" value="{{ next }}">

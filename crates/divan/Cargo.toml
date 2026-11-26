@@ -10,7 +10,7 @@ argon2 = { version = "0.5", features = ["std"] }
 askama = "0.16.1"
 axum = { version = "0.8.9", features = ["ws", "macros"] }
 chrono = { version = "0.4.45", features = ["serde"] }
-common = { version = "0.1.0", path = "../common" }
+common = { version = "0.2.0", path = "../common" }
 dotenvy = "0.15.7"
 fs4 = "1.1.0"
 futures-util = "0.3.34"

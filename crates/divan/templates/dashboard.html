@@ -7,7 +7,7 @@
     <h1>Dashboard</h1>
     <div class="alt">Son koşumlar, pipeline durumu ve flaky senaryolar</div>
   </div>
-  <form method="get" action="/" class="satir">
+  <form method="get" action="/panel" class="satir">
     <label>Proje
       <select name="project" onchange="this.form.branch.value=''; this.form.submit()">
         <option value="">Tümü</option>
@@ -59,12 +59,13 @@
 
 <section class="kart">
   <h2>Feature bazında</h2>
-  <p class="alt">Son biten koşumda her feature'ın durumu ve son 10 koşumdaki geçme oranı gidişatı. Feature'a tıklayınca o koşumdaki senaryoları açılır.</p>
+  <p class="alt">Son 10 koşumda koşulan her feature'ın en son sonucu (feature'lar ayrı koşulduysa farklı koşumlardan) ve geçme oranı gidişatı. Feature'a tıklayınca o koşumdaki senaryoları açılır.</p>
   <div class="tablo"><table class="feature-ozet">
-    <tr><th>Feature</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Geçme</th><th>Gidişat</th><th class="num">Değişim</th><th></th></tr>
+    <tr><th>Feature</th><th>Koşum</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Broken</th><th class="num">Geçme</th><th>Gidişat</th><th class="num">Değişim</th><th></th></tr>
     {% for df in ch.features %}
     <tr>
-      <td><a class="feature-adi" href="/runs/{{ ch.last.id }}#{{ df.anchor }}"><span class="durum-nokta {{ df.f.state() }}" aria-hidden="true"></span>{{ df.f.feature }}</a></td>
+      <td><a class="feature-adi" href="/runs/{{ df.run_id }}#{{ df.anchor }}"><span class="durum-nokta {{ df.f.state() }}" aria-hidden="true"></span>{{ df.f.feature }}</a></td>
+      <td class="kucuk"><a href="/runs/{{ df.run_id }}">#{{ df.run_id }}</a></td>
       <td class="cubuk-hucre">{{ df.bar|safe }}</td>
       <td class="num">{{ df.f.passed }}</td>
       <td class="num">{% if df.f.failed > 0 %}<b>{{ df.f.failed }}</b>{% else %}0{% endif %}</td>
@@ -104,11 +105,12 @@
   <div class="bos">Henüz koşum yok. CI'dan ilk yükleme gelince burada görünür.</div>
   {% else %}
   <div class="tablo"><table>
-    <tr><th>#</th><th>Proje / branch</th><th>Uygulama</th><th>Commit</th><th>Durum</th><th class="num">Senaryo</th><th class="num">Geçti</th><th class="num">Kaldı</th><th>Dağılım</th><th>Başladı</th></tr>
+    <tr><th>#</th><th>Proje / branch</th><th>Yazılım</th><th>Uygulama</th><th>Commit</th><th>Durum</th><th class="num">Senaryo</th><th class="num">Geçti</th><th class="num">Kaldı</th><th>Dağılım</th><th>Başladı</th></tr>
     {% for r in runs %}
     <tr>
       <td><a href="/runs/{{ r.id }}">#{{ r.id }}</a></td>
       <td>{{ r.project_path }}<div class="kucuk">{{ r.branch }}{% if let Some(os) = r.os %} · {{ os }}{% endif %}</div></td>
+      <td>{% if let Some(a) = r.app_name %}{{ a }}{% else %}<span class="kucuk">—</span>{% endif %}</td>
       <td class="mono" title="Test edilen uygulama sürümü">{% if let Some(u) = r.app_version %}<b>{{ u }}</b>{% else %}<span class="kucuk" title="UYGULAMA_SURUMU verilmedi">—</span>{% endif %}</td>
       <td class="mono">{{ r.short_commit() }}</td>
       <td>
@@ -125,8 +127,8 @@
     {% endfor %}
   </table></div>
   <div class="sayfalama">
-    {% if page > 1 %}<a class="btn" href="/?{{ filter_qs }}&page={{ page - 1 }}">← Yeni</a>{% endif %}
-    {% if runs.len() == 50 %}<a class="btn" href="/?{{ filter_qs }}&page={{ page + 1 }}">Eski →</a>{% endif %}
+    {% if page > 1 %}<a class="btn" href="/panel?{{ filter_qs }}&page={{ page - 1 }}">← Yeni</a>{% endif %}
+    {% if runs.len() == 50 %}<a class="btn" href="/panel?{{ filter_qs }}&page={{ page + 1 }}">Eski →</a>{% endif %}
   </div>
   {% endif %}
 </section>

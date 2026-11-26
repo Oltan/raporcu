@@ -13,7 +13,8 @@
 | `pipeline_id`, `pipeline_url` | `CI_PIPELINE_ID`, `CI_PIPELINE_URL` | |
 | `job_id`, `job_url` | `CI_JOB_ID`, `CI_JOB_URL` | |
 | `os` | `ULAK_OS` ya da çalışan sistem | `linux` / `windows` |
-| `app_version` | `ULAK_UYGULAMA_SURUMU`, yoksa `UYGULAMA_SURUMU` (isteğe bağlı) | test edilen uygulamanın sürümü; `runs.app_version` |
+| `app_version` | `ULAK_UYGULAMA_SURUMU`, `UYGULAMA_SURUMU`, `ULAK_EXTRA_ARGS`'taki `-Duygulama.version=`, pom (isteğe bağlı) | test edilen uygulamanın sürümü; `runs.app_version` |
+| `app_name` | `ULAK_UYGULAMA_ADI`, yoksa `UYGULAMA_ADI` (isteğe bağlı, 0.2.0) | test edilen yazılımın adı; `runs.app_name`; dışa açık raporlar yazılım adı + sürüm başına |
 
 `to_query()` → `project_id=..&project_path=..` sorgu dizesi; değerler RFC 3986 ile yüzde
 kodlanır (`A-Z a-z 0-9 - _ . ~` dışındaki her bayt `%XX`), boş (None) alanlar atlanır.

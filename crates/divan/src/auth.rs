@@ -15,6 +15,8 @@ use std::time::{Duration, Instant};
 use subtle::ConstantTimeEq;
 
 pub const SESSION_COOKIE: &str = "divan_oturum";
+/// Ekip paneli oturumu (admin oturumu da ekip sayılır).
+pub const EKIP_COOKIE: &str = "divan_ekip";
 const SESSION_TTL: Duration = Duration::from_secs(12 * 3600);
 
 /// Giriş kontrolü tek arayüz arkasında: ileride AD/LDAP buraya ikinci bir uygulama olarak eklenir.
@@ -151,6 +153,47 @@ pub fn session_cookie(token: &str) -> String {
 
 pub fn clear_cookie() -> String {
     format!("{SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")
+}
+
+pub fn ekip_cookie(token: &str) -> String {
+    format!(
+        "{EKIP_COOKIE}={token}; HttpOnly; SameSite=Lax; Path=/; Max-Age={}",
+        SESSION_TTL.as_secs()
+    )
+}
+
+pub fn clear_ekip_cookie() -> String {
+    format!("{EKIP_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0")
+}
+
+/// Ekip şifresi doğru mu (sabit zamanlı karşılaştırma).
+pub fn ekip_sifresi_dogru(state: &AppState, password: &str) -> bool {
+    state.cfg.ekip_sifresi.as_ref().is_some_and(|s| ct_eq(s.expose(), password))
+}
+
+/// İstek ekip panelini görebilir mi: `EKIP_SIFRESI` yoksa herkes, varsa ekip ya da admin oturumu.
+pub fn ekip_mi(state: &AppState, headers: &axum::http::HeaderMap) -> bool {
+    state.cfg.ekip_sifresi.is_none()
+        || cookie_value(headers, EKIP_COOKIE).is_some_and(|t| state.ekip.valid(&t))
+        || cookie_value(headers, SESSION_COOKIE).is_some_and(|t| state.sessions.valid(&t))
+}
+
+/// Ekip paneli uçlarının ara katmanı: girişsiz tarayıcı giriş sayfasına, diğerleri 401.
+pub async fn ekip_guard(State(state): State<AppState>, req: Request, next: Next) -> Response {
+    if ekip_mi(&state, req.headers()) {
+        return next.run(req).await;
+    }
+    let wants_html = req
+        .headers()
+        .get(header::ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.contains("text/html"));
+    if req.method() == Method::GET && wants_html {
+        let next = req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/panel");
+        Redirect::to(&format!("/login?next={}", urlencoding::encode(next))).into_response()
+    } else {
+        (StatusCode::UNAUTHORIZED, "Ekip girişi gerekli").into_response()
+    }
 }
 
 /// Admin işlemi gerektiren uçların çıkarıcısı.

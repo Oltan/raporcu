@@ -25,9 +25,19 @@
   ise `/login?next=<yol>`'a yönlendirme, değilse **401**.
 - `client_ip`: bağlantının uzak adresi (yoksa 127.0.0.1).
 
+## Ekip paneli (0.2.0)
+- `EKIP_SIFRESI` (`.env`, gizli; log ve hata mesajlarından çıkarılır). Verilmezse panel açık, açılışta WARN.
+- Giriş sayfasında tek şifre kutusu: admin şifresi tutarsa admin oturumu, değilse ekip şifresi
+  (sabit zamanlı karşılaştırma) tutarsa ekip oturumu: `AppState.ekip` (`Sessions`), çerez
+  `divan_ekip=<token>; HttpOnly; SameSite=Lax`. Aynı `LoginThrottle`. Çıkış iki çerezi de siler.
+- `ekip_mi(state, başlıklar)`: şifre yok ya da geçerli ekip/admin oturumu. Admin oturumu ekip sayılır,
+  ekip oturumu admin sayılmaz.
+- `ekip_guard`: ekip paneli uçlarının ara katmanı; girişsiz tarayıcı GET → `/login?next=<yol+sorgu>`,
+  diğerleri **401** "Ekip girişi gerekli".
+
 ## Testler
 `test_sw_9_5_argon2_verify`, `test_sw_9_5_env_file_update_keeps_other_lines`,
-`test_sw_9_5_throttle_grows`; HTTP düzeyi: `tests/temel.rs`.
+`test_sw_9_5_throttle_grows`; HTTP düzeyi: `tests/temel.rs`, `tests/rapor.rs` (`test_sw_9_5_ekip_paneli_sifreyle`).
 
 ## Python karşılığı
 `argon2-cffi` (`PasswordHasher`), `hmac.compare_digest`, FastAPI `Depends` ile CI/admin korumaları.

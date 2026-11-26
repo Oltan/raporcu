@@ -287,8 +287,8 @@ Raporlar ekip ve paydaşlarla güvenli biçimde paylaşılır.
 - Kabul: Token, Jira anahtarı ve ham ek linki görünmez.
 - Test: B
 - Doğrulama: `test_sw_5_1_*`, e2esmoke
-- Ek: Link iki görünümle oluşturulur. "Ekip linki" ayrıntılı raporu açar. "Genel rapor linki" yalnızca doğrulanan senaryoları ve ürün hatalarını gösterir; flaky, tekrar denemesinde geçen, test kodu, ortam ve atlanan senaryolar adsız "İnceleniyor" sayısına girer ve ayrıntıları açılmaz. Doğrulama: `test_sw_5_1_genel_rapor_shows_only_product_results`.
-- Ek: "Genel ana sayfa linki" proje ve branch başına kalıcı bir sayfa açar: sonuç, sayılar, dağılım ve gidişat grafikleri, bölüm tablosu ve geçmişi, rapor listesi, feature sekmeli rapor, doğrulanan ve ürün hatası senaryoların adım ve ekran görüntüsü ayrıntıları. Yalnızca o kapsamın biten koşumları açılır; aynı sınıflandırma geçerlidir. Doğrulama: `test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope`.
+- Ek: "Ekip linki" (token) ayrıntılı koşum raporunu açar; Jira issue'ları anahtar, başlık ve durumla, linksiz.
+- Ek (0.2.0, dışa açık raporlar): ana adres `/` giriş istemez ve yalnızca admin'in **yayınladığı** raporları gösterir. Rapor = repo + yazılım adı (`UYGULAMA_ADI`) + sürüm (`UYGULAMA_SURUMU`); admin o üçlünün koşumlarını seçer (ayrı koşulan feature'lar tek raporda birleşir; aynı test birden çok koşumda varsa en son koşumdaki sonuç), istemediği testleri çıkarır. Feature dosyası olmayan sonuçlar (JUnit / ortam yoklama testleri) kendiliğinden dışarıda. Sınıflar yalnızca Geçti / Kaldı: tekrar denemede geçen test "Geçti"; "İnceleniyor" yok. Ana sayfa: yazılım sekmeleri; Toplam / Geçen / Kalan / Başarı oranı; son rapor; sürümlere göre başarı; sürüm başına test sonuçları; rapor listesi. Rapor: "Yazılım · sürüm", feature ve test case'ler açılır/kapanır, Jira issue'su test case'in içinde. Koşum numarası, commit, branch, feature sekmeleri, bölüm geçmişi yok. 0.1.x genel linkleri `/`'e yönlenir. Doğrulama: `test_sw_5_1_yayin_birlestirme_kurallari`, `test_sw_5_1_yayin_iki_kosum_tek_raporda_ve_ana_sayfa`, rehearse SW-5.1.
 
 ### SW-5.2 [MEVCUT] Paylaşım linkinin iptali
 - Bağlam: Raporlar yalnızca şirket içindeki kapalı yerel ağda paylaşılır, dışarıya açılmaz. Bu yüzden önceliği düşük.
@@ -438,6 +438,7 @@ Tokenlar korunur, dışarıdan gelen istekler doğrulanır, OpenCode sınırlan�
 - Şimdilik tek kullanıcı vardır: admin. Şifre `.env` içinde düz değil, hash olarak (argon2) tutulur; `divan set-admin-password` komutuyla belirlenir.
 - Giriş sonrası oturum çerezi kullanılır (HttpOnly, SameSite=Strict); başarısız denemeler yavaşlatılır.
 - Raporları görmek giriş gerektirmez (kapalı ağ). Admin işlemleri giriş ister: link iptali, triage kararı değiştirme, "OpenCode ile düzelt", Jira'ya bug açma, ayarlar.
+- Ek (0.2.0): ekip paneli (`/panel`, koşum, senaryo, arama, canlı, JSON API) `.env`'deki `EKIP_SIFRESI` ile korunur; aynı giriş sayfasında ekip ya da admin şifresi; admin oturumu ekip sayılır. Şifre verilmezse panel açık kalır (açılışta uyarı). Dışa açık ana sayfa ve yayınlanmış raporlar giriş istemez. Doğrulama: `test_sw_9_5_ekip_paneli_sifreyle`.
 - Şirkette Active Directory / LDAP var; ileride giriş buna bağlanabilsin diye giriş kontrolü tek bir arayüz arkasında yazılır. Şimdilik AD/LDAP bağlantısı yapılmaz.
 - Kabul: Yanlış şifreyle admin işlemi yapılamaz; şifre loglarda ve hata mesajlarında görünmez.
 - Test: B

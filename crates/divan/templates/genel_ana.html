@@ -1,22 +1,23 @@
 {% extends "base.html" %}
-{% block title %}{{ proje }} test sonuçları{% endblock %}
-{% block paylasim_ust %}{% include "_genel_ust.html" %}{% endblock %}
+{% block title %}Test raporları{% endblock %}
+{% block paylasim_ust %}<a class="logo" href="/">Test raporları</a><span class="sag genel-etiket">Yayınlanmış sürüm raporları</span>{% endblock %}
 {% block content %}
-{% if let Some(a) = ana %}
+{% if yazilimlar.is_empty() %}
+<section class="kart"><div class="bos">Henüz yayınlanmış rapor yok.</div></section>
+{% else %}
+<nav class="genel-sekmeler" aria-label="Yazılımlar">
+  {% for y in yazilimlar %}
+  <a href="/?yazilim={{ y|enc }}"{% if secili.as_deref() == Some(y.as_str()) %} class="secili" aria-current="page"{% endif %}>{{ y }}</a>
+  {% endfor %}
+</nav>
 {% if let Some(o) = son %}
-<div class="genel-sonuc {{ o.sonuc_sinif }}">
-  <div>
-    <div class="genel-ust-yazi">{{ proje }} · son rapor {{ o.run.started_at|zaman }}</div>
-    <h1>{{ o.sonuc }}</h1>
-  </div>
-  <a class="btn" href="{{ a }}/runs/{{ o.run.id }}">Son raporu aç</a>
-</div>
-{% let sayim = o.sayim %}
+{% let sayim = o.o.sayim %}
+<div class="genel-ust-yazi">{% if let Some(y) = secili %}<b>{{ y }}</b> · {% endif %}son rapor: sürüm <b>{{ o.o.surum }}</b> ({{ o.o.tarih|zaman }})</div>
 {% include "_genel_sayilar.html" %}
 
 <div class="izgara-ozet">
   <section class="kart ozet-donut">
-    <h2>Son rapor</h2>
+    <div class="baslik-satir"><h2>Son rapor · sürüm {{ o.o.surum }}</h2><a class="btn" href="/rapor/{{ o.o.id }}">Raporu aç</a></div>
     <div class="donut-satir">
       {{ o.halka|safe }}
       <ul class="lejant-liste">
@@ -27,63 +28,38 @@
     </div>
   </section>
   <section class="kart">
-    <h2>Gidişat: doğrulanma oranı</h2>
-    <p class="alt">Son {{ o.gidisat_n }} rapor. Noktanın üzerine gelince ayrıntı, tıklayınca rapor açılır.</p>
+    <h2>Sürümlere göre başarı</h2>
+    <p class="alt">Son {{ o.gidisat_n }} sürüm. Noktanın üzerine gelince ayrıntı, tıklayınca rapor açılır.</p>
     <div class="grafik-kap">{{ o.cizgi|safe }}</div>
   </section>
 </div>
 
 <section class="kart">
   <div class="baslik-satir">
-    <h2>Rapor başına senaryo sonuçları</h2>
-    <ul class="lejant-yatay">
-      <li><i class="sw m-gecti"></i>Doğrulandı</li><li><i class="sw m-kaldi"></i>Ürün hatası</li><li><i class="sw m-incele"></i>İnceleniyor</li>
-    </ul>
+    <h2>Sürüm başına test sonuçları</h2>
+    <ul class="lejant-yatay"><li><i class="sw m-gecti"></i>Geçti</li><li><i class="sw m-kaldi"></i>Kaldı</li></ul>
   </div>
   <div class="grafik-kap">{{ o.sutunlar|safe }}</div>
 </section>
-
-<section class="kart">
-  <h2>Bölümlere göre durum</h2>
-  <p class="alt">Son rapordaki durum ve son 10 rapordaki gidişat. Bölüme tıklayınca geçmişi açılır.</p>
-  <div class="tablo"><table class="feature-ozet">
-    <tr><th>Bölüm</th><th>Son rapor</th><th class="num">Doğrulandı</th><th class="num">Ürün hatası</th><th class="num">İnceleniyor</th><th class="num">Oran</th><th>Gidişat</th><th class="num">Değişim</th></tr>
-    {% for f in o.ozellikler %}
-    <tr>
-      <td><a class="feature-adi" href="{{ a }}/ozellik?ad={{ f.ad|enc }}">{{ f.ad }}</a></td>
-      <td class="cubuk-hucre">{{ f.cubuk|safe }}</td>
-      <td class="num">{{ f.sayim.dogrulanan }}</td>
-      <td class="num">{% if f.sayim.urun > 0 %}<b>{{ f.sayim.urun }}</b>{% else %}0{% endif %}</td>
-      <td class="num">{{ f.sayim.inceleniyor }}</td>
-      <td class="num">%{{ f.sayim.oran() }}</td>
-      <td>{{ f.gidisat|safe }}</td>
-      <td class="num">{% if f.degisim > 0 %}<span class="degisim iyi">▲ {{ f.degisim }}</span>{% elif f.degisim < 0 %}<span class="degisim kotu">▼ {{ -f.degisim }}</span>{% else %}<span class="kucuk">—</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table></div>
-</section>
+{% endif %}
 
 <section class="kart">
   <h2>Raporlar</h2>
   <div class="tablo"><table>
-    <tr><th>Rapor</th><th>Tarih</th><th>Uygulama</th><th>Commit</th><th>Sonuç</th><th class="num">Senaryo</th><th class="num">Oran</th><th>Dağılım</th></tr>
-    {% for k in kosumlar %}
+    <tr><th>Sürüm</th><th>Tarih</th><th class="num">Toplam</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Başarı</th><th>Dağılım</th></tr>
+    {% for r in raporlar %}
     <tr>
-      <td><a href="{{ a }}/runs/{{ k.run.id }}">#{{ k.run.id }}</a></td>
-      <td class="kucuk">{{ k.run.started_at|zaman }}</td>
-      <td class="mono">{% if let Some(u) = k.run.app_version %}<b>{{ u }}</b>{% else %}—{% endif %}</td>
-      <td class="mono">{{ k.run.short_commit() }}</td>
-      <td><span class="genel-durum {{ k.durum_sinif }}">{{ k.durum }}</span></td>
-      <td class="num">{{ k.sayim.toplam() }}</td>
-      <td class="num">%{{ k.sayim.oran() }}</td>
-      <td class="cubuk-hucre">{{ k.cubuk|safe }}</td>
+      <td class="mono"><a href="/rapor/{{ r.id }}"><b>{{ r.surum }}</b></a></td>
+      <td class="kucuk">{{ r.tarih|zaman }}</td>
+      <td class="num">{{ r.sayim.toplam() }}</td>
+      <td class="num">{{ r.sayim.gecen }}</td>
+      <td class="num">{% if r.sayim.kalan > 0 %}<b>{{ r.sayim.kalan }}</b>{% else %}0{% endif %}</td>
+      <td class="num">%{{ r.sayim.oran() }}</td>
+      <td class="cubuk-hucre">{{ r.cubuk|safe }}</td>
     </tr>
     {% endfor %}
   </table></div>
 </section>
-{% else %}
-<section class="kart"><div class="bos">Henüz tamamlanmış rapor yok.</div></section>
-{% endif %}
 {% endif %}
 <script src="/static/charts.js" defer></script>
 {% endblock %}

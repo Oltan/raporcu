@@ -8,7 +8,7 @@
   1. `gitlab_id` (= CI_PROJECT_ID) eşleşirse o proje; yol değiştiyse yeni yol yazılır.
   2. `path` eşleşirse o proje; eksik `gitlab_id`/`url` doldurulur.
   3. Yoksa yeni proje (log: `proje oluşturuldu`).
-- `create_run(c, project_id, ci, status, total_expected)`: branch boşsa `unknown`; `ci.app_version` (boş değilse) `runs.app_version` sütununa; `started_at` ve
+- `create_run(c, project_id, ci, status, total_expected)`: branch boşsa `unknown`; `ci.app_version` ve `ci.app_name` (boş değilse) `runs.app_version` / `runs.app_name` sütunlarına; `started_at` ve
   `last_activity_at` = şimdi. Log: `koşum açıldı` (run_id, proje, branch, pipeline_id, beklenen).
 - `run_ctx(c, run_id)` → `(run_id, project_id, branch)` ya da yok.
 

@@ -155,6 +155,34 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
   hataya ait eski bağlarının parmak izini de siler. Jira bağlantı ayarları (adres, token) arayüze
   taşınmadı: tokenlar yalnızca `.env`'de.
 
+## Dışa açık raporlar: yayınlanan sürüm raporu, "inceleniyor" yok (SW-5.1, 0.2.0)
+
+- Sorunlar: ikinci denemede geçen test genel raporda görünmüyor ama "inceleniyor" sayılıyordu (kural
+  yalnızca ilk denemede geçeni doğrulanmış sayıyordu); JUnit/ortam yoklama testleri toplamı bozuyordu;
+  feature'lar ayrı koşulunca rapor da parçalanıyordu.
+- Karar:
+  - "İnceleniyor" kaldırıldı. Dışarıda yalnızca Geçti / Kaldı; tekrar denemede geçen ve flaky "Geçti".
+    Kalan testlerin ürün mü test kodu mu olduğu dışarıda ayrılmaz; ayıklamak admin'in işi (rapordan
+    çıkarma).
+  - Rapor kendiliğinden oluşmaz; admin **yayınlar**. Rapor = repo + yazılım adı + sürüm. Birden çok
+    repoyu birleştirmez (repo başına rapor).
+  - Yazılım adı yeni CI değişkeni `UYGULAMA_ADI` (sözleşmede `app_name`, 0.2.0). Aynı repo farklı
+    tag'lerle farklı yazılım/konfigürasyon olarak koşulabilir: panelde tek proje, dışarıda ayrı
+    sekme ve rapor.
+  - Feature dosyası olmayan sonuçlar dışarıda: Cucumber senaryosu değiller (0.1.2'de LLM için
+    konan ölçütle aynı).
+- Sözleşme değiştiği için MINOR artırıldı (0.2.0): divan ve ulak birlikte güncellenir, 0.1.x ulak
+  409 ile reddedilir.
+
+## Dashboard'a erişim: ekip şifresi (SW-9.5, 0.2.0)
+
+- İstek: `/` dışa açık rapor sayfası olsun, dashboard "zor erişilebilir" olsun; gizli (abuk) bir
+  adres yeter mi sorusu.
+- Karar: gizli adres tek başına sınır değil (tarayıcı geçmişi, ekran görüntüsü, iletilen mesajda
+  kalır, bulan girer); `.env`'de ayrı `EKIP_SIFRESI` ile giriş. Dashboard `/panel`'e taşındı. Ekip
+  şifresi ile admin şifresi ayrı; admin oturumu ekip sayılır. Şifre verilmezse panel açık kalır
+  (geçiş kolaylığı) ve açılışta uyarı yazılır.
+
 ## Raporda Jira issue'ları ve uygulama sürümü her yerde (SW-6.2, SW-4.3, 0.1.5)
 
 - İstek: dashboard'da ve raporda (koşum sayfası, ekip linki, genel rapor linki, gece e-postası)

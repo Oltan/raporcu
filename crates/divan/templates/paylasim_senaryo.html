@@ -1,42 +1,41 @@
 {% extends "base.html" %}
 {% block title %}{{ s.name }}{% endblock %}
-{% block paylasim_ust %}{% let proje = s.feature.as_deref().unwrap_or("Test raporu") %}{% include "_genel_ust.html" %}{% endblock %}
+{% block paylasim_ust %}<a class="logo" href="/?yazilim={{ yazilim|enc }}">Test raporları</a><nav><a href="/rapor/{{ id }}">← {{ yazilim }} {{ surum }}</a></nav><span class="sag genel-etiket">Test case</span>{% endblock %}
 {% block content %}
-<div class="alt genel-geri"><a href="{{ taban }}{% if let Some(f) = s.feature %}?bolum={{ f|enc }}{% endif %}">← Rapora dön</a></div>
-<div class="genel-sonuc {{ sinif.isaret() }}">
+<div class="baslik">
   <div>
-    <div class="genel-ust-yazi">{{ s.feature.as_deref().unwrap_or("") }} · {{ s.duration() }}</div>
     <h1>{{ s.name }}</h1>
-    <div class="genel-rozetler"><span class="genel-durum {{ sinif.isaret() }}">{{ sinif.etiket() }}</span>{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}</div>
+    <div class="meta"><span>{{ yazilim }} · sürüm <b>{{ surum }}</b></span>{% if let Some(f) = s.feature %}<span>{{ f }}</span>{% endif %}<span>{{ s.duration() }}</span></div>
+    <div class="genel-rozetler"><span class="genel-durum {{ sonuc.sinif() }}">{{ sonuc.etiket() }}</span>{% for d in s.doors_ids %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in s.ek_kimlikler() %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}</div>
   </div>
 </div>
 
-{% if sinif.isaret() == "kaldi" %}
+{% if let Some(h) = hata %}
 <section class="kart genel-hatalar">
   <h2>Beklenen ve görülen</h2>
-  <div class="hata-ozet">{{ s.short_message() }}</div>
+  <div class="hata-ozet">{{ h }}</div>
 </section>
 {% endif %}
 
-<section class="kart">
-  <h2>Adımlar</h2>
+<details class="kart ac-kapa" open>
+  <summary><h2>Adımlar</h2></summary>
   {% if steps.is_empty() %}<div class="bos">Adım yok</div>{% else %}
   <ul class="adimlar">
     {% for st in steps %}
-    <li style="padding-left: {{ st.depth * 18 }}px"><span class="adim-isaret {{ st.status }}"></span><span class="ad">{{ st.name }}</span><span class="kucuk">{{ self.adim_suresi(&st.duration_ms) }}</span></li>
+    <li><span class="adim-isaret {{ st.status }}"></span><span class="ad">{{ st.name }}</span><span class="kucuk">{{ self.adim_suresi(&st.duration_ms) }}</span></li>
     {% endfor %}
   </ul>
   {% endif %}
-</section>
+</details>
 
 {% if !atts.is_empty() %}
-<section class="kart">
-  <h2>Ekran görüntüleri</h2>
+<details class="kart ac-kapa" open>
+  <summary><h2>Ekran görüntüleri</h2></summary>
   <div class="ekler">
     {% for a in atts %}
-    <div class="ek"><a href="{{ taban }}/files/{{ a.id }}"><img loading="lazy" src="{{ taban }}/files/{{ a.id }}" alt="{{ a.title() }}"></a></div>
+    <div class="ek"><a href="/rapor/{{ id }}/dosya/{{ a.id }}"><img loading="lazy" src="/rapor/{{ id }}/dosya/{{ a.id }}" alt="{{ a.title() }}"></a></div>
     {% endfor %}
   </div>
-</section>
+</details>
 {% endif %}
 {% endblock %}

@@ -288,3 +288,18 @@ label.alan .mono { font-size: 11px; color: var(--muted); }
 .taslak-ust { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .taslak pre { white-space: pre-wrap; max-height: 260px; overflow: auto; }
 .taslak form { display: inline; }
+
+/* 0.2.0 dışa açık rapor: açılır test case'ler */
+details.test-case { border-top: 1px solid var(--line); }
+details.test-case > summary { cursor: pointer; padding: 6px 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; list-style-position: inside; }
+details.test-case > summary .ad { font-weight: 500; }
+details.test-case > summary .sag { margin-left: auto; }
+details.test-case .test-icerik { padding: 4px 12px 14px 30px; display: grid; gap: 10px; justify-items: start; }
+details.test-case .hata-ozet { margin: 0; }
+.test-jira ul { margin: 4px 0 0; padding-left: 0; list-style: none; display: grid; gap: 4px; }
+.genel-sayi.toplam { border-top-color: var(--accent); }
+/* yayınlama formu */
+.yayin-testler { display: grid; }
+.yayin-test { display: flex; gap: 10px; align-items: center; padding: 5px 10px; border-top: 1px solid var(--line); }
+.yayin-test label { display: flex; flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; color: var(--muted); min-width: 130px; margin: 0; }
+.yayin-test label input, .kart td input[type=checkbox] { flex: none; width: 16px; height: 16px; margin: 0; }

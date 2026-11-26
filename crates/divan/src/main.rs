@@ -50,6 +50,9 @@ fn main() -> anyhow::Result<()> {
         .build()?
         .block_on(async move {
             let bind = cfg.bind;
+            if cfg.ekip_sifresi.is_none() {
+                tracing::warn!("EKIP_SIFRESI yok: ekip paneli (/panel, koşum ve senaryo sayfaları) girişsiz açık");
+            }
             let state = AppState::new(cfg, log.recent.clone())?;
             divan::spawn_background(&state);
             let app = divan::router(state);

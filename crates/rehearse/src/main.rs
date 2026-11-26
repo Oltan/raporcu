@@ -347,6 +347,19 @@ fn main() -> Result<()> {
         st == 200 && ver.code == 0,
         format!("{st} {}", ver.text),
     );
+    // 0.2.0 sözleşmesi değişti: 0.1.x ulak reddedilir (iş 2 koduyla düşer, yeni ulak indirilir)
+    let auth = format!("Bearer {TOKEN}");
+    let (eski, _, govde) = get_with(
+        &format!("{}/api/ci/ping", server.url()),
+        &[("authorization", auth.as_str()), ("x-ulak-version", "0.1.5")],
+    )?;
+    let govde = String::from_utf8_lossy(&govde).to_string();
+    ck.check(
+        "SW-10.9",
+        "eski MINOR (0.1.x) ulak sunucuda reddedilir, mesaj yeni ulak'ın adresini verir",
+        eski == 409 && govde.contains("/api/tools/ulak"),
+        format!("{eski} {govde}"),
+    );
 
     println!("\n-- Ön kontrol");
     let pf = s.run(&["preflight"])?;
@@ -738,7 +751,8 @@ fn senaryo_filtresi(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) 
         .set("CI_COMMIT_BRANCH", "auto-fix/run-1-yanlis-sifre")
         .set("CI_PROJECT_PATH", "prova/senaryo")
         .set("CI_PROJECT_ID", "4646")
-        .set("UYGULAMA_SURUMU", "9.9.9");
+        .set("UYGULAMA_SURUMU", "9.9.9")
+        .set("UYGULAMA_ADI", "Kontrol Yazılımı");
     let o = s.run(&["start"])?;
     let rid = serde_json::from_str::<serde_json::Value>(&std::fs::read_to_string(proj.join(".ulak/run.json"))?)?["run_id"]
         .as_i64()
@@ -751,13 +765,20 @@ fn senaryo_filtresi(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) 
         run["kosum"].to_string(),
     );
     ck.check(
+        "SW-5.1",
+        "UYGULAMA_ADI koşumla divan'a gider (dışa açık rapor yazılım adı + sürüm başına)",
+        run["kosum"]["app_name"] == "Kontrol Yazılımı",
+        run["kosum"]["app_name"].to_string(),
+    );
+    ck.check(
         "SW-4.3",
-        "ulak start logunda uygulama sürümü ve kaynağı",
-        o.text.contains("uygulama sürümü: 9.9.9 (UYGULAMA_SURUMU)"),
+        "ulak start logunda yazılım adı, uygulama sürümü ve kaynağı",
+        o.text
+            .contains("yazılım: Kontrol Yazılımı · uygulama sürümü: 9.9.9 (UYGULAMA_SURUMU)"),
         o.text.lines().find(|l| l.contains("uygulama sürümü")).unwrap_or("satır yok"),
     );
     let (_, sayfa) = rehearse::get(&format!("{}/runs/{rid}", server.url()))?;
-    let (_, pano) = rehearse::get(&format!("{}/", server.url()))?;
+    let (_, pano) = rehearse::get(&format!("{}/panel", server.url()))?;
     ck.check(
         "SW-4.3",
         "CI değişkenindeki uygulama sürümü dashboard'da ve koşum sayfasında görünür",

@@ -43,6 +43,8 @@ pub struct Config {
 
     pub ci_api_token: Option<Secret>,
     pub admin_password_hash: Option<Secret>,
+    /// Ekip paneli şifresi (dashboard, koşum ve senaryo sayfaları). Yoksa panel girişsiz açık.
+    pub ekip_sifresi: Option<Secret>,
     pub gitlab_webhook_token: Option<Secret>,
     pub gitlab_url: Option<String>,
     pub gitlab_token: Option<Secret>,
@@ -124,6 +126,7 @@ impl Config {
             public_url: public_url.trim_end_matches('/').to_string(),
             ci_api_token: var("CI_API_TOKEN").map(Secret),
             admin_password_hash: var("ADMIN_PASSWORD_HASH").map(Secret),
+            ekip_sifresi: var("EKIP_SIFRESI").map(Secret),
             gitlab_webhook_token: var("GITLAB_WEBHOOK_TOKEN").map(Secret),
             gitlab_url: var("GITLAB_URL").map(|u| u.trim_end_matches('/').to_string()),
             gitlab_token: var("GITLAB_TOKEN").map(Secret),
@@ -187,6 +190,7 @@ impl Config {
             public_url: "http://divan.test".into(),
             ci_api_token: Some(Secret::new("test-ci-token")),
             admin_password_hash: None,
+            ekip_sifresi: None,
             gitlab_webhook_token: Some(Secret::new("test-webhook-token")),
             gitlab_url: None,
             gitlab_token: None,
@@ -234,6 +238,7 @@ impl Config {
             &self.gitlab_webhook_token,
             &self.jira_token,
             &self.admin_password_hash,
+            &self.ekip_sifresi,
         ]
         .into_iter()
         .flatten()

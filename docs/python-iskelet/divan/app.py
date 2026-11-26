@@ -13,7 +13,7 @@ from . import allure, defterdar, upload
 from .db import Db, now
 from .live import Broadcast, LiveStates
 
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 log = logging.getLogger("divan")
 
 

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Rapor: {{ yazilim }} {{ surum }}{% endblock %}
+{% block content %}
+<div class="baslik"><div>
+  <h1>{% if mevcut.is_some() %}Raporu güncelle{% else %}Rapor yayınla{% endif %}: {{ yazilim }} · sürüm {{ surum }}</h1>
+  <div class="alt">Repo {{ project_path }} · <a href="/admin/yayinlar">← Raporlar</a>{% if let Some(m) = mevcut %} · <a href="/rapor/{{ m }}">yayındaki rapor</a>{% endif %}</div>
+</div></div>
+{% if let Some(h) = hata %}<div class="kart banner">{{ h }}</div>{% endif %}
+
+<form method="get" action="/admin/yayinlar/yeni" id="yayin-form">
+  <input type="hidden" name="proje" value="{{ project_id }}">
+  <input type="hidden" name="yazilim" value="{{ yazilim }}">
+  <input type="hidden" name="surum" value="{{ surum }}">
+  <input type="hidden" name="onizle" value="1">
+
+  <section class="kart">
+    <h2>1. Koşumlar</h2>
+    <p class="kucuk">Bu yazılım ve sürümle koşulan biten koşumlar. Aynı test birden çok koşumda varsa en son başlayan koşumdaki sonuç geçerli; tekrar denemede geçen test "Geçti" sayılır.</p>
+    <div class="tablo"><table>
+      <tr><th></th><th>Koşum</th><th>Başladı</th><th>Branch</th><th class="num">Senaryo</th><th>Feature'lar</th></tr>
+      {% for k in kosumlar %}
+      <tr>
+        <td><input type="checkbox" name="kosum" value="{{ k.run.id }}"{% if k.secili %} checked{% endif %} onchange="this.form.submit()"></td>
+        <td><a href="/runs/{{ k.run.id }}">#{{ k.run.id }}</a></td>
+        <td class="kucuk">{{ k.run.started_at|zaman }}</td>
+        <td class="kucuk">{{ k.run.branch }}</td>
+        <td class="num">{{ k.run.total }}</td>
+        <td class="kucuk">{{ k.featurelar.join(", ") }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </section>
+
+  <section class="kart">
+    <div class="baslik-satir"><h2>2. Testler</h2><span class="kucuk">Toplam <b>{{ toplam }}</b> · geçti {{ gecen }} · kaldı {{ kalan }}</span></div>
+    <p class="kucuk">İşaretlenen test rapora girmez (sonraki sürümün raporunda da işaretli gelir). Feature dosyası olmayan {{ cucumber_disi }} sonuç (JUnit / ortam yoklama testleri) kendiliğinden dışarıda{% if kosulmadi > 0 %}; {{ kosulmadi }} test koşulmadı (atlandı){% endif %}.</p>
+    {% for o in ozellikler %}
+    <details class="feature-grup" open>
+      <summary><b>{{ o.ad }}</b> <span class="kucuk">{{ o.testler.len() }} test</span></summary>
+      <div class="yayin-testler">
+        {% for t in o.testler %}
+        <div class="yayin-test"><label><input type="checkbox" name="haric" value="{{ t.key }}"{% if t.haric %} checked{% endif %} onchange="this.form.submit()"> rapordan çıkar</label><span class="genel-durum {{ t.sinif }}">{{ t.durum }}</span><span class="ad">{{ t.ad }}</span></div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+  </section>
+
+  <section class="kart satir">
+    <button class="ana" formmethod="post" formaction="/admin/yayinlar">{% if mevcut.is_some() %}Raporu güncelle{% else %}Yayınla{% endif %}</button>
+    <noscript><button>Önizlemeyi yenile</button></noscript>
+    <span class="kucuk">Yayınlanınca ana sayfada "{{ yazilim }}" sekmesinde görünür.</span>
+  </section>
+</form>
+{% endblock %}

@@ -1,56 +1,40 @@
 # divan/src/web/genel.rs
 
-**Amaç:** SW-5.1 genel rapor sayfaları: ekip dışına verilen, yalnızca ürün sonucu gösteren görünüm.
-Sınıf kuralı `share.md` içinde (`genel_sinif`); burası sayıları, grafikleri ve sayfaları kurar.
+**Amaç:** SW-5.1 (0.2.0) dışa açık sayfalar. Giriş istemez; yalnızca admin'in yayınladığı raporlar
+(`yayin.md`) görünür. İç bilgi yok: koşum numarası, commit, branch, OS, CI linkleri, Jira linki,
+atanan kişi, iç adımlar, adım mesajları, video ve metin ekleri. "İnceleniyor" sınıfı yoktur.
 
-## Girişler
-| Adres | Kapsam | Şablon |
-|-------|--------|--------|
-| `/g/{token}` | proje + branch ana sayfası | `genel_ana.html` |
-| `/g/{token}/ozellik?ad=` | bölüm (feature) geçmişi | `genel_ozellik.html` |
-| `/g/{token}/runs/{id}` | kapsamdaki biten koşumun raporu | `paylasim.html` |
-| `/g/{token}/runs/{id}/scenarios/{sid}` | senaryo detayı | `paylasim_senaryo.html` |
-| `/g/{token}/runs/{id}/files/{aid}` | ekran görüntüsü | dosya |
-| `/s/{token}` ve altı (`gorunum='genel'`) | tek koşum, ana sayfa yok | aynı şablonlar |
+| Adres | Ne | Şablon |
+|-------|----|--------|
+| `/?yazilim=<ad>` | ana sayfa: yazılım sekmeleri (varsayılan en son yayınlanan) | `genel_ana.html` |
+| `/rapor/{id}` | sürüm raporu | `paylasim.html` |
+| `/rapor/{id}/test/{sid}` | test ayrıntısı | `paylasim_senaryo.html` |
+| `/rapor/{id}/dosya/{aid}` | rapordaki testin ekran görüntüsü | dosya |
+| `/g/...` | 0.1.x genel ana sayfa linkleri → `/` | yönlendirme |
 
-Rapor sayfası "Ürün hataları"nın altında yalnızca görünen ürün hatalarına bağlı Jira issue'larını
-gösterir (`jira::kosum_issuelari(c, koşum, Some(ids))`; anahtar, başlık, durum; link ve atanan yok).
-Üst satırda `Uygulama <sürüm>` (yoksa `—`) ve `Commit <kısa sha>`. Ana sayfanın Raporlar tablosunda
-Uygulama sütunu.
+## Ana sayfa
+Seçili yazılımın raporları (`yayin::liste`). Son rapor: dört sayı (`_genel_sayilar.html`: Toplam
+test, Geçen test, Kalan test, Başarı oranı), halka ve lejant, "Raporu aç". "Sürümlere göre başarı"
+çizgisi ve "Sürüm başına test sonuçları" sütunları son 20 rapor için; etiket sürüm, nokta/sütun raporu
+açar. Raporlar tablosu: sürüm, tarih, toplam, geçti, kaldı, başarı, çubuk. Bölüm tablosu, feature
+geçmişi, sonuç cümlesi ve commit yok.
 
-`rapor_sayfasi`, `senaryo_sayfasi` ve `ek_acik` iki giriş için ortaktır; `taban` senaryo ve ek
-adreslerinin başıdır, `ana` ana sayfa adresidir (tek koşum linkinde yok).
+## Sürüm raporu
+Başlık "Yazılım · sürüm X", tarih. Dört sayı, koşulmayan sayısı (varsa), halka. "Test case'ler":
+feature'lar `<details>` (kalanı olan açık), içinde her test `<details class="test-case">`: kapalıyken
+durum, ad, gereksinim/ek kimlik rozetleri, Jira anahtarları (linksiz, ipucunda başlık), süre; açınca
+kalan testte hata özeti (`sanitize_text`), bağlı Jira issue'ları (anahtar, başlık, durum), ilk ekran
+görüntüsü ve "Adımlar ve ekran görüntüleri →". "Hepsini aç / kapa". Ayrı ürün hataları ya da Jira
+bölümü yoktur.
 
-## Feature sekmeleri
-Rapor sayfasında "Tümü" ve her feature için bir sekme vardır (`?bolum=<ad>`). Sekme seçiliyken sonuç
-bandı, sayılar, halka, bölüm durumu ve senaryolar yalnızca o feature'ı gösterir. Bilinmeyen sekme
-tüm koşumu gösterir. Senaryo sayfasındaki "Rapora dön" linki senaryonun sekmesine döner.
-
-## Kapsam denetimi
-`portal_kosumu`: link iptal edilmemiş, koşum aynı proje ve branch'te ve bitmiş olmalı, yoksa 404.
-Koşan koşum gösterilmez, çünkü sonucu henüz kesin değildir.
-
-## Hesaplar
-- `Sayim`: doğrulanan, ürün hatası, inceleniyor; `oran()` doğrulananların yüzdesi.
-- `kosum_satirlari`: bir koşumun senaryoları için `genel_sinif`; flaky kümesi kapsam başına bir kez
-  alınır. `portal_kosumlari`: son 50 biten koşum, eskiden yeniye.
-- `son_ozet`: halka, gidişat çizgisi ve sütunlar (son 20), bölüm tablosu ve mini gidişat (son 10).
-- `matris`: son 12 koşumda senaryo adı × koşum. Satır anahtarı addır, çünkü Allure kimliği feature
-  dosyasındaki satıra bağlıdır ve dosya değişince yenilenir. Aynı adın birden çok örneği varsa en
-  kötü sonuç görünür. Son göründüğü koşumda inceleniyor olan senaryo listelenmez.
-
-## Senaryo detayı
-Doğrulanan ve ürün hatası senaryolar açılır: durum, süre, DOORS, Gherkin adımları (süre ve durumla),
-ekran görüntüleri, ürün hatasında kısa hata metni. Adım adları `sanitize_text`'ten geçer; iç adımlar
-(`depth > 0`), adım hata metni, tag, dosya konumu, deneme, yığın izi, video ve metin ekleri yoktur. Inceleniyor senaryosu 404.
-
-## Link yönetimi
-`portal_olustur` (`POST /admin/runs/{id}/portal`): kapsamda açık link varsa onu verir, yoksa yenisini
-üretir ve `/runs/{id}?notice=portal:<token>`'a yönlendirir. `portal_iptal`: `revoked_at`.
+## Test ayrıntısı
+Rapordaki testler açılır (başkası 404): durum, süre, gereksinim rozetleri, kalan testte hata özeti,
+üst düzey adımlar (`depth = 0`, ad `sanitize_text`'ten, mesaj yok), ekran görüntüleri; bölümler
+açılır/kapanır.
 
 ## Testler
-`test_sw_5_1_genel_ana_sayfa_has_charts_and_stays_in_scope`,
-`test_sw_5_1_genel_rapor_shows_only_product_results`.
+`tests/rapor.rs`: `test_sw_5_1_yayin_iki_kosum_tek_raporda_ve_ana_sayfa`; `tests/kimlik.rs`:
+`test_sw_6_2_bagli_jira_issuelari_raporda`.
 
 ## Python karşılığı
-Aynı sorgular ve Jinja2 şablonları; sınıf hesabı `genel_sinif` ile birebir.
+Aynı sorgular ve Jinja2 şablonları.

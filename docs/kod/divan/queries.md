@@ -4,7 +4,7 @@
 koşum/senaryo ile sınırlıdır (SW-10.6).
 
 ## Satır tipleri ve türetilen alanlar
-- **RunRow** (runs + projects; `app_version` = test edilen uygulama sürümü, yoksa boş): `failures()` = failed+broken; `short_commit()` ilk 8;
+- **RunRow** (runs + projects; `app_version` = test edilen uygulama sürümü, `app_name` = yazılım adı, yoksa boş): `failures()` = failed+broken; `short_commit()` ilk 8;
   `commit_url()` = `<project_url>/-/commit/<sha>`; `progress()` = `"toplam/beklenen"` ya da
   `"toplam"`; `pass_pct()` = round(100·passed/total).
 - **ScenarioRow**: `tags`, `doors_ids`, `jira_keys` listeye açılır; `plain_tags()` gereksinim/ek kimlik/Jira
@@ -44,3 +44,4 @@ Alanlar: `project, branch, run, tag, feature, doors, jira, triage, status, q, uy
 
 ## Python karşılığı
 Aynı SQL dizeleri; satırları `sqlite3.Row` + dataclass'a dönüştüren küçük fonksiyonlar.
+- `project_runs_finished(c, proje)`: projenin biten, sonucu olan koşumları (en yeni önce; yayın adayları, `yayin.md`).

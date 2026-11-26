@@ -136,7 +136,7 @@ async fn test_sw_9_5_wrong_password_cannot_do_admin_ops() {
     // SW-9.5 / SW-10.7: şifre loglarda yok, başarısız giriş logu yalnızca IP içerir
     let all = divan::logging::test_capture().lock().unwrap().join("\n");
     assert!(!all.contains("YanlisSifre-XYZ") && !all.contains("Dogru-Sifre-123"));
-    let failed = log_lines("admin girişi başarısız");
+    let failed = log_lines("giriş başarısız");
     assert!(failed.iter().any(|l| l["ip"] == "10.1.1.1"));
     assert!(!log_lines("admin girişi başarılı").is_empty());
 }

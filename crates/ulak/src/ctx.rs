@@ -194,6 +194,7 @@ pub fn ci_info(project_dir: &Path) -> CiInfo {
         job_url: env("CI_JOB_URL"),
         os: Some(os_name()),
         app_version: uygulama_surumu(project_dir).0,
+        app_name: env("ULAK_UYGULAMA_ADI").or_else(|| env("UYGULAMA_ADI")),
     }
 }
 
@@ -239,7 +240,11 @@ fn pom_ozelligi(pom: &str, ozellik: &str) -> Option<String> {
 
 /// `ulak start` logundaki satır: sürüm divan'a gidiyor mu, nereden.
 pub fn uygulama_surumu_satiri(project_dir: &Path) -> String {
-    match uygulama_surumu(project_dir) {
+    let ad = env("ULAK_UYGULAMA_ADI")
+        .or_else(|| env("UYGULAMA_ADI"))
+        .map(|a| format!("yazılım: {a} · "))
+        .unwrap_or_else(|| "yazılım: (UYGULAMA_ADI boş, proje adı) · ".into());
+    ad + &match uygulama_surumu(project_dir) {
         (Some(v), k) => format!("uygulama sürümü: {v} ({k})"),
         (None, _) => "uygulama sürümü: yok (UYGULAMA_SURUMU boş, pom.xml'de <uygulama.version> yok); raporda — görünür".into(),
     }
