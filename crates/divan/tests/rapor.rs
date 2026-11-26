@@ -117,6 +117,24 @@ fn mutated_zip(name: &str, status: &str) -> Vec<u8> {
 }
 
 #[tokio::test]
+async fn test_sw_4_2_page_titles_are_plain_text() {
+    // <title> içine etiket sızarsa tarayıcı sekmesinde düz metin olarak görünür
+    let app = app();
+    let id = upload_sample(&app, "project_path=ekip%2Fbaslik&branch=main").await;
+    for yol in ["/", "/panel", "/healing", &format!("/runs/{id}")] {
+        let (st, html) = app.get(yol).await;
+        assert_eq!(st, StatusCode::OK, "{yol}");
+        let baslik = html
+            .split("<title>")
+            .nth(1)
+            .and_then(|s| s.split("</title>").next())
+            .unwrap_or_else(|| panic!("{yol}: <title> yok"));
+        assert!(!baslik.contains('<'), "{yol}: başlıkta etiket var: {baslik}");
+        assert!(baslik.ends_with(" · divan"), "{yol}: {baslik}");
+    }
+}
+
+#[tokio::test]
 async fn test_sw_4_2_dashboard_history_and_flaky_detection() {
     let app = app();
     let q = "project_path=ekip%2Fflaky&branch=main";
