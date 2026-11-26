@@ -58,7 +58,10 @@ CI'da `ulak degerlendir` (`degerlendir.md`) önce koşar; `ulak fix` onun kararl
       `tags` ise `-Dcucumber.filter.tags=@a and @b` (adayın ASCII tag'leri, ASCII dışı olanlar uyarıyla
       atılır; hiç kalmazsa ada düşülür). `ULAK_FIX_VALIDATE_CMD` verilirse o komut, `validate_subst` ile
       `{senaryo}` (`^ad$`) ve `{taglar}` (tag ifadesi) yer tutucuları doldurularak. Geçti mi.
-   9. Commit (`ulak-opencode` adına), push. `ULAK_FIX_PIPELINE=senaryo` ise push'a
+   9. Commit (`divan-opencode` adına; mesaj `commit_message`: doğrulama geçtiyse `auto-fix: <ad>`,
+      geçmediyse `auto-fix (doğrulanmadı): <ad>` ve gövdede "merge etmeden önce bakın" uyarısı; ajanın
+      `ULAK_OZET`'i varsa gövdeye `Ajan özeti: …`. Token yokken MR açılamaz, branch'ten elle MR açan
+      kişi doğrulanmamış düzeltmeyi başlıktan görür), push. `ULAK_FIX_PIPELINE=senaryo` ise push'a
       `pipeline_push_options`: `-o ci.variable=ULAK_FIX_PIPELINE=on` ve senaryonun gereksinim
       kimlikleri (`FixCandidate.doors_ids`, ASCII) varsa `-o ci.variable=ULAK_TAGS=@YTET_1 and @YTET_2`,
       yoksa `-o ci.variable=ULAK_SENARYO=<ad>` (yalnızca o push'un pipeline'ına; proje değişkenini ezer).

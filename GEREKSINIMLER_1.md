@@ -368,7 +368,7 @@ Test kodu yüzünden düşen senaryolar OpenCode ile düzeltilir ve insan onayı
 - Ek: feature dosyası olmayan sonuç (Cucumber dışı, ör. JUnit testi) hedef `atla`: değerlendirilmez, düzeltilmez; raporda görünmeye devam eder. Doğrulama: `test_sw_7_1_cucumber_disi_test_degerlendirme_ve_fix_disi`.
 
 ### SW-7.2 [KISMEN] OpenCode düzeltmesi (`ulak fix`)
-- Yalnızca `src/test/` altında değişiklik yapar, doğrulama koşusu çalıştırır, auto-fix branch'i ve MR açar (doğrulama geçmezse Draft MR).
+- Yalnızca `src/test/` altında değişiklik yapar, doğrulama koşusu çalıştırır, auto-fix branch'i ve MR açar (doğrulama geçmezse Draft MR ve commit başlığı `auto-fix (doğrulanmadı): …`).
 - vLLM modeli görsel destekli: başarısız senaryonun ekran görüntüsü OpenCode isteğine eklenir.
 - Kabul: Önce provada sahte OpenCode ile, sonra gerçek OpenCode, vLLM, TestFX MCP ve GitLab MR ile geçer.
 - Test: P, U

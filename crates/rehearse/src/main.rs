@@ -921,6 +921,13 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
         diff.contains("#girisButonu") && !diff.contains("pom.xml"),
         &diff,
     );
+    let baslik = sh(&bare, &["log", "-1", "--all", "--format=%s"]).unwrap_or_default();
+    ck.check(
+        "SW-7.2",
+        "doğrulanan düzeltmenin commit başlığı işaretsiz",
+        baslik.trim().starts_with("auto-fix: "),
+        &baslik,
+    );
     let (_, html) = get(&format!("{}/runs/{run_id}", server.url()))?;
     ck.check(
         "SW-4.4",
@@ -957,6 +964,13 @@ fn extra_steps(ck: &mut Checks, server: &Server, ulak: &Path, root: &Path) -> Re
         "doğrulama geçmezse Draft MR",
         mrv["title"].as_str().unwrap_or("").starts_with("Draft:"),
         format!("{}\n{mr}", o.text),
+    );
+    let baslik = sh(&bare, &["log", "-1", "--all", "--format=%s"]).unwrap_or_default();
+    ck.check(
+        "SW-7.2",
+        "doğrulama geçmezse commit başlığı \"auto-fix (doğrulanmadı)\"",
+        baslik.trim().starts_with("auto-fix (doğrulanmadı): "),
+        &baslik,
     );
     ck.check(
         "SW-7.2",

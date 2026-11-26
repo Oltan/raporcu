@@ -375,6 +375,24 @@ fn report(c: &Ctx, run_id: i64, r: &FixResult) {
 /// `ULAK_FIX_PIPELINE=on` (şablondaki auto-fix kuralı test/report'u açar) ve filtre — senaryonun
 /// gereksinim kimlikleri (YTET) varsa `ULAK_TAGS=@YTET_1 and @YTET_2`, yoksa `ULAK_SENARYO=<ad>`.
 /// `on`/`off` iken seçenek yok (şablon hepsini koşar / hiç koşmaz).
+/// SW-7.2: auto-fix commit mesajı. Doğrulama koşusu geçmediyse başlık bunu söyler: MR açılamayan
+/// (token yok) projede branch'ten elle MR açan kişi doğrulanmamış düzeltmeyi başlıktan görür.
+/// Her iki biçim de `auto-fix` ile başlar (test projesinin merge kuralı buna bakar).
+pub fn commit_message(name: &str, passed: bool, summary: Option<&str>) -> String {
+    let mut m = if passed {
+        format!("auto-fix: {name}")
+    } else {
+        format!(
+            "auto-fix (doğrulanmadı): {name}\n\nDoğrulama koşusu geçmedi: bu değişiklik senaryoyu düzeltmiyor. \
+             Merge etmeden önce divan raporundaki düzeltme özetine bakın."
+        )
+    };
+    if let Some(s) = summary.map(str::trim).filter(|s| !s.is_empty()) {
+        m.push_str(&format!("\n\nAjan özeti: {s}"));
+    }
+    m
+}
+
 pub fn pipeline_push_options(mode: &str, cand: &FixCandidate) -> Vec<String> {
     if mode != "senaryo" {
         return vec![];
@@ -748,7 +766,7 @@ pub fn fix(c: &Ctx) -> Result<i32> {
                     "commit",
                     "-q",
                     "-m",
-                    &format!("auto-fix: {}", cand.name),
+                    &commit_message(&cand.name, passed, result.summary.as_deref()),
                 ],
             )?;
             result.diff = Some(diff);
@@ -845,6 +863,16 @@ pub fn fix(c: &Ctx) -> Result<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_sw_7_2_unverified_fix_commit_is_marked() {
+        assert_eq!(commit_message("Giriş", true, None), "auto-fix: Giriş");
+        let m = commit_message("Şifremi unuttum bağlantısı", false, Some(" bağlantı uygulamada yok "));
+        assert!(m.starts_with("auto-fix (doğrulanmadı): Şifremi unuttum bağlantısı\n\n"), "{m}");
+        assert!(m.contains("Doğrulama koşusu geçmedi"), "{m}");
+        assert!(m.ends_with("Ajan özeti: bağlantı uygulamada yok"), "{m}");
+        assert!(!commit_message("x", false, Some("  ")).contains("Ajan özeti"));
+    }
 
     #[test]
     fn test_sw_7_2_prompt_echo_is_not_a_result() {
