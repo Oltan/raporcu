@@ -57,3 +57,4 @@ Java eklentisinin (`eklentiler/java/pom.xml`) kendi sürümü vardır ve yalnız
 | `v0.1.4` | `34d5f78` | elle Jira bağlama (senaryo sayfası, aynı hataya sonraki koşumlarda taşınır); auto-fix pipeline'ında build → test → report kendiliğinden (`ULAK_FIX_PIPELINE: senaryo`) |
 | `v0.1.5` | `1943142` | uygulama sürümü dashboard'da ayrı sütun ve her raporda (yoksa `—`, boşsa pom'daki); raporda, ekip/genel linkinde ve e-postada bağlı Jira issue'ları |
 | `v0.2.0` | `2aaa66d` | ⚠ sözleşme (`UYGULAMA_ADI`). `/` dışa açık: admin'in yayınladığı yazılım + sürüm raporları (koşumlar birleşir, "inceleniyor" yok, JUnit/yoklama testleri dışarıda); dashboard `/panel` ve `EKIP_SIFRESI`; dashboard'da bütün feature'lar |
+| `v0.2.1` | `7e6648a` | sekme başlığına sızan script etiketi kaldırıldı (dashboard, self-healing); ulak fix doğrulanmayan düzeltmeyi `auto-fix (doğrulanmadı): …` başlığıyla commit'ler |
