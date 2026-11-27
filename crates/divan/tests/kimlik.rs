@@ -278,6 +278,12 @@ async fn test_sw_6_2_bagli_jira_issuelari_raporda() {
     // issue anahtarı Jira'da yeni sekmede açılır; atanan kişi yine görünmez
     assert!(test.contains("/browse/STAJ-42\" target=\"_blank\""), "Jira linki");
     assert!(!genel.contains("Ayşe Yılmaz") && genel.contains("javafx · sürüm 2.0.1"));
+    // test ayrıntısı (adımlar ve ekran görüntüleri) sayfasında da anahtar, başlık ve Jira linki
+    let sid = scenario_id(&run_json(&app, id).await, KALAN);
+    let ayrinti_yolu = format!("{yer}/test/{sid}");
+    let ayrinti = app.get(&ayrinti_yolu).await.1;
+    assert!(ayrinti.contains("Jira issue'ları") && ayrinti.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor"));
+    assert!(ayrinti.contains("/browse/STAJ-42\" target=\"_blank\"") && !ayrinti.contains("Ayşe Yılmaz"));
     // e-posta: sürüm ve Jira bölümü
     let mail = app
         .state

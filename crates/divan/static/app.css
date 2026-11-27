@@ -313,3 +313,10 @@ tr.tiklanir:hover td { background: var(--running-bg); }
 td.sag-ok { text-align: right; white-space: nowrap; font-size: 13px; }
 a.rozet.jira { text-decoration: none; }
 .dagilim .lejant-liste li { grid-template-columns: 14px 64px 36px 44px; font-size: 14px; }
+details.kart > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style-position: inside; }
+details.kart > summary h2 { margin: 0; display: inline; }
+.test-jira ul { margin: 0; }
+details.kart > summary { list-style: none; }
+details.kart > summary::-webkit-details-marker { display: none; }
+details.kart > summary::before { content: "▸"; color: var(--muted); width: 12px; }
+details.kart[open] > summary::before { content: "▾"; }

@@ -403,7 +403,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "divan"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "argon2",
@@ -624,7 +624,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "e2esmoke"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "rehearse",
@@ -1496,7 +1496,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rehearse"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "common",
@@ -2342,7 +2342,7 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "ulak"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "anyhow",
  "clap",

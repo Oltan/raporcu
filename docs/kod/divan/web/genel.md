@@ -31,7 +31,8 @@ görüntüsü ve "Adımlar ve ekran görüntüleri →". "Hepsini aç / kapa". A
 bölümü yoktur.
 
 ## Test ayrıntısı
-Rapordaki testler açılır (başkası 404): durum, süre, gereksinim rozetleri, kalan testte hata özeti,
+Rapordaki testler açılır (başkası 404): durum, süre, gereksinim ve Jira rozetleri, "Jira issue'ları"
+kartı (anahtar, başlık, durum; `JIRA_URL` varsa Jira'da yeni sekmede açılan link), kalan testte hata özeti,
 üst düzey adımlar (`depth = 0`, ad `sanitize_text`'ten, mesaj yok), ekran görüntüleri; bölümler
 açılır/kapanır.
 

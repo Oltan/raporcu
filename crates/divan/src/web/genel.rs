@@ -286,6 +286,10 @@ struct TestSayfa {
     hata: Option<String>,
     steps: Vec<StepRow>,
     atts: Vec<AttachmentRow>,
+    /// bağlı Jira issue'ları: (anahtar, başlık, durum, kapalı mı)
+    jira: Vec<(String, String, String, bool)>,
+    /// `JIRA_URL`; varsa anahtar Jira'da yeni sekmede açılır
+    jira_link: Option<String>,
 }
 
 impl TestSayfa {
@@ -300,6 +304,7 @@ impl TestSayfa {
 
 pub async fn test_sayfasi(State(st): State<AppState>, Path((id, sid)): Path<(i64, i64)>) -> Result<Response, AppError> {
     let secrets = st.cfg.secrets();
+    let jira_url = st.cfg.jira_url.clone();
     let Some(p) = st
         .db
         .read(move |c| {
@@ -323,6 +328,12 @@ pub async fn test_sayfasi(State(st): State<AppState>, Path((id, sid)): Path<(i64
                 surum: y.app_version,
                 sonuc: t.sonuc,
                 hata: (t.sonuc == Sonuc::Kalan).then(|| sanitize_text(&t.s.short_message(), &secrets)),
+                jira: t
+                    .jira
+                    .iter()
+                    .map(|o| (o.key.clone(), o.baslik(), o.durum(), o.sinif() == "kapali"))
+                    .collect(),
+                jira_link: jira_url,
                 s: t.s,
                 steps,
                 atts,
