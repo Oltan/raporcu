@@ -11,19 +11,20 @@
 {% include "_genel_sayilar.html" %}
 {% if kosulmadi > 0 %}<p class="alt">{{ kosulmadi }} test koşulmadı (atlandı); toplama girmez.</p>{% endif %}
 
-<div>
-  <section class="kart ozet-donut">
-    <h2>Dağılım</h2>
-    <div class="donut-satir">
-      {{ halka|safe }}
+<section class="kart ozet-donut dagilim">
+  <h2>Dağılım</h2>
+  <div class="donut-satir">
+    {{ halka|safe }}
+    <div class="dagilim-sag">
       <ul class="lejant-liste">
         {% for li in lejant %}
         <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
         {% endfor %}
       </ul>
+      <p class="alt">{{ sayim.toplam() }} testten <b>{{ sayim.gecen }}</b> tanesi geçti{% if sayim.kalan > 0 %}, <b>{{ sayim.kalan }}</b> tanesi kaldı{% endif %}.</p>
     </div>
-  </section>
-</div>
+  </div>
+</section>
 
 <section class="kart">
   <div class="baslik-satir"><h2>Test case'ler</h2><span class="kucuk"><a href="#" onclick="document.querySelectorAll('details.ac-kapa').forEach(d=>d.open=true);return false">Hepsini aç</a> · <a href="#" onclick="document.querySelectorAll('details.ac-kapa').forEach(d=>d.open=false);return false">Hepsini kapa</a></span></div>
@@ -41,7 +42,7 @@
         <span class="genel-durum {{ t.sonuc.sinif() }}">{{ t.sonuc.etiket() }}</span>
         <span class="ad">{{ t.ad }}</span>
         {% for d in t.gereksinimler %}<span class="rozet doors">{{ d }}</span>{% endfor %}{% for d in t.ek_kimlikler %}<span class="rozet doors ek">{{ d }}</span>{% endfor %}
-        {% for j in t.jira %}<span class="rozet jira{% if j.3 %} kapali{% endif %}" title="{{ j.1 }}">{{ j.0 }}</span>{% endfor %}
+        {% for j in t.jira %}{% if let Some(u) = jira_link %}<a class="rozet jira{% if j.3 %} kapali{% endif %}" href="{{ u }}/browse/{{ j.0 }}" target="_blank" rel="noopener" title="{{ j.1 }} (Jira'da açılır)" onclick="event.stopPropagation()">{{ j.0 }}</a>{% else %}<span class="rozet jira{% if j.3 %} kapali{% endif %}" title="{{ j.1 }}">{{ j.0 }}</span>{% endif %}{% endfor %}
         <span class="kucuk sag">{{ t.sure }}</span>
       </summary>
       <div class="test-icerik">
@@ -49,7 +50,7 @@
         {% if !t.jira.is_empty() %}
         <div class="test-jira">
           <div class="kucuk">Jira issue'ları</div>
-          <ul>{% for j in t.jira %}<li><span class="rozet jira{% if j.3 %} kapali{% endif %}">{{ j.0 }}</span> {{ j.1 }}{% if !j.2.is_empty() %} <span class="kucuk">· {{ j.2 }}</span>{% endif %}</li>{% endfor %}</ul>
+          <ul>{% for j in t.jira %}<li>{% if let Some(u) = jira_link %}<a class="rozet jira{% if j.3 %} kapali{% endif %}" href="{{ u }}/browse/{{ j.0 }}" target="_blank" rel="noopener" title="Jira'da açılır">{{ j.0 }}</a>{% else %}<span class="rozet jira{% if j.3 %} kapali{% endif %}">{{ j.0 }}</span>{% endif %} {{ j.1 }}{% if !j.2.is_empty() %} <span class="kucuk">· {{ j.2 }}</span>{% endif %}</li>{% endfor %}</ul>
         </div>
         {% endif %}
         {% if let Some(r) = t.resim %}<a href="/rapor/{{ id }}/dosya/{{ r }}"><img class="genel-resim" loading="lazy" src="/rapor/{{ id }}/dosya/{{ r }}" alt="ekran görüntüsü"></a>{% endif %}

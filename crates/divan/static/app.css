@@ -303,3 +303,13 @@ details.test-case .hata-ozet { margin: 0; }
 .yayin-test { display: flex; gap: 10px; align-items: center; padding: 5px 10px; border-top: 1px solid var(--line); }
 .yayin-test label { display: flex; flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; color: var(--muted); min-width: 130px; margin: 0; }
 .yayin-test label input, .kart td input[type=checkbox] { flex: none; width: 16px; height: 16px; margin: 0; }
+/* dışa açık rapor: dağılım kartında lejant halkanın yanında */
+.dagilim .donut-satir { justify-content: flex-start; gap: 28px; }
+.dagilim .dagilim-sag { display: grid; gap: 10px; flex: 0 1 300px; }
+.dagilim .lejant-liste { flex: none; min-width: 0; }
+/* tıklanabilir rapor satırı */
+tr.tiklanir { cursor: pointer; }
+tr.tiklanir:hover td { background: var(--running-bg); }
+td.sag-ok { text-align: right; white-space: nowrap; font-size: 13px; }
+a.rozet.jira { text-decoration: none; }
+.dagilim .lejant-liste li { grid-template-columns: 14px 64px 36px 44px; font-size: 14px; }

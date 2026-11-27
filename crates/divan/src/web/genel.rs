@@ -195,6 +195,8 @@ struct RaporSayfa {
     lejant: Vec<LegendItem>,
     kosulmadi: usize,
     ozellikler: Vec<OzellikBolum>,
+    /// Jira adresi (`JIRA_URL`); varsa issue anahtarları Jira'da yeni sekmede açılır
+    jira_link: Option<String>,
 }
 
 fn test_satiri(c: &rusqlite::Connection, t: yayin::Test, secrets: &[String]) -> anyhow::Result<TestSatir> {
@@ -265,6 +267,7 @@ pub async fn rapor_sayfasi(State(st): State<AppState>, Path(id): Path<i64>) -> R
         sayim,
         kosulmadi,
         ozellikler,
+        jira_link: st.cfg.jira_url.clone(),
     }))
 }
 

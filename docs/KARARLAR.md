@@ -171,6 +171,8 @@ varsayımlarla uygulandı. Hepsi yapılandırmayla değiştirilebilir; yanıt ge
     sekme ve rapor.
   - Feature dosyası olmayan sonuçlar dışarıda: Cucumber senaryosu değiller (0.1.2'de LLM için
     konan ölçütle aynı).
+  - 0.2.2: yayınlanan raporda Jira anahtarı `JIRA_URL` varsa Jira'ya link (yeni sekme); raporu
+    okuyanlar aynı iç ağda. Atanan kişi yine gösterilmez. Ekip linkinde Jira linksiz kalır.
 - Sözleşme değiştiği için MINOR artırıldı (0.2.0): divan ve ulak birlikte güncellenir, 0.1.x ulak
   409 ile reddedilir.
 

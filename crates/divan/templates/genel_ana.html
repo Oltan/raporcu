@@ -46,9 +46,9 @@
 <section class="kart">
   <h2>Raporlar</h2>
   <div class="tablo"><table>
-    <tr><th>Sürüm</th><th>Tarih</th><th class="num">Toplam</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Başarı</th><th>Dağılım</th></tr>
+    <tr><th>Sürüm</th><th>Tarih</th><th class="num">Toplam</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Başarı</th><th>Dağılım</th><th></th></tr>
     {% for r in raporlar %}
-    <tr>
+    <tr class="tiklanir" onclick="location.href='/rapor/{{ r.id }}'" title="Sürüm {{ r.surum }} raporunu aç">
       <td class="mono"><a href="/rapor/{{ r.id }}"><b>{{ r.surum }}</b></a></td>
       <td class="kucuk">{{ r.tarih|zaman }}</td>
       <td class="num">{{ r.sayim.toplam() }}</td>
@@ -56,6 +56,7 @@
       <td class="num">{% if r.sayim.kalan > 0 %}<b>{{ r.sayim.kalan }}</b>{% else %}0{% endif %}</td>
       <td class="num">%{{ r.sayim.oran() }}</td>
       <td class="cubuk-hucre">{{ r.cubuk|safe }}</td>
+      <td class="sag-ok"><a href="/rapor/{{ r.id }}">Raporu açmak için tıklayın →</a></td>
     </tr>
     {% endfor %}
   </table></div>

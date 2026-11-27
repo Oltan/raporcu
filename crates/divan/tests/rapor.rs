@@ -576,6 +576,10 @@ async fn test_sw_5_1_yayin_iki_kosum_tek_raporda_ve_ana_sayfa() {
     assert!(ana.contains("Kontrol Yazılımı") && ana.contains("Simülatör"), "sekmeler");
     assert!(ana.contains("Sürümlere göre başarı") && ana.contains("Sürüm başına test sonuçları"));
     assert!(ana.contains("Toplam test") && ana.contains("Başarı oranı"));
+    assert!(
+        ana.contains("class=\"tiklanir\" onclick=\"location.href='/rapor/") && ana.contains("Raporu açmak için tıklayın"),
+        "sürüm satırı raporu açar"
+    );
     for yok in ["nceleniyor", "Bölümlere göre", "Commit", "ürün hatası bulundu", "Doğrulan"] {
         assert!(!ana.contains(yok), "ana sayfada olmamalı: {yok}");
     }

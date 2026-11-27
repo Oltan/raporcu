@@ -275,7 +275,9 @@ async fn test_sw_6_2_bagli_jira_issuelari_raporda() {
     let i = genel.find(&format!(">{KALAN}<")).expect("kalan test raporda");
     let test = &genel[i..i + genel[i..].find("</details>").unwrap()];
     assert!(test.contains("STAJ-42") && test.contains("Yanlış şifre mesajı ürün metniyle uyuşmuyor") && test.contains("İşlemde"));
-    assert!(!genel.contains("/browse/") && !genel.contains("Ayşe Yılmaz") && genel.contains("javafx · sürüm 2.0.1"));
+    // issue anahtarı Jira'da yeni sekmede açılır; atanan kişi yine görünmez
+    assert!(test.contains("/browse/STAJ-42\" target=\"_blank\""), "Jira linki");
+    assert!(!genel.contains("Ayşe Yılmaz") && genel.contains("javafx · sürüm 2.0.1"));
     // e-posta: sürüm ve Jira bölümü
     let mail = app
         .state

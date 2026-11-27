@@ -16,14 +16,17 @@ atanan kişi, iç adımlar, adım mesajları, video ve metin ekleri. "İnceleniy
 Seçili yazılımın raporları (`yayin::liste`). Son rapor: dört sayı (`_genel_sayilar.html`: Toplam
 test, Geçen test, Kalan test, Başarı oranı), halka ve lejant, "Raporu aç". "Sürümlere göre başarı"
 çizgisi ve "Sürüm başına test sonuçları" sütunları son 20 rapor için; etiket sürüm, nokta/sütun raporu
-açar. Raporlar tablosu: sürüm, tarih, toplam, geçti, kaldı, başarı, çubuk. Bölüm tablosu, feature
+açar. Raporlar tablosu: sürüm, tarih, toplam, geçti, kaldı, başarı, çubuk, "Raporu açmak için
+tıklayın →"; satırın tamamı tıklanınca rapor açılır. Bölüm tablosu, feature
 geçmişi, sonuç cümlesi ve commit yok.
 
 ## Sürüm raporu
-Başlık "Yazılım · sürüm X", tarih. Dört sayı, koşulmayan sayısı (varsa), halka. "Test case'ler":
+Başlık "Yazılım · sürüm X", tarih. Dört sayı, koşulmayan sayısı (varsa). Dağılım kartı: halka,
+yanında lejant ve "N testten X tanesi geçti, Y tanesi kaldı." cümlesi. "Test case'ler":
 feature'lar `<details>` (kalanı olan açık), içinde her test `<details class="test-case">`: kapalıyken
-durum, ad, gereksinim/ek kimlik rozetleri, Jira anahtarları (linksiz, ipucunda başlık), süre; açınca
-kalan testte hata özeti (`sanitize_text`), bağlı Jira issue'ları (anahtar, başlık, durum), ilk ekran
+durum, ad, gereksinim/ek kimlik rozetleri, Jira anahtarları (`JIRA_URL` varsa Jira'da yeni sekmede
+açılan link, ipucunda başlık), süre; açınca kalan testte hata özeti (`sanitize_text`), bağlı Jira
+issue'ları (anahtar, başlık, durum), ilk ekran
 görüntüsü ve "Adımlar ve ekran görüntüleri →". "Hepsini aç / kapa". Ayrı ürün hataları ya da Jira
 bölümü yoktur.
 
