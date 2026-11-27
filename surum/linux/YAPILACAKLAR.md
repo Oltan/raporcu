@@ -1,8 +1,8 @@
 # Ubuntu'ya kurulum (yalnızca SSH ile)
 
-> **Var olan bir kurulumu güncelliyorsan:** 0.1.0 → 0.1.3 `surum/GECIS_0.1.3.md`, 0.1.3 → 0.1.4 `surum/GECIS_0.1.4.md`, 0.1.4 → 0.1.5 `surum/GECIS_0.1.5.md`, 0.1.5 → 0.2.0 `surum/GECIS_0.2.0.md`; 0.2.0 → 0.2.3 yalnızca ikilileri değiştir (veritabanı, `.env` ve CI aynı).
+> **Var olan bir kurulumu güncelliyorsan:** 0.1.0 → 0.1.3 `surum/GECIS_0.1.3.md`, 0.1.3 → 0.1.4 `surum/GECIS_0.1.4.md`, 0.1.4 → 0.1.5 `surum/GECIS_0.1.5.md`, 0.1.5 → 0.2.0 `surum/GECIS_0.2.0.md`; 0.2.0 → 0.2.4 yalnızca ikilileri değiştir (veritabanı, `.env` ve CI aynı).
 
-Derleme: `depo-yapisi` dalı, 0.2.3, statik (musl): glibc'ye bağlı değil, her Ubuntu sürümünde çalışır.
+Derleme: `depo-yapisi` dalı, 0.2.4, statik (musl): glibc'ye bağlı değil, her Ubuntu sürümünde çalışır.
 Sağlama: `SHA256.txt`. Windows sürümüyle aynı kod (`surum/windows`).
 
 **Her şey SSH'den yapılır, VNC gerekmez.** Testler Xvfb'nin sanal ekranında açılır; makinede masaüstü

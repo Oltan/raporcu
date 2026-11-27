@@ -22,7 +22,9 @@ geçmişi, sonuç cümlesi ve commit yok.
 
 ## Sürüm raporu
 Başlık "Yazılım · sürüm X", tarih. Dört sayı, koşulmayan sayısı (varsa). Dağılım kartı: halka,
-yanında lejant ve "N testten X tanesi geçti, Y tanesi kaldı." cümlesi. "Test case'ler":
+yanında lejant ve "N testten X tanesi geçti, Y tanesi kaldı." cümlesi. Yanında "Feature bazında
+başarı" tablosu: feature, sürüm, son koşum çubuğu, geçti, kaldı, başarı oranı; satıra tıklayınca o
+feature'ın test case'leri açılır. "Test case'ler":
 feature'lar `<details>` (kalanı olan açık), içinde her test `<details class="test-case">`: kapalıyken
 durum, ad, gereksinim/ek kimlik rozetleri, Jira anahtarları (`JIRA_URL` varsa Jira'da yeni sekmede
 açılan link, ipucunda başlık), süre; açınca kalan testte hata özeti (`sanitize_text`), bağlı Jira

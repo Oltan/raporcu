@@ -525,6 +525,9 @@ async fn test_sw_5_1_yayin_iki_kosum_tek_raporda_ve_ana_sayfa() {
         assert!(!rapor.contains(yok), "raporda olmamalı: {yok}");
     }
     assert!(rapor.contains("STAJ-42"), "Jira issue'su test case'in içinde");
+    let fb = &rapor[rapor.find("Feature bazında başarı").expect("feature tablosu")..];
+    let fb = &fb[..fb.find("</table>").unwrap()];
+    assert!(fb.contains("Giriş ekranı") && fb.contains("Ayarlar") && fb.contains("2.1.0") && fb.contains("Başarı oranı"));
     assert_eq!(
         rapor.matches("Geçerli bilgilerle giriş").count(),
         1,

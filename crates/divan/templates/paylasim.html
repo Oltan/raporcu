@@ -11,20 +11,38 @@
 {% include "_genel_sayilar.html" %}
 {% if kosulmadi > 0 %}<p class="alt">{{ kosulmadi }} test koşulmadı (atlandı); toplama girmez.</p>{% endif %}
 
-<section class="kart ozet-donut dagilim">
-  <h2>Dağılım</h2>
-  <div class="donut-satir">
-    {{ halka|safe }}
-    <div class="dagilim-sag">
-      <ul class="lejant-liste">
-        {% for li in lejant %}
-        <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
-        {% endfor %}
-      </ul>
-      <p class="alt">{{ sayim.toplam() }} testten <b>{{ sayim.gecen }}</b> tanesi geçti{% if sayim.kalan > 0 %}, <b>{{ sayim.kalan }}</b> tanesi kaldı{% endif %}.</p>
+<div class="izgara-ozet">
+  <section class="kart ozet-donut dagilim">
+    <h2>Dağılım</h2>
+    <div class="donut-satir">
+      {{ halka|safe }}
+      <div class="dagilim-sag">
+        <ul class="lejant-liste">
+          {% for li in lejant %}
+          <li><i class="sw m-{{ li.class }}"></i><span class="lj-ad">{{ li.name }}</span><b>{{ li.value }}</b><span class="kucuk">%{{ li.pct }}</span></li>
+          {% endfor %}
+        </ul>
+        <p class="alt">{{ sayim.toplam() }} testten <b>{{ sayim.gecen }}</b> tanesi geçti{% if sayim.kalan > 0 %}, <b>{{ sayim.kalan }}</b> tanesi kaldı{% endif %}.</p>
+      </div>
     </div>
-  </div>
-</section>
+  </section>
+  <section class="kart">
+    <h2>Feature bazında başarı</h2>
+    <div class="tablo"><table class="feature-ozet">
+      <tr><th>Feature</th><th>Sürüm</th><th>Son koşum</th><th class="num">Geçti</th><th class="num">Kaldı</th><th class="num">Başarı oranı</th></tr>
+      {% for o in ozellikler %}
+      <tr class="tiklanir" onclick="var d=document.getElementById('{{ o.anchor }}');d.open=true;d.scrollIntoView({behavior:'smooth'})" title="{{ o.ad }} test case'lerine git">
+        <td><a class="feature-adi" href="#{{ o.anchor }}"><span class="durum-nokta {% if o.sayim.kalan > 0 %}kaldi{% else %}gecti{% endif %}" aria-hidden="true"></span>{{ o.ad }}</a></td>
+        <td class="mono">{{ surum }}</td>
+        <td class="cubuk-hucre">{{ o.cubuk|safe }}</td>
+        <td class="num">{{ o.sayim.gecen }}</td>
+        <td class="num">{% if o.sayim.kalan > 0 %}<b>{{ o.sayim.kalan }}</b>{% else %}0{% endif %}</td>
+        <td class="num">%{{ o.sayim.oran() }}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+  </section>
+</div>
 
 <section class="kart">
   <div class="baslik-satir"><h2>Test case'ler</h2><span class="kucuk"><a href="#" onclick="document.querySelectorAll('details.ac-kapa').forEach(d=>d.open=true);return false">Hepsini aç</a> · <a href="#" onclick="document.querySelectorAll('details.ac-kapa').forEach(d=>d.open=false);return false">Hepsini kapa</a></span></div>
