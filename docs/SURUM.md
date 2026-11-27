@@ -60,3 +60,4 @@ Java eklentisinin (`eklentiler/java/pom.xml`) kendi sürümü vardır ve yalnız
 | `v0.2.1` | `7e6648a` | sekme başlığına sızan script etiketi kaldırıldı (dashboard, self-healing); ulak fix doğrulanmayan düzeltmeyi `auto-fix (doğrulanmadı): …` başlığıyla commit'ler |
 | `v0.2.2` | `84bddd8` | dışa açık raporda Jira anahtarı Jira'ya link; dağılım kartında lejant halkanın yanında; ana sayfada rapor satırı tıklanınca açılır |
 | `v0.2.3` | `d522481` | dışa açık test ayrıntısı sayfasında Jira issue'ları ve Jira linki; açılır kart başlıklarında ok hizası |
+| `v0.2.4` | `b8b8242` | dışa açık raporda dağılımın yanında "Feature bazında başarı" tablosu (sürüm, son koşum çubuğu, geçti, kaldı, başarı oranı) |
